@@ -1,0 +1,626 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<meta name="description" content="核对对象：main @ 71d386d（2026-11-17），对照 improvement proposal 的基线 2d4682f。">
+<title>nanolize 并行核对报告</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%231c5cab'/%3E%3Cpath d='M4 11V5l8 6V5' fill='none' stroke='white' stroke-width='1.6'/%3E%3C/svg%3E">
+<style>
+  :root { color-scheme: light; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; }
+  img { max-width: 100%; }
+  [hidden] { display: none !important; }
+</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500;700&family=Space+Grotesk:wght@500;700&display=swap">
+<style>
+  /* 布局：单栏审计报告。结论和计数在前，proposal 条目清单可按状态筛选，新发现按优先级排列。 */
+  :root {
+    --bg: #f3f5f7;
+    --surface: #ffffff;
+    --sunken: #e8ecf0;
+    --ink: #15202b;
+    --muted: #566573;
+    --line: #d5dce3;
+    --accent: #0f5ea8;
+    --accent-soft: #e2eefa;
+    --open-fg: #96500a;
+    --open-bg: #fcefd9;
+    --partial-fg: #1b5c9e;
+    --partial-bg: #e1eefb;
+    --fixed-fg: #1c7443;
+    --fixed-bg: #dff3e7;
+    --crit-fg: #ad2a22;
+    --crit-bg: #fce6e3;
+    --font-display: "Space Grotesk", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    --font-body: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f151b;
+      --surface: #172029;
+      --sunken: #1f2a35;
+      --ink: #e4eaf0;
+      --muted: #97a5b2;
+      --line: #2b3743;
+      --accent: #6fb1f2;
+      --accent-soft: #15293d;
+      --open-fg: #f0b660;
+      --open-bg: #3a2a12;
+      --partial-fg: #82b9f3;
+      --partial-bg: #152a40;
+      --fixed-fg: #74d39a;
+      --fixed-bg: #13301f;
+      --crit-fg: #f39088;
+      --crit-bg: #3c1917;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f151b;
+    --surface: #172029;
+    --sunken: #1f2a35;
+    --ink: #e4eaf0;
+    --muted: #97a5b2;
+    --line: #2b3743;
+    --accent: #6fb1f2;
+    --accent-soft: #15293d;
+    --open-fg: #f0b660;
+    --open-bg: #3a2a12;
+    --partial-fg: #82b9f3;
+    --partial-bg: #152a40;
+    --fixed-fg: #74d39a;
+    --fixed-bg: #13301f;
+    --crit-fg: #f39088;
+    --crit-bg: #3c1917;
+    color-scheme: dark;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 1rem;
+    line-height: 1.7;
+  }
+  .wrap {
+    max-width: 60rem;
+    margin-inline: auto;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 2.5rem 4rem;
+    display: grid;
+    gap: 3.25rem;
+  }
+  section, header.page { display: grid; gap: 1.1rem; min-width: 0; }
+  h1, h2, h3, h4, p, ul, ol, figure { margin: 0; }
+  h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; line-height: 1.25; }
+  h1 { font-size: clamp(1.75rem, 4.2vw, 2.5rem); font-weight: 700; letter-spacing: -0.01em; }
+  h2 { font-size: 1.375rem; font-weight: 700; }
+  h3 { font-size: 1.0625rem; font-weight: 700; }
+  h4 { font-size: 0.8125rem; font-weight: 500; color: var(--muted); letter-spacing: 0.04em; }
+  p, li { overflow-wrap: anywhere; }
+  .prose { max-width: 44em; }
+  .muted { color: var(--muted); }
+  a { color: var(--accent); text-underline-offset: 0.2em; }
+  a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  code {
+    font-family: var(--font-mono);
+    font-size: 0.84em;
+    background: var(--sunken);
+    padding: 0.08em 0.36em;
+    border-radius: 4px;
+    overflow-wrap: anywhere;
+  }
+
+  /* 页头 */
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    color: var(--muted);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 1.1rem;
+  }
+  .lead { font-size: 1.125rem; max-width: 40em; }
+  .toc { display: flex; flex-wrap: wrap; gap: 0.35rem 1.25rem; font-size: 0.9375rem; }
+
+  /* 计数 */
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr)); gap: 0.75rem; }
+  .tile {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 0.9rem 1rem 1rem;
+    display: grid;
+    gap: 0.15rem;
+  }
+  .tile .num {
+    font-family: var(--font-display);
+    font-size: 2.25rem;
+    font-weight: 700;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+  }
+  .tile .label { font-size: 0.875rem; color: var(--muted); }
+  .num.open { color: var(--open-fg); }
+  .num.partial { color: var(--partial-fg); }
+  .num.fixed { color: var(--fixed-fg); }
+  .num.new { color: var(--accent); }
+
+  /* 背景要点 */
+  .primer { display: grid; grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); gap: 0.9rem 2rem; padding: 0; list-style: none; }
+  .primer li { border-top: 1px solid var(--line); padding-top: 0.7rem; font-size: 0.9375rem; }
+  .primer strong { display: block; font-family: var(--font-display); }
+
+  /* 状态清单 */
+  .filters { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+  .filters button {
+    font: inherit;
+    font-size: 0.875rem;
+    color: var(--ink);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 0.3rem 0.85rem;
+    cursor: pointer;
+  }
+  .filters button:hover { border-color: var(--accent); }
+  .filters button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+  .filters .count { font-size: 0.8125rem; color: var(--muted); margin-left: auto; font-variant-numeric: tabular-nums; }
+  .rows { list-style: none; padding: 0; border-top: 1px solid var(--line); }
+  .rows > li {
+    display: grid;
+    grid-template-columns: 4.75rem minmax(0, 1fr) auto;
+    gap: 0.3rem 1rem;
+    align-items: baseline;
+    padding: 0.95rem 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .rows .ref { font-family: var(--font-mono); font-size: 0.8125rem; color: var(--muted); }
+  .rows p { grid-column: 2 / -1; font-size: 0.9375rem; max-width: 46em; }
+  .pill {
+    font-size: 0.75rem;
+    font-weight: 500;
+    padding: 0.12rem 0.6rem;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+  .pill.open { color: var(--open-fg); background: var(--open-bg); }
+  .pill.partial { color: var(--partial-fg); background: var(--partial-bg); }
+  .pill.fixed { color: var(--fixed-fg); background: var(--fixed-bg); }
+  .pill.crit { color: var(--crit-fg); background: var(--crit-bg); }
+  .pill.plain { color: var(--muted); background: var(--sunken); }
+  @media (max-width: 34rem) {
+    .rows > li { grid-template-columns: auto minmax(0, 1fr); }
+    .rows .pill { justify-self: end; }
+    .rows h3, .rows p { grid-column: 1 / -1; }
+  }
+
+  /* 列表 */
+  .plain-list { padding-left: 1.2rem; display: grid; gap: 0.45rem; max-width: 46em; }
+  .plain-list li { font-size: 0.9375rem; }
+
+  /* 新发现 */
+  .findings { display: grid; gap: 1rem; }
+  .finding {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 1.2rem 1.25rem 1.3rem;
+    display: grid;
+    gap: 1rem;
+    min-width: 0;
+  }
+  .finding > header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.5rem 0.75rem; }
+  .finding .n { font-family: var(--font-mono); font-size: 0.875rem; color: var(--muted); }
+  .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 1rem 2rem; }
+  .cols > div { display: grid; gap: 0.5rem; align-content: start; min-width: 0; }
+  .cols ul { padding-left: 1.15rem; display: grid; gap: 0.4rem; font-size: 0.9375rem; }
+  .evidence { font-size: 0.8125rem; color: var(--muted); }
+
+  /* 示意图 */
+  figure.sketch {
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 0.9rem 1rem 1rem;
+    display: grid;
+    gap: 0.6rem;
+    min-width: 0;
+  }
+  figure.sketch figcaption { font-size: 0.8125rem; color: var(--muted); }
+  .lane { display: grid; grid-template-columns: 3.6rem minmax(0, 1fr) minmax(5.5rem, auto); gap: 0.6rem; align-items: center; font-size: 0.8125rem; }
+  .lane-track { height: 0.7rem; background: var(--sunken); border-radius: 3px; overflow: hidden; }
+  .lane-bar { display: block; height: 100%; border-radius: 3px; }
+  .lane-bar.ok { background: var(--fixed-fg); }
+  .lane-bar.bad { background: var(--crit-fg); }
+  .lane-note.bad { color: var(--crit-fg); }
+  .outcomes { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 0.6rem; margin-top: 0.3rem; }
+  .outcome { font-size: 0.875rem; border-radius: 4px; padding: 0.55rem 0.75rem; }
+  .outcome strong { display: block; font-size: 0.75rem; letter-spacing: 0.04em; }
+  .outcome.now { background: var(--crit-bg); color: var(--crit-fg); }
+  .outcome.want { background: var(--fixed-bg); color: var(--fixed-fg); }
+  .track { display: grid; gap: 0.4rem; }
+  .track-name { font-size: 0.8125rem; font-weight: 500; }
+  .track ol { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 0.4rem 0.3rem; align-items: center; }
+  .track li { font-size: 0.8125rem; border-radius: 4px; padding: 0.3rem 0.6rem; }
+  .track li.bad { background: var(--crit-bg); color: var(--crit-fg); }
+  .track li.ok { background: var(--fixed-bg); color: var(--fixed-fg); }
+  .track li + li { margin-left: 1.2rem; position: relative; }
+  .track li + li::before { content: "→"; position: absolute; left: -1.15rem; color: var(--muted); }
+
+  /* 顺序 */
+  .order { padding-left: 1.4rem; display: grid; gap: 0.5rem; max-width: 46em; }
+  .order li { font-size: 0.9375rem; }
+  footer { font-size: 0.8125rem; color: var(--muted); border-top: 1px solid var(--line); padding-top: 1rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="page">
+    <div class="eyebrow">
+      <span>main 71d386d</span>
+      <span>proposal 基线 2d4682f</span>
+      <span>相隔 202 个提交</span>
+      <span>2026-11-17</span>
+    </div>
+    <h1>nanolize 并行机制核对报告</h1>
+    <p class="lead">proposal 里的问题在最新 main 上绝大部分仍然存在，只有“少设计的测试补不回来”一项已大部分修复。proposal 之外，并行处理还有 9 处可以改，最要紧的是并行组对部分失败不健壮，以及雷同限制与并行组叠加。</p>
+    <div class="tiles">
+      <div class="tile"><span class="num open">15</span><span class="label">proposal 条目仍然存在</span></div>
+      <div class="tile"><span class="num partial">2</span><span class="label">部分变化</span></div>
+      <div class="tile"><span class="num fixed">1</span><span class="label">已修复</span></div>
+      <div class="tile"><span class="num new">9</span><span class="label">proposal 之外的改进点</span></div>
+    </div>
+    <nav class="toc" aria-label="目录">
+      <a href="#background">背景</a>
+      <a href="#status">proposal 条目现状</a>
+      <a href="#corrections">与代码不符的说法</a>
+      <a href="#findings">新的改进点</a>
+      <a href="#order">优先顺序</a>
+      <a href="#method">核对方式</a>
+    </nav>
+  </header>
+
+  <section id="background">
+    <h2>背景：并行模式怎么工作</h2>
+    <ul class="primer">
+      <li><strong>controller 策略</strong>一个看不到源码的 controller 每轮选一批工具调用；它选不出来时，由一条默认主线兜底。</li>
+      <li><strong>并行开关</strong>由 owner 打开（<code>parallel=on</code>）。默认 4 个作者同时写，并把冻结、检查等环节的并发度加宽。</li>
+      <li><strong>并行组</strong><code>run_parallel_agents</code> 接 2–20 个同角色请求，各自在独立工作区里写。<code>split</code> 合并成一个候选，<code>speculate</code> 并排保留多个版本。</li>
+      <li><strong>并行主线</strong>首次实现按依赖层写，一层有多个 scope 就开一个 split。修复时，如果每个失败的问题只属于一个 scope，也开 split。</li>
+    </ul>
+  </section>
+
+  <section id="status">
+    <h2>proposal 条目在 main 上的现状</h2>
+    <p class="prose muted">共核对 18 个条目。左列是 proposal 里的章节号。</p>
+    <div class="filters" role="group" aria-label="按状态筛选">
+      <button type="button" id="filter-all" data-filter="all" aria-pressed="true">全部 18</button>
+      <button type="button" id="filter-open" data-filter="open" aria-pressed="false">仍存在 15</button>
+      <button type="button" id="filter-partial" data-filter="partial" aria-pressed="false">部分变化 2</button>
+      <button type="button" id="filter-fixed" data-filter="fixed" aria-pressed="false">已修复 1</button>
+      <span class="count" id="status-count" aria-live="polite">显示 18 / 18 项</span>
+    </div>
+    <ul class="rows" id="status-list">
+      <li data-status="open">
+        <span class="ref">1.4</span><h3><code>fresh=on</code> 与来源记录</h3><span class="pill open">仍存在</span>
+        <p>skill 和 <code>start_run_dashboard</code> 都没有 <code>fresh</code> 参数，也没有 <code>provenance.json</code>。旧运行旁改名 <code>-2/-3</code> 的规则还在（<code>skills/nanolize/SKILL.md:130</code>）。Claude Code 版本、CPU 配额值、机器负载、同机作业、运行器设置和 hide 列表的摘要都没有记录。</p>
+      </li>
+      <li data-status="partial">
+        <span class="ref">1.4</span><h3>Graphify 的来源核对</h3><span class="pill partial">部分变化</span>
+        <p>nanolize 现在会安装固定版本的 Graphify（<code>graphify_tool.py</code>），执行仍由宿主负责，“跳过”的条件收窄了。复用仓库里 <code>graphify-out/graph.json</code> 的分支还在；导入时只核对提交，不核对位置和生成时间（<code>understanding.py:283</code>）。</p>
+      </li>
+      <li data-status="open">
+        <span class="ref">2</span><h3>运行器可见范围</h3><span class="pill open">仍存在</span>
+        <p>proposal 提出的两件事都还没有做：自动把其他工作根挡在运行器之外，以及在作业里记录运行器设置的摘要。</p>
+      </li>
+      <li data-status="open">
+        <span class="ref">2</span><h3>测试环境不锁版本</h3><span class="pill open">仍存在</span>
+        <p>pip 安装仍不支持 constraints，以 <code>-</code> 开头的参数一律拒绝（<code>test_environment.py:459</code>）。默认解释器仍是 <code>sys.executable</code>。</p>
+      </li>
+      <li data-status="open">
+        <span class="ref">2</span><h3>按 CPU 配额加宽</h3><span class="pill open">仍存在</span>
+        <p>加宽后检查 worker 数取 CPU 配额和 8 中较小的一个，在配置作业的进程里计算（<code>execution.py:1216</code>）。选定的宽度写进 <code>config.json</code>，配额值本身不记录。</p>
+      </li>
+      <li data-status="open">
+        <span class="ref">3a</span><h3>只为体积的优化</h3><span class="pill open">仍存在</span>
+        <p>没有任何工具拒绝行为通过后的 optimize 调用，也没有 <code>size_optimization</code> 设置（<code>job_tools/authoring.py:317</code>）。指南里 “Delivering early forfeits the remaining attempts and time” 原句还在（<code>prompts/prompts.json:638</code>），与 <code>simplify-code/SKILL.md:36</code> 仍然矛盾。</p>
+      </li>
+      <li data-status="open">
+        <span class="ref">3b</span><h3>并行组只扣一次尝试</h3><span class="pill open">仍存在</span>
+        <p>一组仍只扣 1 次作者尝试（<code>job_tools/workspaces.py:647,661</code>），没有 <code>parallel.max_requests</code>。优化尝试的默认上限从 3 降到了 2，最坏情况变成 2 × 20 = 40 个会话。</p>
+      </li>
+      <li data-status="open">
+        <span class="ref">3c</span><h3>合并不做三方检查</h3><span class="pill open">仍存在</span>
+        <p><code>merge_candidate_parts</code> 仍直接把各部分的文件覆盖到草稿上（<code>job_tools/authoring.py:1371</code>）。它只拦“未保存的草稿”，不比较当前候选是否也改了同一个文件。</p>
+      </li>
+      <li data-status="open">
+        <span class="ref">3.4</span><h3>预算管不住并行组</h3><span class="pill open">仍存在</span>
+        <p>token 只在组开始前检查一次。<code>_tokens_used</code> 仍只算作者和 controller，不含写事实和设计测试的会话（<code>execution.py:3160</code>）。没有金额预算。</p>
+      </li>
+      <li data-status="open">
+        <span class="ref">3.5</span><h3>可选的几项</h3><span class="pill open">仍存在</span>
+        <p>修复请求不带体积份额；主线的 <code>_rerun</code> 仍从头重做（<code>strategies/advice.py:1112</code>）；主线修复仍按 scope 分组；运行页面显示各请求的开始时间和时长，但没有花费。</p>
+      </li>
+      <li data-status="fixed">
+        <span class="ref">4.1</span><h3>封存前看不到待迁移的测试</h3><span class="pill fixed">已修复</span>
+        <p>提交 <code>a4d2b01</code> 修复。<code>capture_baseline</code> 返回 <code>original_tests_to_migrate</code>；点名叶节点的设计调用返回 <code>left</code>；封存前的 context 带 <code>design_left</code>；主线在封存前会再建议一次 <code>design_leaf_tests</code>（<code>strategies/advice.py:1306</code>）。</p>
+      </li>
+      <li data-status="open">
+        <span class="ref">5.2a</span><h3>封存闸门与 <code>waive_design</code></h3><span class="pill open">仍存在</span>
+        <p>没有做。<code>seal_contract</code> 被要求时照样封存，caps 仍在检查点之后才计算（<code>job_tools/freeze.py:1064</code>）。指南里 “design tests for a few of them” 也还在。</p>
+      </li>
+      <li data-status="open">
+        <span class="ref">4.2 / 5.3</span><h3>controller 越来越贵、越来越慢</h3><span class="pill open">仍存在</span>
+        <p>每轮仍是全新会话；时钟行仍在指南前面（<code>runners/claude_controller.py:136</code>）；<code>STABLE_FIRST</code> 没变，带 <code>blocked</code> 的工具表仍在“稳定头”里（<code>strategies/controller.py:194</code>）；没有缓存时长设置；所有轮次用同一个 effort；没有 <code>repair_digest</code>。</p>
+      </li>
+      <li data-status="open">
+        <span class="ref">5.1</span><h3>scope 划分不均衡</h3><span class="pill open">仍存在</span>
+        <p><code>scopes.py</code> 自 proposal 以来一行没改，仍按 45,000 token 顺序装箱，与并行开关和 <code>max_agents</code> 无关。没有地基、扇出、集成这几步。</p>
+      </li>
+      <li data-status="open">
+        <span class="ref">5.2b</span><h3>测试设计按轮等齐</h3><span class="pill open">仍存在</span>
+        <p>一次设计调用内部仍是所有叶节点一起设计、一起试跑、一起审查（<code>leaf_test_design.py:308</code> 起，约 870 行）。每次接受测试后仍重采整套基线。</p>
+      </li>
+      <li data-status="partial">
+        <span class="ref">5.2b</span><h3>拆分待迁移测试多的叶节点</h3><span class="pill partial">部分变化</span>
+        <p>提交 <code>9a8c3e0</code> 起，一个叶节点的待迁移测试按 40 个一份拆成多个会话，此前只取前 40 个。阈值是 40，不是建议的 8。</p>
+      </li>
+      <li data-status="open">
+        <span class="ref">5.4</span><h3>写事实的调度</h3><span class="pill open">仍存在</span>
+        <p>仍是 25 个测试一组，没有按字节的上限（<code>leaf_test_design.py:57</code>）；按清单顺序先进先出；宽度固定为 8，加宽时 16；结果里没有每个单位的时间线。</p>
+      </li>
+      <li data-status="open">
+        <span class="ref">6</span><h3>雷同限制默认 <code>auto</code></h3><span class="pill open">仍存在</span>
+        <p>默认值没变：首次调用不告诉作者有雷同限制，草稿整体超过 40% 才开启（<code>original_overlap.py:61</code>）。</p>
+      </li>
+    </ul>
+  </section>
+
+  <section id="corrections">
+    <h2>proposal 里与代码不符的说法</h2>
+    <ul class="plain-list">
+      <li><code>prepare_test_environment</code> 已经有 <code>python</code> 参数，缺的只是 constraints。</li>
+      <li>context 里的 workspaces 列表一直封顶 20 个，不会随并行组无限增长。</li>
+      <li>检查在哪里跑的决定有记录（<code>check-executor.json</code>），只是没记是默认还是显式指定。</li>
+      <li>“重跑不一致判为不稳定”针对的是原版基线的重跑，不是候选。</li>
+      <li>运行页面在 proposal 的基线上就已显示并行组各请求的开始时间和时长，缺的只是花费。</li>
+    </ul>
+  </section>
+
+  <section id="findings">
+    <h2>proposal 之外的并行改进点</h2>
+    <p class="prose muted">以下来自读代码，没有实测。</p>
+    <div class="findings">
+
+      <article class="finding">
+        <header><span class="n">1</span><h3>并行组对部分失败不健壮</h3><span class="pill crit">建议优先</span></header>
+        <div class="cols">
+          <div>
+            <h4>现在会发生什么</h4>
+            <ul>
+              <li>组里任何一个会话因限流或额度没跑起来，整个作业暂停，其余已完成会话的草稿既不保存也不合并。</li>
+              <li>恢复后主线认为这一层什么都没写，会开新工作区把全部请求重跑一遍。</li>
+              <li>任何一个会话失败（非零退出或超时），主线就放弃分层，剩下的 scope 不再按层写。组越大，撞上的概率越高。</li>
+              <li>nanolize 这一层没有重试或退避，而加宽后同时开的会话更多，更容易撞限流。</li>
+            </ul>
+          </div>
+          <div>
+            <h4>建议</h4>
+            <ul>
+              <li>暂停前先把已完成的会话保存成候选。</li>
+              <li>恢复时只补缺的请求。</li>
+              <li>失败的请求当作一次重写，不终止分层。</li>
+            </ul>
+          </div>
+        </div>
+        <figure class="sketch">
+          <figcaption>示意：一个 4 路并行组，第 4 个会话被限流。条长不代表实测时长。</figcaption>
+          <div class="lane"><span>会话 1</span><span class="lane-track"><span class="lane-bar ok" style="width:74%"></span></span><span class="lane-note">完成</span></div>
+          <div class="lane"><span>会话 2</span><span class="lane-track"><span class="lane-bar ok" style="width:58%"></span></span><span class="lane-note">完成</span></div>
+          <div class="lane"><span>会话 3</span><span class="lane-track"><span class="lane-bar ok" style="width:88%"></span></span><span class="lane-note">完成</span></div>
+          <div class="lane"><span>会话 4</span><span class="lane-track"><span class="lane-bar bad" style="width:7%"></span></span><span class="lane-note bad">限流，没跑起来</span></div>
+          <div class="outcomes">
+            <div class="outcome now"><strong>现在</strong>作业暂停，前 3 份草稿不保存。恢复后 4 个会话全部重跑。</div>
+            <div class="outcome want"><strong>建议</strong>先保存前 3 份。恢复后只补会话 4。</div>
+          </div>
+        </figure>
+        <p class="evidence">证据：<code>job_tools/workspaces.py:684-689</code> <code>strategies/advice.py:946-952</code> <code>execution.py:3027</code></p>
+      </article>
+
+      <article class="finding">
+        <header><span class="n">2</span><h3>雷同限制和并行组叠加会更糟</h3><span class="pill crit">建议优先</span></header>
+        <div class="cols">
+          <div>
+            <h4>现在会发生什么</h4>
+            <ul>
+              <li><code>auto</code> 模式下，工作区草稿超线只会拒绝保存，不会把作业切到“告知作者”的状态。只有作业自己的 <code>run_agent</code> 和 <code>save_candidate</code> 会切。</li>
+              <li>知名项目上一个 N 路 split 可能全部被拒，结果是 <code>no_candidate</code>。主线退回成一次整体实现，而这次作者仍然没被告知，还会再被拒一次。</li>
+              <li>现有的并行测试没有覆盖这个组合。</li>
+            </ul>
+          </div>
+          <div>
+            <h4>建议</h4>
+            <ul>
+              <li>按 proposal 第 6 节把默认改成 <code>on</code>，问题直接消失。</li>
+              <li>如果保留 <code>auto</code>，工作区触发超线时也要切换作业状态。</li>
+            </ul>
+          </div>
+        </div>
+        <figure class="sketch">
+          <figcaption>示意：知名项目上首次实现要写几遍（按代码路径推断）。</figcaption>
+          <div class="track">
+            <span class="track-name">不开并行</span>
+            <ol>
+              <li class="bad">整体实现，未告知，保存被拒</li>
+              <li class="ok">被告知后重写，通过</li>
+            </ol>
+          </div>
+          <div class="track">
+            <span class="track-name">开并行，最坏情况</span>
+            <ol>
+              <li class="bad">N 路 split，未告知，全部被拒</li>
+              <li class="bad">退回一次整体实现，仍未告知，保存被拒</li>
+              <li class="ok">被告知后重写，通过</li>
+            </ol>
+          </div>
+        </figure>
+        <p class="evidence">证据：<code>job_tools/workspaces.py:464-483</code> <code>original_overlap.py:151</code> <code>job_tools/authoring.py:789,1004</code></p>
+      </article>
+
+      <article class="finding">
+        <header><span class="n">3</span><h3>并发度没有统一管理</h3><span class="pill crit">建议优先</span></header>
+        <div class="cols">
+          <div>
+            <h4>现在会发生什么</h4>
+            <ul>
+              <li>作者、冻结会话、knockout、任务测量、检查各有各的线程池，宽度来自常量或配置时的 CPU 配额。</li>
+              <li>完全不看限流、进程和线程上限、内存，也没有跨作业的限制。</li>
+              <li>加宽后是 16 个冻结会话、8 个检查 worker、4 个作者。在有进程或线程上限的共享机器上直接跑，可能打满。</li>
+            </ul>
+          </div>
+          <div>
+            <h4>建议</h4>
+            <ul>
+              <li>加一个作业级的会话总数上限，所有池共用。</li>
+              <li>宽度在 worker 实际运行的机器上算，并参考进程上限和内存。</li>
+            </ul>
+          </div>
+        </div>
+        <p class="evidence">证据：<code>execution.py:1205-1222</code> <code>check_executor.py:295-311</code></p>
+      </article>
+
+      <article class="finding">
+        <header><span class="n">4</span><h3>重写是串行的</h3><span class="pill plain">值得做</span></header>
+        <div class="cols">
+          <div>
+            <h4>现在会发生什么</h4>
+            <ul>
+              <li>split 里没保存成功的请求和丢了路径的请求，都由主线逐个 <code>run_agent</code> 重写，每个占一次尝试。</li>
+              <li>没保存成功的请求彼此独立，本可以再开一个 split。只有真正冲突的才需要串行。</li>
+              <li>主线重写时用的是原请求，不会告诉作者丢了哪些路径。</li>
+            </ul>
+          </div>
+          <div>
+            <h4>建议</h4>
+            <ul>
+              <li>没保存成功的请求合成第二个 split。</li>
+              <li>冲突的一方单独重写，并在指令里写明丢失的路径。</li>
+            </ul>
+          </div>
+        </div>
+        <p class="evidence">证据：<code>strategies/advice.py:1112-1117</code></p>
+      </article>
+
+      <article class="finding">
+        <header><span class="n">5</span><h3>合并只按路径，先到先得</h3><span class="pill plain">值得做</span></header>
+        <div class="cols">
+          <div>
+            <h4>现在会发生什么</h4>
+            <ul>
+              <li>所有工作区都从同一个 <code>base</code> 出发，本可以做文本级三方合并。现在是整文件判冲突，输的一方整体重写。</li>
+              <li>为了避免冲突，作者被禁止碰共享文件（如 <code>__init__.py</code>），合并后这些文件常常缺内容。</li>
+            </ul>
+          </div>
+          <div>
+            <h4>建议</h4>
+            <ul>
+              <li>对冲突的文本文件先尝试三方合并，失败再走重写。</li>
+              <li>这和 proposal 5.1 的集成步骤互补。</li>
+            </ul>
+          </div>
+        </div>
+        <p class="evidence">证据：<code>job_tools/authoring.py:1275-1318</code>，提示词 <code>author.scope.concurrent</code></p>
+      </article>
+
+      <article class="finding">
+        <header><span class="n">6</span><h3>作业同一时刻只能有一个操作</h3><span class="pill plain">值得做，改动较大</span></header>
+        <div class="cols">
+          <div>
+            <h4>现在会发生什么</h4>
+            <ul>
+              <li>写代码和验证不能同时进行，所以分层实现要全部写完才第一次验证，地基的错误会带进后面各层。</li>
+              <li><code>speculate</code> 的多个版本只能逐个恢复、逐个比较，主线不会替 controller 挑。</li>
+            </ul>
+          </div>
+          <div>
+            <h4>建议</h4>
+            <ul>
+              <li>允许在独立工作树里并行验证候选。</li>
+              <li><code>speculate</code> 组自动比较并排序。</li>
+            </ul>
+          </div>
+        </div>
+        <p class="evidence">证据：<code>job_tools/background.py:1-20</code>，提示词 <code>controller.parallel</code></p>
+      </article>
+
+      <article class="finding">
+        <header><span class="n">7–9</span><h3>较小的三项</h3><span class="pill plain">小项</span></header>
+        <ul class="plain-list">
+          <li>主线修复只要有一个问题跨 scope 或不属于任何 scope，整轮就退回串行（<code>strategies/advice.py:1150-1177</code>）。可以先并行修单 scope 的问题，再单独处理跨 scope 的。</li>
+          <li>层与层之间整层等齐，慢的 scope 会拖住下一层里不依赖它的 scope（<code>strategies/advice.py:1120-1147</code>）。</li>
+          <li>实现工作区在作业期间从不清理，每个并行组留下 N 份副本。</li>
+        </ul>
+      </article>
+
+    </div>
+  </section>
+
+  <section id="order">
+    <h2>建议的优先顺序</h2>
+    <ol class="order">
+      <li>proposal 第 6 节：雷同限制默认改成 <code>on</code>。同时解决新改进点 2。</li>
+      <li>proposal 3a：拦住只为体积的优化。</li>
+      <li>proposal 3b：并行组按请求计数。</li>
+      <li>新改进点 1：部分失败时回收已完成的会话。</li>
+      <li>新改进点 3：统一的并发上限。</li>
+    </ol>
+    <p class="prose muted">前三项改动小。后两项决定并行模式在限流和资源受限的环境下能不能稳定跑。</p>
+  </section>
+
+  <section id="method">
+    <h2>核对方式和没核对的部分</h2>
+    <ul class="plain-list">
+      <li>全程只读。proposal 基线 <code>2d4682f</code> 是 main 的祖先，其后有 202 个提交，73 个源码文件有改动。</li>
+      <li>并行核心逐段读了代码：并行组、合并、主线分层、scope 划分、加宽、雷同限制。公平性、冻结与测试设计、controller 成本三部分分别核对，关键结论抽查过。</li>
+      <li>没有运行带 controller 的作业，所以 proposal 里的用时和花费数字没有复核。</li>
+      <li>新改进点来自读代码，没有实测。</li>
+      <li>同一提交上 README 的五个离线 demo 全部通过，退出码都是 0。</li>
+    </ul>
+  </section>
+
+  <footer>文件和行号对应 main <code>71d386d</code>，路径相对 <code>src/nanolize/</code>，skills 和 docs 除外。</footer>
+
+</div>
+
+<script>
+  (function () {
+    var buttons = document.querySelectorAll('[data-filter]');
+    var rows = document.querySelectorAll('#status-list > li');
+    var count = document.getElementById('status-count');
+    function apply(filter) {
+      var shown = 0;
+      rows.forEach(function (row) {
+        var on = filter === 'all' || row.dataset.status === filter;
+        row.hidden = !on;
+        if (on) { shown += 1; }
+      });
+      buttons.forEach(function (button) {
+        button.setAttribute('aria-pressed', String(button.dataset.filter === filter));
+      });
+      count.textContent = '显示 ' + shown + ' / ' + rows.length + ' 项';
+    }
+    buttons.forEach(function (button) {
+      button.addEventListener('click', function () { apply(button.dataset.filter); });
+    });
+  })();
+</script>
+</body>
+</html>
