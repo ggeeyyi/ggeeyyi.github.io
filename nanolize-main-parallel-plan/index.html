@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="referrer" content="no-referrer">
-<meta name="description" content="计划在 nanolize main 上做的并行修改：写首版不再按依赖层串行、冻结和对比里的检查并发执行、草稿失败时不整体丢弃。每项画出现在和改后，并按 detectron2 的实测时间推算效果。">
+<meta name="description" content="计划在 nanolize main 上做的并行修改，按十次两个作业的实测排序：冻结里的检查并发执行、草稿写完后先对比先修、所有 scope 同时写、对比并发。每项画出现在和改后，并用两次实测运行推算效果。">
 <title>nanolize main 的并行修改计划</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%231c5cab'/%3E%3Cpath d='M4 11V5l8 6V5' fill='none' stroke='white' stroke-width='1.6'/%3E%3C/svg%3E">
 <style>
@@ -154,8 +154,8 @@
   .facts { display: grid; gap: 0.9rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr)); }
   .facts .card p, .facts .card li { font-size: 0.9063rem; }
   .facts .card ul { padding-left: 1.1em; display: grid; gap: 0.3rem; margin: 0; }
-  .ef { display: grid; min-width: 44rem; font-size: 0.875rem; }
-  .ef-row { display: grid; grid-template-columns: 9rem minmax(0, 1fr) minmax(0, 1.25fr); gap: 0 1.4rem; align-items: center; padding: 0.45rem 0; border-bottom: 1px solid var(--line); }
+  .ef { display: grid; min-width: 52rem; font-size: 0.875rem; }
+  .ef-row { display: grid; grid-template-columns: 13rem minmax(0, 1fr) minmax(0, 1fr); gap: 0 1.4rem; align-items: center; padding: 0.45rem 0; border-bottom: 1px solid var(--line); }
   .ef-head { font-size: 0.8125rem; color: var(--muted); padding-top: 0; }
   .ef-name { font-weight: 500; }
   .ef-cell { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
@@ -163,6 +163,11 @@
   .ef-val { font-variant-numeric: tabular-nums; white-space: nowrap; }
   .ef-why { flex-basis: 100%; font-size: 0.8125rem; color: var(--muted); }
   table.todo { min-width: 54rem; }
+  table.runs { min-width: 66rem; font-size: 0.875rem; }
+  table.runs td, table.runs th { white-space: nowrap; }
+  table.runs td.r, table.runs th.r { text-align: right; font-variant-numeric: tabular-nums; }
+  table.probs { min-width: 52rem; font-size: 0.9063rem; }
+  table.probs td:nth-child(2) { white-space: nowrap; }
   table.gen { min-width: 62rem; font-size: 0.875rem; }
   table.gen td { min-width: 9rem; }
   table.gen td:last-child { min-width: 15rem; }
@@ -174,19 +179,48 @@
 <div class="wrap">
 
 <header class="page">
-  <div class="eyebrow"><span>对象：main @ 33814711</span><span>2026-11-19</span><span>PR #43 @ 7af748cb（未合并）</span><span>状态：计划，尚未实现</span><span>依据：main 上的两次实测 + 读代码</span></div>
+  <div class="eyebrow"><span>对象：main @ 33814711</span><span>2026-11-19</span><span>PR #43 @ 7af748cb（未合并）</span><span>状态：计划，尚未实现</span><span>依据：十次两个作业的实测 + 读代码</span></div>
   <h1>计划在 main 上做的并行修改</h1>
-  <p class="lead">main 已经把一次运行拆成两个作业：main job 冻结契约，draft job 同时写首版。实测显示，剩下的时间主要花在两处串行的地方：草稿里的 scope 一个接一个写，冻结和对比里的检查一个接一个跑。下面四项改动针对这两处，每项都画出现在和改后。</p>
+  <p class="lead">main 把一次运行拆成两个作业：main job 冻结契约，draft job 同时写首版。读了十次这样的实测之后，结论是哪一边慢因运行而异：三次是 main job 封存后等草稿，六次是草稿早早写完、空等封存，一次持平。所以计划不再以“让草稿变快”为先，而是先做对每次运行都有效的。</p>
   <div class="verdict">
-    <p><strong>四项改动，按收益排序。</strong></p>
-    <p>1. 写首版不再串行：所有 scope 同时写。2. 冻结里的检查并发执行，第二次基线只跑新增部分。3. 对比时检查并发执行。4. 草稿中途失败时保留已写好的部分。按 detectron2 那次实测推算，作业从 284 分钟降到约 123 分钟。改后的数字都是推算，没有实测。</p>
-    <p>原计划里还有一项“一个功能切成几段时后面几段空跑”。仓库里尚未合并的 PR #43 已经把它修了，所以不再列为待办，下面只说明它的效果。</p>
+    <p><strong>五项改动，按普遍程度排序。</strong></p>
+    <p>1. 冻结里的检查并发执行，第二次基线只跑新增部分：十次运行都有这个问题。2. 草稿写完后先对比、先修，不空等：六次运行里草稿空等了 15 到 122 分钟。3. 所有 scope 同时写：只在草稿是瓶颈时有用，十次里三次。4. 对比时检查并发执行：检查重的项目上有用。5. 会话失败时重试。改后的数字都是推算，没有实测。</p>
+    <p>另有两项原本在计划里的，仓库里尚未合并的 PR #43 已经在做：切开的功能后几段不再空跑；提交时就拒绝会在封存时才失败的清单。页面末尾说明它们的效果。</p>
   </div>
 </header>
 
 <section>
-  <h2>总览：同一次运行，改动一项一项加上去</h2>
-  <p class="sub">最上面一行是 detectron2 核心在 main 上的实测（pair on，effort=high），横轴是分钟，按比例画。下面每一行是在上一行的基础上再加一项改动之后的推算。每行上面一条是 main job，下面是 draft job；上下叠在一起的色块同时进行。</p>
+  <h2>十次运行里，问题出现在哪里</h2>
+  <p class="sub">都是两个作业的运行。两次是 Claude 作者（effort=high），八次是 Codex 作者，登记在仓库的一个 issue 里。时间单位是分钟；“导入后”指从导入草稿到交付，包括对比、修复和交付。</p>
+  <div class="scroll"><table class="runs">
+    <thead><tr><th>项目</th><th>作者</th><th class="r">原版 token</th><th class="r">冻结</th><th class="r">写首版</th><th>封存时谁在等</th><th class="r">导入后</th><th class="r">合计</th><th class="r">冻结里检查执行占</th></tr></thead>
+    <tbody><tr><th scope="row">detectron2 核心</th><td>Claude</td><td class="r">23.5 万</td><td class="r">118</td><td class="r">214</td><td>main job 等草稿 97</td><td class="r">69</td><td class="r">284</td><td class="r">85%</td></tr><tr><th scope="row">more-itertools</th><td>Codex</td><td class="r">7.6 万</td><td class="r">8</td><td class="r">22</td><td>main job 等草稿 15</td><td class="r">43</td><td class="r">66</td><td class="r">96%</td></tr><tr><th scope="row">python-dotenv</th><td>Codex</td><td class="r">约 1.1 万</td><td class="r">3</td><td class="r">7</td><td>main job 等草稿 4</td><td class="r">7</td><td class="r">14</td><td class="r">79%</td></tr><tr><th scope="row">tqdm</th><td>Claude</td><td class="r">6.4 万</td><td class="r">62</td><td class="r">63</td><td>几乎同时</td><td class="r">18</td><td class="r">80</td><td class="r">34%</td></tr><tr><th scope="row">tomli</th><td>Codex</td><td class="r">1.6 万</td><td class="r">21</td><td class="r">7</td><td>草稿空等 15</td><td class="r">15</td><td class="r">36</td><td class="r">62%</td></tr><tr><th scope="row">requests</th><td>Codex</td><td class="r">6.2 万</td><td class="r">49</td><td class="r">15</td><td>草稿空等 33</td><td class="r">36</td><td class="r">85</td><td class="r">36%</td></tr><tr><th scope="row">click</th><td>Codex</td><td class="r">21.5 万</td><td class="r">61</td><td class="r">27</td><td>草稿空等 35</td><td class="r">44</td><td class="r">105</td><td class="r">58%</td></tr><tr><th scope="row">bidict</th><td>Codex</td><td class="r">14.4 万</td><td class="r">56</td><td class="r">15</td><td>草稿空等 41</td><td class="r">50</td><td class="r">106</td><td class="r">47%</td></tr><tr><th scope="row">tqdm</th><td>Codex</td><td class="r">6.6 万</td><td class="r">105</td><td class="r">19</td><td>草稿空等 85</td><td class="r">17</td><td class="r">122</td><td class="r">64%</td></tr><tr><th scope="row">packaging</th><td>Codex</td><td class="r">14.9 万</td><td class="r">147</td><td class="r">26</td><td>草稿空等 122</td><td class="r">82</td><td class="r">229</td><td class="r">83%</td></tr></tbody>
+  </table></div>
+  <p class="sub">合计是从提交到交付。click 另外等了 41 分钟仓库的执行锁，tqdm（Claude）已扣掉 44 分钟排队，都没有算进去。requests 的“导入后”里有 17 分钟是改了检查配置之后重录基线。“冻结里检查执行占”指两次录基线加上设计步骤里试跑测试的时间，这些时间不调用模型。</p>
+  <div class="scroll"><table class="probs">
+    <thead><tr><th>问题</th><th>出现在几次里</th><th>量级</th><th>判断</th></tr></thead>
+    <tbody>
+      <tr><th scope="row">冻结里的检查一个接一个跑</th><td>10 / 10</td><td>占冻结的 34% 到 96%，中位数约 63%</td><td><strong>普遍。</strong>改动 1</td></tr>
+      <tr><th scope="row">第二次基线把原有检查全部重跑</th><td>7 / 7（设计出了测试的）</td><td>第二次是第一次的 0.9 到 3 倍长</td><td><strong>普遍。</strong>改动 1</td></tr>
+      <tr><th scope="row">导入后的对比和修复一轮接一轮</th><td>10 / 10</td><td>占作业的 14% 到 65%，中位数约 42%</td><td><strong>普遍。</strong>改动 2、4</td></tr>
+      <tr><th scope="row">草稿写完后空等封存</th><td>6 / 10</td><td>15 到 122 分钟</td><td>冻结比草稿慢时都有。改动 2 用的就是这段时间</td></tr>
+      <tr><th scope="row">main job 封存后等草稿</th><td>3 / 10，另有 1 次持平</td><td>4 到 97 分钟</td><td>不普遍：Claude 作者的大项目，或不需要设计测试的项目。改动 3</td></tr>
+      <tr><th scope="row">首版的作者调用一个接一个</th><td>7 / 7（调用不止一次的）</td><td>15 到 209 分钟</td><td>都是串行，但只有上面那 3 次在关键路径上</td></tr>
+      <tr><th scope="row">修了 3 到 4 轮仍有检查失败</th><td>4 / 10</td><td>修复阶段 37 到 68 分钟</td><td>并行帮不上：是在同一个失败上反复试</td></tr>
+      <tr><th scope="row">做完冻结才失败，重新提交</th><td>3 / 10</td><td>click 那次白做 71 分钟</td><td>PR #43 已在做</td></tr>
+      <tr><th scope="row">切开的功能后几段空跑</th><td>1 / 10</td><td>43 分钟</td><td>只在有单个功能超过 45,000 token 时；PR #43 已修</td></tr>
+    </tbody>
+  </table></div>
+  <ul class="plain">
+    <li><strong>之前排第一的“首版串行”不普遍。</strong>它在 detectron2 上代价最大，但十次里只有三次是瓶颈。Codex 作者写首版只要 7 到 27 分钟，冻结却要 21 到 147 分钟。</li>
+    <li><strong>冻结里慢的主要是检查执行。</strong>设计者和评审的模型会话本来就是同时跑的，墙钟只有 4 到 40 分钟。</li>
+    <li><strong>导入之后的那一段比预想的重。</strong>十次里的中位数是作业的 42%。而其中六次，草稿在封存之前已经空等了很久。</li>
+  </ul>
+</section>
+
+<section>
+  <h2>总览 A：草稿是瓶颈的运行</h2>
+  <p class="sub">detectron2 核心，Claude 作者。最上面一行是实测，横轴是分钟，按比例画；下面每一行在上一行的基础上再加一项。每行上面一条是 main job，下面是 draft job，上下叠在一起的色块同时进行。</p>
   <figure class="card tl tips">
     <div class="legend" role="group" aria-label="图例，点击可只看一种工作">
       <span class="hint">点一下只看一种：</span>
@@ -200,36 +234,36 @@
     </div>
     <p class="swipe">图比较宽，可以左右滑动。</p>
     <div class="scroll">
-<svg class="tl-svg plan" viewBox="0 0 1069 842" role="img" aria-label="detectron2 在 main 上的一次实测运行，以及每项改动之后的推算：实测 284 分钟，四项改动之后推算约 123 分钟。上面一条是 main job，下面是 draft job，叠在一起的色块同时进行。">
-<defs><marker id="pl-arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L8 4 L0 8 z" fill="currentColor"/></marker></defs>
-<line class="grid" x1="78.0" y1="16" x2="78.0" y2="838"/>
+<svg class="tl-svg plan" viewBox="0 0 1069 802" role="img" aria-label="草稿是瓶颈的运行：detectron2 实测 284 分钟，各项改动之后推算约 123 分钟。上面一条是 main job，下面是 draft job，叠在一起的色块同时进行。">
+<defs><marker id="pl-arrow-a" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L8 4 L0 8 z" fill="currentColor"/></marker></defs>
+<line class="grid" x1="78.0" y1="16" x2="78.0" y2="798"/>
 <text class="t-axis" x="78.0" y="11" text-anchor="middle">0</text>
-<line class="grid" x1="172.5" y1="16" x2="172.5" y2="838"/>
+<line class="grid" x1="172.5" y1="16" x2="172.5" y2="798"/>
 <text class="t-axis" x="172.5" y="11" text-anchor="middle">30</text>
-<line class="grid" x1="267.0" y1="16" x2="267.0" y2="838"/>
+<line class="grid" x1="267.0" y1="16" x2="267.0" y2="798"/>
 <text class="t-axis" x="267.0" y="11" text-anchor="middle">60</text>
-<line class="grid" x1="361.5" y1="16" x2="361.5" y2="838"/>
+<line class="grid" x1="361.5" y1="16" x2="361.5" y2="798"/>
 <text class="t-axis" x="361.5" y="11" text-anchor="middle">90</text>
-<line class="grid" x1="456.0" y1="16" x2="456.0" y2="838"/>
+<line class="grid" x1="456.0" y1="16" x2="456.0" y2="798"/>
 <text class="t-axis" x="456.0" y="11" text-anchor="middle">120</text>
-<line class="grid" x1="550.5" y1="16" x2="550.5" y2="838"/>
+<line class="grid" x1="550.5" y1="16" x2="550.5" y2="798"/>
 <text class="t-axis" x="550.5" y="11" text-anchor="middle">150</text>
-<line class="grid" x1="645.0" y1="16" x2="645.0" y2="838"/>
+<line class="grid" x1="645.0" y1="16" x2="645.0" y2="798"/>
 <text class="t-axis" x="645.0" y="11" text-anchor="middle">180</text>
-<line class="grid" x1="739.5" y1="16" x2="739.5" y2="838"/>
+<line class="grid" x1="739.5" y1="16" x2="739.5" y2="798"/>
 <text class="t-axis" x="739.5" y="11" text-anchor="middle">210</text>
-<line class="grid" x1="834.0" y1="16" x2="834.0" y2="838"/>
+<line class="grid" x1="834.0" y1="16" x2="834.0" y2="798"/>
 <text class="t-axis" x="834.0" y="11" text-anchor="middle">240</text>
-<line class="grid" x1="928.5" y1="16" x2="928.5" y2="838"/>
+<line class="grid" x1="928.5" y1="16" x2="928.5" y2="798"/>
 <text class="t-axis" x="928.5" y="11" text-anchor="middle">270</text>
 <text class="t-axis" x="1064.6" y="11" text-anchor="end">提交后的分钟数 →</text>
-<text x="0" y="42"><tspan class="t-row">现在</tspan><tspan class="t-note" dx="14">main @ 1ef5998d，pair on，effort=high，detectron2 核心（实测）</tspan></text>
+<text x="0" y="42"><tspan class="t-row">现在</tspan><tspan class="t-note" dx="14">main @ 1ef5998d，两个作业，Claude 作者，detectron2 核心（实测）</tspan></text>
 <path class="bracket" d="M80.0 69 V66 H446.8 V69"/>
 <text class="t-phase" x="263.4" y="62" text-anchor="middle">冻结 118 分</text>
 <path class="bracket" d="M450.8 69 V66 H752.0 V69"/>
 <text class="t-phase" x="601.4" y="62" text-anchor="middle">等草稿</text>
 <path class="bracket" d="M756.0 69 V66 H970.0 V69"/>
-<text class="t-phase" x="863.0" y="62" text-anchor="middle">对比、修复、交付 69 分</text>
+<text class="t-phase" x="863.0" y="62" text-anchor="middle">导入后到交付 69 分</text>
 <text class="t-lane" x="68" y="85" text-anchor="end">main job</text>
 <g class="blk k-step" data-tip="建工作区
 0.4 分钟"><rect x="78.0" y="72" width="1.6" height="18" rx="4"/></g>
@@ -290,14 +324,14 @@
 <g class="blk k-waste" data-tip="作者调用，20.2 分钟（实测）。scope-6：模型（第 2 段）。调用了作者，没有任何改动"><rect x="485.9" y="106" width="62.4" height="18" rx="4"/><text x="517.1" y="119" text-anchor="middle">S6 空跑</text></g>
 <g class="blk k-waste" data-tip="作者调用，22.3 分钟（实测）。scope-7：模型（第 3 段）。调用了作者，没有任何改动"><rect x="552.1" y="106" width="69.0" height="18" rx="4"/><text x="586.6" y="119" text-anchor="middle">S7 空跑</text></g>
 <g class="blk k-code" data-tip="作者调用，40.2 分钟（实测）。scope-8：安装、模型库、TorchScript、测试辅助"><rect x="624.8" y="106" width="125.4" height="18" rx="4"/><text x="687.6" y="119" text-anchor="middle">S8 40.2</text></g>
-<path class="link" d="M755.0 104.0 V94" marker-end="url(#pl-arrow)"/>
+<path class="link" d="M755.0 104.0 V94" marker-end="url(#pl-arrow-a)"/>
 <text x="0" y="182"><tspan class="t-row">PR #43 之后</tspan><tspan class="t-note" dx="14">已实现、尚未合并：切开的功能每一段知道自己负责哪些文件，三段一段接一段写（推算）</tspan></text>
 <path class="bracket" d="M80.0 209 V206 H446.8 V209"/>
 <text class="t-phase" x="263.4" y="202" text-anchor="middle">冻结 118 分</text>
 <path class="bracket" d="M450.8 209 V206 H695.3 V209"/>
 <text class="t-phase" x="573.0" y="202" text-anchor="middle">等草稿</text>
 <path class="bracket" d="M699.3 209 V206 H913.3 V209"/>
-<text class="t-phase" x="806.3" y="202" text-anchor="middle">对比、修复、交付 69 分</text>
+<text class="t-phase" x="806.3" y="202" text-anchor="middle">导入后到交付 69 分</text>
 <text class="t-lane" x="68" y="225" text-anchor="end">main job</text>
 <g class="blk k-step" data-tip="建工作区
 0.4 分钟"><rect x="78.0" y="212" width="1.6" height="18" rx="4"/></g>
@@ -358,245 +392,398 @@
 <g class="blk k-code" data-tip="作者调用，24 分钟（推算）。模型，第 2 段"><rect x="411.9" y="246" width="74.4" height="18" rx="4"/><text x="449.1" y="259" text-anchor="middle">S5b 24</text></g>
 <g class="blk k-code" data-tip="作者调用，24 分钟（推算）。模型，第 3 段"><rect x="490.0" y="246" width="74.4" height="18" rx="4"/><text x="527.2" y="259" text-anchor="middle">S5c 24</text></g>
 <g class="blk k-code" data-tip="作者调用，40.2 分钟（实测）。scope-8：安装、模型库、TorchScript、测试辅助"><rect x="568.1" y="246" width="125.4" height="18" rx="4"/><text x="630.9" y="259" text-anchor="middle">S8 40.2</text></g>
-<path class="link" d="M698.3 244.0 V234" marker-end="url(#pl-arrow)"/>
-<text x="0" y="322"><tspan class="t-row">改动 1 之后</tspan><tspan class="t-note" dx="14">所有 scope 同时写，再做一次集成（推算）</tspan></text>
-<path class="bracket" d="M80.0 349 V346 H446.8 V349"/>
-<text class="t-phase" x="263.4" y="342" text-anchor="middle">冻结 118 分</text>
-<path class="bracket" d="M450.8 349 V346 H664.7 V349"/>
-<text class="t-phase" x="557.7" y="342" text-anchor="middle">对比、修复、交付 69 分</text>
+<path class="link" d="M698.3 244.0 V234" marker-end="url(#pl-arrow-a)"/>
+<text x="0" y="322"><tspan class="t-row">+ 改动 1</tspan><tspan class="t-note" dx="14">冻结里的检查并发执行，第二次基线只跑新增部分（推算）。冻结变短了，但 main job 只是等得更久</tspan></text>
+<path class="bracket" d="M80.0 349 V346 H230.7 V349"/>
+<text class="t-phase" x="155.3" y="342" text-anchor="middle">冻结 49 分</text>
+<path class="bracket" d="M234.7 349 V346 H695.3 V349"/>
+<text class="t-phase" x="465.0" y="342" text-anchor="middle">等草稿</text>
+<path class="bracket" d="M699.3 349 V346 H913.3 V349"/>
+<text class="t-phase" x="806.3" y="342" text-anchor="middle">导入后到交付 69 分</text>
 <text class="t-lane" x="68" y="365" text-anchor="end">main job</text>
 <g class="blk k-step" data-tip="建工作区
 0.4 分钟"><rect x="78.0" y="352" width="1.6" height="18" rx="4"/></g>
-<g class="blk k-ko" data-tip="第一次录基线：37 项检查逐个跑、各 3 遍，再做敲除（实测）
-23.9 分钟"><rect x="79.3" y="352" width="74.1" height="18" rx="4"/><text x="116.3" y="365" text-anchor="middle">基线 1</text></g>
+<g class="blk k-ko" data-tip="第一次录基线：37 项检查逐个跑、各 3 遍，再做敲除。改后：检查并发，第二次只跑新增部分（推算）
+8 分钟"><rect x="79.3" y="352" width="24.0" height="18" rx="4"/></g>
 <g class="blk k-test" data-tip="测试设计的模型会话：第一轮 7 个设计者同时写，重做 1 个（按合计画，实际和试跑、评审交替进行）（实测）
-10.4 分钟"><rect x="154.5" y="352" width="31.6" height="18" rx="4"/><text x="170.3" y="365" text-anchor="middle">设计</text></g>
-<g class="blk k-ko" data-tip="在节点上试跑设计出的测试：每一轮把所有文件放在一起做一次小型基线（实测）
-36.1 分钟"><rect x="187.3" y="352" width="112.5" height="18" rx="4"/><text x="243.6" y="365" text-anchor="middle">试跑</text></g>
+10.4 分钟"><rect x="104.5" y="352" width="31.6" height="18" rx="4"/><text x="120.2" y="365" text-anchor="middle">设计</text></g>
+<g class="blk k-ko" data-tip="在节点上试跑设计出的测试：每一轮把所有文件放在一起做一次小型基线。改后：检查并发，第二次只跑新增部分（推算）
+12 分钟"><rect x="137.2" y="352" width="36.6" height="18" rx="4"/><text x="155.5" y="365" text-anchor="middle">试跑</text></g>
 <g class="blk k-test" data-tip="测试评审的模型会话：第一轮 5 个同时，第二轮 1 个（实测）
-5.9 分钟"><rect x="301.0" y="352" width="17.4" height="18" rx="4"/></g>
-<g class="blk k-ko" data-tip="第二次录基线：76 项检查（原有 37 项 + 设计的 39 个文件）全部重跑，带重复运行和敲除（实测）
-40.6 分钟"><rect x="319.6" y="352" width="126.7" height="18" rx="4"/><text x="383.0" y="365" text-anchor="middle">基线 2</text></g>
+5.9 分钟"><rect x="175.0" y="352" width="17.4" height="18" rx="4"/></g>
+<g class="blk k-ko" data-tip="第二次录基线：76 项检查（原有 37 项 + 设计的 39 个文件）全部重跑，带重复运行和敲除。改后：检查并发，第二次只跑新增部分（推算）
+12 分钟"><rect x="193.6" y="352" width="36.6" height="18" rx="4"/></g>
 <g class="blk k-step" data-tip="封存契约
-0.4 分钟"><rect x="447.5" y="352" width="1.6" height="18" rx="4"/></g>
+0.4 分钟"><rect x="231.4" y="352" width="1.6" height="18" rx="4"/></g>
 <g class="blk k-step" data-tip="导入草稿，存成第一个候选
-0.6 分钟"><rect x="448.8" y="352" width="1.6" height="18" rx="4"/></g>
+0.6 分钟"><rect x="697.3" y="352" width="1.6" height="18" rx="4"/></g>
 <g class="blk k-ko" data-tip="完整对比：76 项检查逐个跑（实测）
-7.5 分钟"><rect x="450.6" y="352" width="22.4" height="18" rx="4"/></g>
+7.5 分钟"><rect x="699.2" y="352" width="22.4" height="18" rx="4"/></g>
 <g class="blk k-step" data-tip="controller 一轮决定
-1.5 分钟"><rect x="474.3" y="352" width="3.5" height="18" rx="4"/></g>
+1.5 分钟"><rect x="722.8" y="352" width="3.5" height="18" rx="4"/></g>
 <g class="blk k-ko" data-tip="安装检查
-1 分钟"><rect x="479.0" y="352" width="1.9" height="18" rx="4"/></g>
+1 分钟"><rect x="727.5" y="352" width="1.9" height="18" rx="4"/></g>
 <g class="blk k-fix" data-tip="修复调用：模型库解析配置时的 ImportError（实测）
-5.8 分钟"><rect x="482.1" y="352" width="17.1" height="18" rx="4"/></g>
+5.8 分钟"><rect x="730.7" y="352" width="17.1" height="18" rx="4"/></g>
 <g class="blk k-ko" data-tip="定向对比：只跑上次失败的那一项（实测）
-1.6 分钟"><rect x="500.4" y="352" width="3.8" height="18" rx="4"/></g>
+1.6 分钟"><rect x="749.0" y="352" width="3.8" height="18" rx="4"/></g>
 <g class="blk k-ko" data-tip="完整对比：76 项检查逐个跑（实测）
-7.6 分钟"><rect x="505.5" y="352" width="22.7" height="18" rx="4"/></g>
+7.6 分钟"><rect x="754.0" y="352" width="22.7" height="18" rx="4"/></g>
 <g class="blk k-ko" data-tip="安装检查
-1 分钟"><rect x="529.4" y="352" width="1.9" height="18" rx="4"/></g>
+1 分钟"><rect x="777.9" y="352" width="1.9" height="18" rx="4"/></g>
 <g class="blk k-step" data-tip="controller 一轮决定：请求交付，被拦
-2.6 分钟"><rect x="532.5" y="352" width="7.0" height="18" rx="4"/></g>
+2.6 分钟"><rect x="781.1" y="352" width="7.0" height="18" rx="4"/></g>
 <g class="blk k-fix" data-tip="只读审查：交付请求被拦后，对照契约把实现审一遍（实测）
-21.4 分钟"><rect x="540.7" y="352" width="66.2" height="18" rx="4"/><text x="573.8" y="365" text-anchor="middle">只读审查</text></g>
+21.4 分钟"><rect x="789.3" y="352" width="66.2" height="18" rx="4"/><text x="822.4" y="365" text-anchor="middle">只读审查</text></g>
 <g class="blk k-step" data-tip="controller 一轮决定
-1.6 分钟"><rect x="608.1" y="352" width="3.8" height="18" rx="4"/></g>
+1.6 分钟"><rect x="856.7" y="352" width="3.8" height="18" rx="4"/></g>
 <g class="blk k-fix" data-tip="修复调用：测试辅助里一条旧版 PyTorch 的路径（实测）
-3.2 分钟"><rect x="613.2" y="352" width="8.9" height="18" rx="4"/></g>
+3.2 分钟"><rect x="861.7" y="352" width="8.9" height="18" rx="4"/></g>
 <g class="blk k-ko" data-tip="完整对比：76 项检查逐个跑（实测）
-8 分钟"><rect x="623.3" y="352" width="24.0" height="18" rx="4"/></g>
+8 分钟"><rect x="871.8" y="352" width="24.0" height="18" rx="4"/></g>
 <g class="blk k-ko" data-tip="安装检查
-1 分钟"><rect x="648.5" y="352" width="1.9" height="18" rx="4"/></g>
+1 分钟"><rect x="897.0" y="352" width="1.9" height="18" rx="4"/></g>
 <g class="blk k-step" data-tip="controller 一轮决定
-0.5 分钟"><rect x="651.6" y="352" width="1.6" height="18" rx="4"/></g>
+0.5 分钟"><rect x="900.1" y="352" width="1.6" height="18" rx="4"/></g>
 <g class="blk k-step" data-tip="交付，并在交付物上重放被剔除的原版测试
-4.3 分钟"><rect x="653.2" y="352" width="12.3" height="18" rx="4"/></g>
-<text class="t-total" x="674.7" y="365">187 分（-79）</text>
+4.3 分钟"><rect x="901.7" y="352" width="12.3" height="18" rx="4"/></g>
+<g class="blk k-wait" data-tip="main job 已封存，等 draft job 写完首版
+147.5 分钟（推算）"><rect x="232.7" y="352" width="463.4" height="18" rx="4"/><text x="464.4" y="365" text-anchor="middle">等草稿 147.5 分</text></g>
+<text class="t-total" x="923.3" y="365">266 分（不变）</text>
 <text class="t-lane" x="68" y="399" text-anchor="end">draft job</text>
 <g class="blk k-step" data-tip="draft job 的准备：工作区、在本机录一次基线、封存"><rect x="78.0" y="386" width="14.9" height="18" rx="4"/></g>
-<g class="blk k-code" data-tip="作者调用，约 40.2 分钟（推算）。scope-8：安装、模型库、TorchScript、测试辅助。写的时候用原版顶替还没写好的依赖"><rect x="94.1" y="386" width="125.4" height="18" rx="4"/><text x="156.8" y="399" text-anchor="middle">S8 40.2</text></g>
-<g class="blk k-code" data-tip="作者调用，约 29.8 分钟（推算）。scope-2：数据结构、层与算子。写的时候用原版顶替还没写好的依赖"><rect x="94.1" y="406" width="92.7" height="18" rx="4"/><text x="140.4" y="419" text-anchor="middle">S2 29.8</text></g>
-<g class="blk k-code" data-tip="作者调用，约 23.3 分钟（推算）。scope-3：图像与标注。写的时候用原版顶替还没写好的依赖"><rect x="94.1" y="426" width="72.2" height="18" rx="4"/><text x="130.2" y="439" text-anchor="middle">S3 23.3</text></g>
-<g class="blk k-code" data-tip="作者调用，约 20.6 分钟（推算）。scope-1：配置、运行支撑。写的时候用原版顶替还没写好的依赖"><rect x="94.1" y="446" width="63.7" height="18" rx="4"/><text x="125.9" y="459" text-anchor="middle">S1 20.6</text></g>
-<g class="blk k-code" data-tip="作者调用，约 24 分钟（推算）。模型，第 1 段：作者知道自己负责哪些文件。写的时候用原版顶替还没写好的依赖"><rect x="159.0" y="446" width="74.4" height="18" rx="4"/><text x="196.2" y="459" text-anchor="middle">S5a 24</text></g>
-<g class="blk k-code" data-tip="作者调用，约 24 分钟（推算）。模型，第 2 段。写的时候用原版顶替还没写好的依赖"><rect x="167.5" y="426" width="74.4" height="18" rx="4"/><text x="204.7" y="439" text-anchor="middle">S5b 24</text></g>
-<g class="blk k-code" data-tip="作者调用，约 24 分钟（推算）。模型，第 3 段。写的时候用原版顶替还没写好的依赖"><rect x="187.9" y="406" width="74.4" height="18" rx="4"/><text x="225.1" y="419" text-anchor="middle">S5c 24</text></g>
-<g class="blk k-code" data-tip="作者调用，约 9.1 分钟（推算）。scope-4：检查点。写的时候用原版顶替还没写好的依赖"><rect x="220.7" y="386" width="27.5" height="18" rx="4"/></g>
-<g class="blk k-step" data-tip="合并 8 个工作区的文件"><rect x="263.5" y="386" width="3.5" height="18" rx="4"/></g>
-<g class="blk k-fix" data-tip="一次集成调用：把各 scope 对不上的内部名字接起来（推算 10 分钟）"><rect x="268.3" y="386" width="30.3" height="18" rx="4"/><text x="283.4" y="399" text-anchor="middle">集成</text></g>
-<path class="link" d="M302.8 395.0 H449.8 V374" marker-end="url(#pl-arrow)"/>
-<text class="t-phase" x="308.8" y="411.0">草稿就绪，等 main job 封存后导入</text>
-<text x="0" y="502"><tspan class="t-row">改动 2 之后</tspan><tspan class="t-note" dx="14">冻结里的检查并发执行，第二次基线只跑新增部分（推算）</tspan></text>
-<path class="bracket" d="M80.0 529 V526 H230.7 V529"/>
-<text class="t-phase" x="155.3" y="522" text-anchor="middle">冻结 49 分</text>
-<path class="bracket" d="M234.7 529 V526 H297.8 V529"/>
-<text class="t-phase" x="266.2" y="522" text-anchor="middle">等草稿</text>
-<path class="bracket" d="M301.8 529 V526 H515.7 V529"/>
-<text class="t-phase" x="408.7" y="522" text-anchor="middle">对比、修复、交付 69 分</text>
-<text class="t-lane" x="68" y="545" text-anchor="end">main job</text>
+<g class="blk k-code" data-tip="作者调用，20.6 分钟（实测）。scope-1：配置、运行支撑"><rect x="94.1" y="386" width="63.7" height="18" rx="4"/><text x="125.9" y="399" text-anchor="middle">S1 20.6</text></g>
+<g class="blk k-code" data-tip="作者调用，29.8 分钟（实测）。scope-2：数据结构、层与算子"><rect x="161.5" y="386" width="92.7" height="18" rx="4"/><text x="207.8" y="399" text-anchor="middle">S2 29.8</text></g>
+<g class="blk k-code" data-tip="作者调用，9.1 分钟（实测），和 S2 同时。scope-4：检查点"><rect x="161.5" y="406" width="27.5" height="18" rx="4"/><text x="175.2" y="419" text-anchor="middle">S4</text></g>
+<g class="blk k-code" data-tip="作者调用，23.3 分钟（实测）。scope-3：图像与标注"><rect x="257.9" y="386" width="72.2" height="18" rx="4"/><text x="294.0" y="399" text-anchor="middle">S3 23.3</text></g>
+<g class="blk k-code" data-tip="作者调用，24 分钟（推算）。模型，第 1 段：只写它负责的文件"><rect x="333.8" y="386" width="74.4" height="18" rx="4"/><text x="371.0" y="399" text-anchor="middle">S5a 24</text></g>
+<g class="blk k-code" data-tip="作者调用，24 分钟（推算）。模型，第 2 段"><rect x="411.9" y="386" width="74.4" height="18" rx="4"/><text x="449.1" y="399" text-anchor="middle">S5b 24</text></g>
+<g class="blk k-code" data-tip="作者调用，24 分钟（推算）。模型，第 3 段"><rect x="490.0" y="386" width="74.4" height="18" rx="4"/><text x="527.2" y="399" text-anchor="middle">S5c 24</text></g>
+<g class="blk k-code" data-tip="作者调用，40.2 分钟（实测）。scope-8：安装、模型库、TorchScript、测试辅助"><rect x="568.1" y="386" width="125.4" height="18" rx="4"/><text x="630.9" y="399" text-anchor="middle">S8 40.2</text></g>
+<path class="link" d="M698.3 384.0 V374" marker-end="url(#pl-arrow-a)"/>
+<text x="0" y="462"><tspan class="t-row">+ 改动 3</tspan><tspan class="t-note" dx="14">所有 scope 同时写，再做一次集成（推算）</tspan></text>
+<path class="bracket" d="M80.0 489 V486 H230.7 V489"/>
+<text class="t-phase" x="155.3" y="482" text-anchor="middle">冻结 49 分</text>
+<path class="bracket" d="M234.7 489 V486 H297.8 V489"/>
+<text class="t-phase" x="266.2" y="482" text-anchor="middle">等草稿</text>
+<path class="bracket" d="M301.8 489 V486 H515.7 V489"/>
+<text class="t-phase" x="408.7" y="482" text-anchor="middle">导入后到交付 69 分</text>
+<text class="t-lane" x="68" y="505" text-anchor="end">main job</text>
 <g class="blk k-step" data-tip="建工作区
-0.4 分钟"><rect x="78.0" y="532" width="1.6" height="18" rx="4"/></g>
+0.4 分钟"><rect x="78.0" y="492" width="1.6" height="18" rx="4"/></g>
 <g class="blk k-ko" data-tip="第一次录基线：37 项检查逐个跑、各 3 遍，再做敲除。改后：检查并发，第二次只跑新增部分（推算）
-8 分钟"><rect x="79.3" y="532" width="24.0" height="18" rx="4"/></g>
+8 分钟"><rect x="79.3" y="492" width="24.0" height="18" rx="4"/></g>
 <g class="blk k-test" data-tip="测试设计的模型会话：第一轮 7 个设计者同时写，重做 1 个（按合计画，实际和试跑、评审交替进行）（实测）
-10.4 分钟"><rect x="104.5" y="532" width="31.6" height="18" rx="4"/><text x="120.2" y="545" text-anchor="middle">设计</text></g>
+10.4 分钟"><rect x="104.5" y="492" width="31.6" height="18" rx="4"/><text x="120.2" y="505" text-anchor="middle">设计</text></g>
 <g class="blk k-ko" data-tip="在节点上试跑设计出的测试：每一轮把所有文件放在一起做一次小型基线。改后：检查并发，第二次只跑新增部分（推算）
-12 分钟"><rect x="137.2" y="532" width="36.6" height="18" rx="4"/><text x="155.5" y="545" text-anchor="middle">试跑</text></g>
+12 分钟"><rect x="137.2" y="492" width="36.6" height="18" rx="4"/><text x="155.5" y="505" text-anchor="middle">试跑</text></g>
 <g class="blk k-test" data-tip="测试评审的模型会话：第一轮 5 个同时，第二轮 1 个（实测）
-5.9 分钟"><rect x="175.0" y="532" width="17.4" height="18" rx="4"/></g>
+5.9 分钟"><rect x="175.0" y="492" width="17.4" height="18" rx="4"/></g>
 <g class="blk k-ko" data-tip="第二次录基线：76 项检查（原有 37 项 + 设计的 39 个文件）全部重跑，带重复运行和敲除。改后：检查并发，第二次只跑新增部分（推算）
-12 分钟"><rect x="193.6" y="532" width="36.6" height="18" rx="4"/></g>
+12 分钟"><rect x="193.6" y="492" width="36.6" height="18" rx="4"/></g>
 <g class="blk k-step" data-tip="封存契约
-0.4 分钟"><rect x="231.4" y="532" width="1.6" height="18" rx="4"/></g>
+0.4 分钟"><rect x="231.4" y="492" width="1.6" height="18" rx="4"/></g>
 <g class="blk k-step" data-tip="导入草稿，存成第一个候选
-0.6 分钟"><rect x="299.8" y="532" width="1.6" height="18" rx="4"/></g>
+0.6 分钟"><rect x="299.8" y="492" width="1.6" height="18" rx="4"/></g>
 <g class="blk k-ko" data-tip="完整对比：76 项检查逐个跑（实测）
-7.5 分钟"><rect x="301.6" y="532" width="22.4" height="18" rx="4"/></g>
+7.5 分钟"><rect x="301.6" y="492" width="22.4" height="18" rx="4"/></g>
 <g class="blk k-step" data-tip="controller 一轮决定
-1.5 分钟"><rect x="325.3" y="532" width="3.5" height="18" rx="4"/></g>
+1.5 分钟"><rect x="325.3" y="492" width="3.5" height="18" rx="4"/></g>
 <g class="blk k-ko" data-tip="安装检查
-1 分钟"><rect x="330.0" y="532" width="1.9" height="18" rx="4"/></g>
+1 分钟"><rect x="330.0" y="492" width="1.9" height="18" rx="4"/></g>
 <g class="blk k-fix" data-tip="修复调用：模型库解析配置时的 ImportError（实测）
-5.8 分钟"><rect x="333.1" y="532" width="17.1" height="18" rx="4"/></g>
+5.8 分钟"><rect x="333.1" y="492" width="17.1" height="18" rx="4"/></g>
 <g class="blk k-ko" data-tip="定向对比：只跑上次失败的那一项（实测）
-1.6 分钟"><rect x="351.4" y="532" width="3.8" height="18" rx="4"/></g>
+1.6 分钟"><rect x="351.4" y="492" width="3.8" height="18" rx="4"/></g>
 <g class="blk k-ko" data-tip="完整对比：76 项检查逐个跑（实测）
-7.6 分钟"><rect x="356.5" y="532" width="22.7" height="18" rx="4"/></g>
+7.6 分钟"><rect x="356.5" y="492" width="22.7" height="18" rx="4"/></g>
 <g class="blk k-ko" data-tip="安装检查
-1 分钟"><rect x="380.4" y="532" width="1.9" height="18" rx="4"/></g>
+1 分钟"><rect x="380.4" y="492" width="1.9" height="18" rx="4"/></g>
 <g class="blk k-step" data-tip="controller 一轮决定：请求交付，被拦
-2.6 分钟"><rect x="383.5" y="532" width="7.0" height="18" rx="4"/></g>
+2.6 分钟"><rect x="383.5" y="492" width="7.0" height="18" rx="4"/></g>
 <g class="blk k-fix" data-tip="只读审查：交付请求被拦后，对照契约把实现审一遍（实测）
-21.4 分钟"><rect x="391.7" y="532" width="66.2" height="18" rx="4"/><text x="424.8" y="545" text-anchor="middle">只读审查</text></g>
+21.4 分钟"><rect x="391.7" y="492" width="66.2" height="18" rx="4"/><text x="424.8" y="505" text-anchor="middle">只读审查</text></g>
 <g class="blk k-step" data-tip="controller 一轮决定
-1.6 分钟"><rect x="459.1" y="532" width="3.8" height="18" rx="4"/></g>
+1.6 分钟"><rect x="459.1" y="492" width="3.8" height="18" rx="4"/></g>
 <g class="blk k-fix" data-tip="修复调用：测试辅助里一条旧版 PyTorch 的路径（实测）
-3.2 分钟"><rect x="464.2" y="532" width="8.9" height="18" rx="4"/></g>
+3.2 分钟"><rect x="464.2" y="492" width="8.9" height="18" rx="4"/></g>
 <g class="blk k-ko" data-tip="完整对比：76 项检查逐个跑（实测）
-8 分钟"><rect x="474.3" y="532" width="24.0" height="18" rx="4"/></g>
+8 分钟"><rect x="474.3" y="492" width="24.0" height="18" rx="4"/></g>
 <g class="blk k-ko" data-tip="安装检查
-1 分钟"><rect x="499.5" y="532" width="1.9" height="18" rx="4"/></g>
+1 分钟"><rect x="499.5" y="492" width="1.9" height="18" rx="4"/></g>
 <g class="blk k-step" data-tip="controller 一轮决定
-0.5 分钟"><rect x="502.6" y="532" width="1.6" height="18" rx="4"/></g>
+0.5 分钟"><rect x="502.6" y="492" width="1.6" height="18" rx="4"/></g>
 <g class="blk k-step" data-tip="交付，并在交付物上重放被剔除的原版测试
-4.3 分钟"><rect x="504.2" y="532" width="12.3" height="18" rx="4"/></g>
+4.3 分钟"><rect x="504.2" y="492" width="12.3" height="18" rx="4"/></g>
 <g class="blk k-wait" data-tip="main job 已封存，等 draft job 写完首版
-21.3 分钟（推算）"><rect x="232.7" y="532" width="65.9" height="18" rx="4"/></g>
-<text class="t-total" x="525.7" y="545">140 分（-47）</text>
-<text class="t-lane" x="68" y="579" text-anchor="end">draft job</text>
-<g class="blk k-step" data-tip="draft job 的准备：工作区、在本机录一次基线、封存"><rect x="78.0" y="566" width="14.9" height="18" rx="4"/></g>
-<g class="blk k-code" data-tip="作者调用，约 40.2 分钟（推算）。scope-8：安装、模型库、TorchScript、测试辅助。写的时候用原版顶替还没写好的依赖"><rect x="94.1" y="566" width="125.4" height="18" rx="4"/><text x="156.8" y="579" text-anchor="middle">S8 40.2</text></g>
-<g class="blk k-code" data-tip="作者调用，约 29.8 分钟（推算）。scope-2：数据结构、层与算子。写的时候用原版顶替还没写好的依赖"><rect x="94.1" y="586" width="92.7" height="18" rx="4"/><text x="140.4" y="599" text-anchor="middle">S2 29.8</text></g>
-<g class="blk k-code" data-tip="作者调用，约 23.3 分钟（推算）。scope-3：图像与标注。写的时候用原版顶替还没写好的依赖"><rect x="94.1" y="606" width="72.2" height="18" rx="4"/><text x="130.2" y="619" text-anchor="middle">S3 23.3</text></g>
-<g class="blk k-code" data-tip="作者调用，约 20.6 分钟（推算）。scope-1：配置、运行支撑。写的时候用原版顶替还没写好的依赖"><rect x="94.1" y="626" width="63.7" height="18" rx="4"/><text x="125.9" y="639" text-anchor="middle">S1 20.6</text></g>
-<g class="blk k-code" data-tip="作者调用，约 24 分钟（推算）。模型，第 1 段：作者知道自己负责哪些文件。写的时候用原版顶替还没写好的依赖"><rect x="159.0" y="626" width="74.4" height="18" rx="4"/><text x="196.2" y="639" text-anchor="middle">S5a 24</text></g>
-<g class="blk k-code" data-tip="作者调用，约 24 分钟（推算）。模型，第 2 段。写的时候用原版顶替还没写好的依赖"><rect x="167.5" y="606" width="74.4" height="18" rx="4"/><text x="204.7" y="619" text-anchor="middle">S5b 24</text></g>
-<g class="blk k-code" data-tip="作者调用，约 24 分钟（推算）。模型，第 3 段。写的时候用原版顶替还没写好的依赖"><rect x="187.9" y="586" width="74.4" height="18" rx="4"/><text x="225.1" y="599" text-anchor="middle">S5c 24</text></g>
-<g class="blk k-code" data-tip="作者调用，约 9.1 分钟（推算）。scope-4：检查点。写的时候用原版顶替还没写好的依赖"><rect x="220.7" y="566" width="27.5" height="18" rx="4"/></g>
-<g class="blk k-step" data-tip="合并 8 个工作区的文件"><rect x="263.5" y="566" width="3.5" height="18" rx="4"/></g>
-<g class="blk k-fix" data-tip="一次集成调用：把各 scope 对不上的内部名字接起来（推算 10 分钟）"><rect x="268.3" y="566" width="30.3" height="18" rx="4"/><text x="283.4" y="579" text-anchor="middle">集成</text></g>
-<path class="link" d="M300.8 564.0 V554" marker-end="url(#pl-arrow)"/>
-<text x="0" y="682"><tspan class="t-row">改动 3 之后</tspan><tspan class="t-note" dx="14">对比时检查并发执行（推算）</tspan></text>
-<path class="bracket" d="M80.0 709 V706 H230.7 V709"/>
-<text class="t-phase" x="155.3" y="702" text-anchor="middle">冻结 49 分</text>
-<path class="bracket" d="M234.7 709 V706 H297.8 V709"/>
-<text class="t-phase" x="266.2" y="702" text-anchor="middle">等草稿</text>
-<path class="bracket" d="M301.8 709 V706 H464.1 V709"/>
-<text class="t-phase" x="382.9" y="702" text-anchor="middle">对比、修复、交付 53 分</text>
-<text class="t-lane" x="68" y="725" text-anchor="end">main job</text>
+21.3 分钟（推算）"><rect x="232.7" y="492" width="65.9" height="18" rx="4"/></g>
+<text class="t-total" x="525.7" y="505">140 分（-126）</text>
+<text class="t-lane" x="68" y="539" text-anchor="end">draft job</text>
+<g class="blk k-step" data-tip="draft job 的准备：工作区、在本机录一次基线、封存"><rect x="78.0" y="526" width="14.9" height="18" rx="4"/></g>
+<g class="blk k-code" data-tip="作者调用，约 40.2 分钟（推算）。scope-8：安装、模型库、TorchScript、测试辅助。写的时候用原版顶替还没写好的依赖"><rect x="94.1" y="526" width="125.4" height="18" rx="4"/><text x="156.8" y="539" text-anchor="middle">S8 40.2</text></g>
+<g class="blk k-code" data-tip="作者调用，约 29.8 分钟（推算）。scope-2：数据结构、层与算子。写的时候用原版顶替还没写好的依赖"><rect x="94.1" y="546" width="92.7" height="18" rx="4"/><text x="140.4" y="559" text-anchor="middle">S2 29.8</text></g>
+<g class="blk k-code" data-tip="作者调用，约 23.3 分钟（推算）。scope-3：图像与标注。写的时候用原版顶替还没写好的依赖"><rect x="94.1" y="566" width="72.2" height="18" rx="4"/><text x="130.2" y="579" text-anchor="middle">S3 23.3</text></g>
+<g class="blk k-code" data-tip="作者调用，约 20.6 分钟（推算）。scope-1：配置、运行支撑。写的时候用原版顶替还没写好的依赖"><rect x="94.1" y="586" width="63.7" height="18" rx="4"/><text x="125.9" y="599" text-anchor="middle">S1 20.6</text></g>
+<g class="blk k-code" data-tip="作者调用，约 24 分钟（推算）。模型，第 1 段：作者知道自己负责哪些文件。写的时候用原版顶替还没写好的依赖"><rect x="159.0" y="586" width="74.4" height="18" rx="4"/><text x="196.2" y="599" text-anchor="middle">S5a 24</text></g>
+<g class="blk k-code" data-tip="作者调用，约 24 分钟（推算）。模型，第 2 段。写的时候用原版顶替还没写好的依赖"><rect x="167.5" y="566" width="74.4" height="18" rx="4"/><text x="204.7" y="579" text-anchor="middle">S5b 24</text></g>
+<g class="blk k-code" data-tip="作者调用，约 24 分钟（推算）。模型，第 3 段。写的时候用原版顶替还没写好的依赖"><rect x="187.9" y="546" width="74.4" height="18" rx="4"/><text x="225.1" y="559" text-anchor="middle">S5c 24</text></g>
+<g class="blk k-code" data-tip="作者调用，约 9.1 分钟（推算）。scope-4：检查点。写的时候用原版顶替还没写好的依赖"><rect x="220.7" y="526" width="27.5" height="18" rx="4"/></g>
+<g class="blk k-step" data-tip="合并 8 个工作区的文件"><rect x="263.5" y="526" width="3.5" height="18" rx="4"/></g>
+<g class="blk k-fix" data-tip="一次集成调用：把各 scope 对不上的内部名字接起来（推算 10 分钟）"><rect x="268.3" y="526" width="30.3" height="18" rx="4"/><text x="283.4" y="539" text-anchor="middle">集成</text></g>
+<path class="link" d="M300.8 524.0 V514" marker-end="url(#pl-arrow-a)"/>
+<text x="0" y="642"><tspan class="t-row">+ 改动 4</tspan><tspan class="t-note" dx="14">对比时检查并发执行（推算）</tspan></text>
+<path class="bracket" d="M80.0 669 V666 H230.7 V669"/>
+<text class="t-phase" x="155.3" y="662" text-anchor="middle">冻结 49 分</text>
+<path class="bracket" d="M234.7 669 V666 H297.8 V669"/>
+<text class="t-phase" x="266.2" y="662" text-anchor="middle">等草稿</text>
+<path class="bracket" d="M301.8 669 V666 H464.1 V669"/>
+<text class="t-phase" x="382.9" y="662" text-anchor="middle">导入后到交付 53 分</text>
+<text class="t-lane" x="68" y="685" text-anchor="end">main job</text>
 <g class="blk k-step" data-tip="建工作区
-0.4 分钟"><rect x="78.0" y="712" width="1.6" height="18" rx="4"/></g>
+0.4 分钟"><rect x="78.0" y="672" width="1.6" height="18" rx="4"/></g>
 <g class="blk k-ko" data-tip="第一次录基线：37 项检查逐个跑、各 3 遍，再做敲除。改后：检查并发，第二次只跑新增部分（推算）
-8 分钟"><rect x="79.3" y="712" width="24.0" height="18" rx="4"/></g>
+8 分钟"><rect x="79.3" y="672" width="24.0" height="18" rx="4"/></g>
 <g class="blk k-test" data-tip="测试设计的模型会话：第一轮 7 个设计者同时写，重做 1 个（按合计画，实际和试跑、评审交替进行）（实测）
-10.4 分钟"><rect x="104.5" y="712" width="31.6" height="18" rx="4"/><text x="120.2" y="725" text-anchor="middle">设计</text></g>
+10.4 分钟"><rect x="104.5" y="672" width="31.6" height="18" rx="4"/><text x="120.2" y="685" text-anchor="middle">设计</text></g>
 <g class="blk k-ko" data-tip="在节点上试跑设计出的测试：每一轮把所有文件放在一起做一次小型基线。改后：检查并发，第二次只跑新增部分（推算）
-12 分钟"><rect x="137.2" y="712" width="36.6" height="18" rx="4"/><text x="155.5" y="725" text-anchor="middle">试跑</text></g>
+12 分钟"><rect x="137.2" y="672" width="36.6" height="18" rx="4"/><text x="155.5" y="685" text-anchor="middle">试跑</text></g>
 <g class="blk k-test" data-tip="测试评审的模型会话：第一轮 5 个同时，第二轮 1 个（实测）
-5.9 分钟"><rect x="175.0" y="712" width="17.4" height="18" rx="4"/></g>
+5.9 分钟"><rect x="175.0" y="672" width="17.4" height="18" rx="4"/></g>
 <g class="blk k-ko" data-tip="第二次录基线：76 项检查（原有 37 项 + 设计的 39 个文件）全部重跑，带重复运行和敲除。改后：检查并发，第二次只跑新增部分（推算）
-12 分钟"><rect x="193.6" y="712" width="36.6" height="18" rx="4"/></g>
+12 分钟"><rect x="193.6" y="672" width="36.6" height="18" rx="4"/></g>
 <g class="blk k-step" data-tip="封存契约
-0.4 分钟"><rect x="231.4" y="712" width="1.6" height="18" rx="4"/></g>
+0.4 分钟"><rect x="231.4" y="672" width="1.6" height="18" rx="4"/></g>
 <g class="blk k-step" data-tip="导入草稿，存成第一个候选
-0.6 分钟"><rect x="299.8" y="712" width="1.6" height="18" rx="4"/></g>
+0.6 分钟"><rect x="299.8" y="672" width="1.6" height="18" rx="4"/></g>
 <g class="blk k-ko" data-tip="完整对比：76 项检查逐个跑。改后：检查并发（推算）
-2.5 分钟"><rect x="301.6" y="712" width="6.7" height="18" rx="4"/></g>
+2.5 分钟"><rect x="301.6" y="672" width="6.7" height="18" rx="4"/></g>
 <g class="blk k-step" data-tip="controller 一轮决定
-1.5 分钟"><rect x="309.5" y="712" width="3.5" height="18" rx="4"/></g>
+1.5 分钟"><rect x="309.5" y="672" width="3.5" height="18" rx="4"/></g>
 <g class="blk k-ko" data-tip="安装检查
-1 分钟"><rect x="314.2" y="712" width="1.9" height="18" rx="4"/></g>
+1 分钟"><rect x="314.2" y="672" width="1.9" height="18" rx="4"/></g>
 <g class="blk k-fix" data-tip="修复调用：模型库解析配置时的 ImportError（实测）
-5.8 分钟"><rect x="317.4" y="712" width="17.1" height="18" rx="4"/></g>
+5.8 分钟"><rect x="317.4" y="672" width="17.1" height="18" rx="4"/></g>
 <g class="blk k-ko" data-tip="定向对比：只跑上次失败的那一项（推算）
-0.6 分钟"><rect x="335.7" y="712" width="1.6" height="18" rx="4"/></g>
+0.6 分钟"><rect x="335.7" y="672" width="1.6" height="18" rx="4"/></g>
 <g class="blk k-ko" data-tip="完整对比：76 项检查逐个跑。改后：检查并发（推算）
-2.5 分钟"><rect x="337.6" y="712" width="6.7" height="18" rx="4"/></g>
+2.5 分钟"><rect x="337.6" y="672" width="6.7" height="18" rx="4"/></g>
 <g class="blk k-ko" data-tip="安装检查
-1 分钟"><rect x="345.4" y="712" width="1.9" height="18" rx="4"/></g>
+1 分钟"><rect x="345.4" y="672" width="1.9" height="18" rx="4"/></g>
 <g class="blk k-step" data-tip="controller 一轮决定：请求交付，被拦
-2.6 分钟"><rect x="348.6" y="712" width="7.0" height="18" rx="4"/></g>
+2.6 分钟"><rect x="348.6" y="672" width="7.0" height="18" rx="4"/></g>
 <g class="blk k-fix" data-tip="只读审查：交付请求被拦后，对照契约把实现审一遍（实测）
-21.4 分钟"><rect x="356.8" y="712" width="66.2" height="18" rx="4"/><text x="389.9" y="725" text-anchor="middle">只读审查</text></g>
+21.4 分钟"><rect x="356.8" y="672" width="66.2" height="18" rx="4"/><text x="389.9" y="685" text-anchor="middle">只读审查</text></g>
 <g class="blk k-step" data-tip="controller 一轮决定
-1.6 分钟"><rect x="424.2" y="712" width="3.8" height="18" rx="4"/></g>
+1.6 分钟"><rect x="424.2" y="672" width="3.8" height="18" rx="4"/></g>
 <g class="blk k-fix" data-tip="修复调用：测试辅助里一条旧版 PyTorch 的路径（实测）
-3.2 分钟"><rect x="429.2" y="712" width="8.9" height="18" rx="4"/></g>
+3.2 分钟"><rect x="429.2" y="672" width="8.9" height="18" rx="4"/></g>
 <g class="blk k-ko" data-tip="完整对比：76 项检查逐个跑。改后：检查并发（推算）
-2.7 分钟"><rect x="439.3" y="712" width="7.3" height="18" rx="4"/></g>
+2.7 分钟"><rect x="439.3" y="672" width="7.3" height="18" rx="4"/></g>
 <g class="blk k-ko" data-tip="安装检查
-1 分钟"><rect x="447.8" y="712" width="1.9" height="18" rx="4"/></g>
+1 分钟"><rect x="447.8" y="672" width="1.9" height="18" rx="4"/></g>
 <g class="blk k-step" data-tip="controller 一轮决定
-0.5 分钟"><rect x="451.0" y="712" width="1.6" height="18" rx="4"/></g>
+0.5 分钟"><rect x="451.0" y="672" width="1.6" height="18" rx="4"/></g>
 <g class="blk k-step" data-tip="交付，并在交付物上重放被剔除的原版测试
-4.3 分钟"><rect x="452.5" y="712" width="12.3" height="18" rx="4"/></g>
+4.3 分钟"><rect x="452.5" y="672" width="12.3" height="18" rx="4"/></g>
 <g class="blk k-wait" data-tip="main job 已封存，等 draft job 写完首版
-21.3 分钟（推算）"><rect x="232.7" y="712" width="65.9" height="18" rx="4"/></g>
-<text class="t-total" x="474.1" y="725">123 分（-16）</text>
-<text class="t-lane" x="68" y="759" text-anchor="end">draft job</text>
-<g class="blk k-step" data-tip="draft job 的准备：工作区、在本机录一次基线、封存"><rect x="78.0" y="746" width="14.9" height="18" rx="4"/></g>
-<g class="blk k-code" data-tip="作者调用，约 40.2 分钟（推算）。scope-8：安装、模型库、TorchScript、测试辅助。写的时候用原版顶替还没写好的依赖"><rect x="94.1" y="746" width="125.4" height="18" rx="4"/><text x="156.8" y="759" text-anchor="middle">S8 40.2</text></g>
-<g class="blk k-code" data-tip="作者调用，约 29.8 分钟（推算）。scope-2：数据结构、层与算子。写的时候用原版顶替还没写好的依赖"><rect x="94.1" y="766" width="92.7" height="18" rx="4"/><text x="140.4" y="779" text-anchor="middle">S2 29.8</text></g>
-<g class="blk k-code" data-tip="作者调用，约 23.3 分钟（推算）。scope-3：图像与标注。写的时候用原版顶替还没写好的依赖"><rect x="94.1" y="786" width="72.2" height="18" rx="4"/><text x="130.2" y="799" text-anchor="middle">S3 23.3</text></g>
-<g class="blk k-code" data-tip="作者调用，约 20.6 分钟（推算）。scope-1：配置、运行支撑。写的时候用原版顶替还没写好的依赖"><rect x="94.1" y="806" width="63.7" height="18" rx="4"/><text x="125.9" y="819" text-anchor="middle">S1 20.6</text></g>
-<g class="blk k-code" data-tip="作者调用，约 24 分钟（推算）。模型，第 1 段：作者知道自己负责哪些文件。写的时候用原版顶替还没写好的依赖"><rect x="159.0" y="806" width="74.4" height="18" rx="4"/><text x="196.2" y="819" text-anchor="middle">S5a 24</text></g>
-<g class="blk k-code" data-tip="作者调用，约 24 分钟（推算）。模型，第 2 段。写的时候用原版顶替还没写好的依赖"><rect x="167.5" y="786" width="74.4" height="18" rx="4"/><text x="204.7" y="799" text-anchor="middle">S5b 24</text></g>
-<g class="blk k-code" data-tip="作者调用，约 24 分钟（推算）。模型，第 3 段。写的时候用原版顶替还没写好的依赖"><rect x="187.9" y="766" width="74.4" height="18" rx="4"/><text x="225.1" y="779" text-anchor="middle">S5c 24</text></g>
-<g class="blk k-code" data-tip="作者调用，约 9.1 分钟（推算）。scope-4：检查点。写的时候用原版顶替还没写好的依赖"><rect x="220.7" y="746" width="27.5" height="18" rx="4"/></g>
-<g class="blk k-step" data-tip="合并 8 个工作区的文件"><rect x="263.5" y="746" width="3.5" height="18" rx="4"/></g>
-<g class="blk k-fix" data-tip="一次集成调用：把各 scope 对不上的内部名字接起来（推算 10 分钟）"><rect x="268.3" y="746" width="30.3" height="18" rx="4"/><text x="283.4" y="759" text-anchor="middle">集成</text></g>
-<path class="link" d="M300.8 744.0 V734" marker-end="url(#pl-arrow)"/>
+21.3 分钟（推算）"><rect x="232.7" y="672" width="65.9" height="18" rx="4"/></g>
+<text class="t-total" x="474.1" y="685">123 分（-17）</text>
+<text class="t-lane" x="68" y="719" text-anchor="end">draft job</text>
+<g class="blk k-step" data-tip="draft job 的准备：工作区、在本机录一次基线、封存"><rect x="78.0" y="706" width="14.9" height="18" rx="4"/></g>
+<g class="blk k-code" data-tip="作者调用，约 40.2 分钟（推算）。scope-8：安装、模型库、TorchScript、测试辅助。写的时候用原版顶替还没写好的依赖"><rect x="94.1" y="706" width="125.4" height="18" rx="4"/><text x="156.8" y="719" text-anchor="middle">S8 40.2</text></g>
+<g class="blk k-code" data-tip="作者调用，约 29.8 分钟（推算）。scope-2：数据结构、层与算子。写的时候用原版顶替还没写好的依赖"><rect x="94.1" y="726" width="92.7" height="18" rx="4"/><text x="140.4" y="739" text-anchor="middle">S2 29.8</text></g>
+<g class="blk k-code" data-tip="作者调用，约 23.3 分钟（推算）。scope-3：图像与标注。写的时候用原版顶替还没写好的依赖"><rect x="94.1" y="746" width="72.2" height="18" rx="4"/><text x="130.2" y="759" text-anchor="middle">S3 23.3</text></g>
+<g class="blk k-code" data-tip="作者调用，约 20.6 分钟（推算）。scope-1：配置、运行支撑。写的时候用原版顶替还没写好的依赖"><rect x="94.1" y="766" width="63.7" height="18" rx="4"/><text x="125.9" y="779" text-anchor="middle">S1 20.6</text></g>
+<g class="blk k-code" data-tip="作者调用，约 24 分钟（推算）。模型，第 1 段：作者知道自己负责哪些文件。写的时候用原版顶替还没写好的依赖"><rect x="159.0" y="766" width="74.4" height="18" rx="4"/><text x="196.2" y="779" text-anchor="middle">S5a 24</text></g>
+<g class="blk k-code" data-tip="作者调用，约 24 分钟（推算）。模型，第 2 段。写的时候用原版顶替还没写好的依赖"><rect x="167.5" y="746" width="74.4" height="18" rx="4"/><text x="204.7" y="759" text-anchor="middle">S5b 24</text></g>
+<g class="blk k-code" data-tip="作者调用，约 24 分钟（推算）。模型，第 3 段。写的时候用原版顶替还没写好的依赖"><rect x="187.9" y="726" width="74.4" height="18" rx="4"/><text x="225.1" y="739" text-anchor="middle">S5c 24</text></g>
+<g class="blk k-code" data-tip="作者调用，约 9.1 分钟（推算）。scope-4：检查点。写的时候用原版顶替还没写好的依赖"><rect x="220.7" y="706" width="27.5" height="18" rx="4"/></g>
+<g class="blk k-step" data-tip="合并 8 个工作区的文件"><rect x="263.5" y="706" width="3.5" height="18" rx="4"/></g>
+<g class="blk k-fix" data-tip="一次集成调用：把各 scope 对不上的内部名字接起来（推算 10 分钟）"><rect x="268.3" y="706" width="30.3" height="18" rx="4"/><text x="283.4" y="719" text-anchor="middle">集成</text></g>
+<path class="link" d="M300.8 704.0 V694" marker-end="url(#pl-arrow-a)"/>
 </svg>
     </div>
-    <figcaption>第一行是实测，其余四行是推算：PR #43 之后被切开的功能三段各写各的，每段约 24 分钟；改动 1 假设最多 4 个作者同时写、集成 10 分钟；2 假设两次基线和试跑各降到 8 到 12 分钟；3 假设完整对比降到约 2.5 分钟。把鼠标移到色块上（或点一下）可以看它是什么。</figcaption>
+    <figcaption>第一行是实测，其余是推算：PR #43 之后被切开的功能三段各写各的，每段约 24 分钟；改动 1 假设两次基线和试跑降到原来的三分之一左右；改动 3 假设最多 4 个作者同时写、集成 10 分钟；改动 4 假设完整对比降到约 2.5 分钟。改动 2 在这次运行上没有效果（草稿没有空等的时间），所以没有画。</figcaption>
   </figure>
   <ul class="plain">
-    <li><strong>现在的瓶颈是草稿。</strong>main job 118 分钟就封存了，又等了 97 分钟草稿才写完。草稿的 8 次作者调用排成 7 层，只有一层是两个同时写。</li>
-    <li><strong>PR #43 只解决了空跑，草稿仍然是一条串行的链。</strong>三段现在各有各的活，还是一段接一段写，所以草稿只短了一点。</li>
-    <li><strong>改动 1 之后瓶颈换成冻结。</strong>草稿约 70 分钟写完，要等 main job 封存。这时再做改动 2 才有收益。</li>
-    <li><strong>改动 2 之后瓶颈又回到草稿。</strong>冻结降到约 49 分钟，草稿 70 分钟。两边交替成为瓶颈，所以 1 和 2 要都做。</li>
+    <li><strong>只做改动 1，这次运行不会变快。</strong>冻结从 118 分钟降到约 49 分钟，但 main job 只是多等一会儿草稿。</li>
+    <li><strong>改动 3 之后才看到效果。</strong>草稿约 70 分钟写完，瓶颈回到两边差不多的位置，作业约 140 分钟。</li>
   </ul>
 </section>
 
 <section>
-  <h2>这些问题在别的运行里也有吗</h2>
-  <p class="sub">目前只看过新流程的三次实测：detectron2 核心（两个作业）和 tqdm 全部（一个作业、两个作业各一次）。下面按问题列出每次运行里的情况。样本很少，结论是初步的。</p>
-  <div class="scroll"><table class="gen">
-    <thead><tr><th>问题</th><th>detectron2 核心，两个作业</th><th>tqdm，两个作业</th><th>tqdm，一个作业</th><th>判断</th></tr></thead>
-    <tbody>
-      <tr><th scope="row">首版的作者调用一个接一个</th><td>8 次调用排成 7 层，209 分钟</td><td>2 次，61.5 分钟</td><td>2 次，66.1 分钟</td><td><strong>三次都有。</strong>原因不同：大项目是层多；tqdm 是一个 scope 就装下了整个包（26 项功能、一次调用 50 多分钟）</td></tr>
-      <tr><th scope="row">封存后等草稿</th><td>96.8 分钟</td><td>没有：草稿 62.6，冻结 62.3</td><td>不适用</td><td>看草稿和冻结谁长。项目越大草稿越长</td></tr>
-      <tr><th scope="row">切开的功能后几段空跑</th><td>43 分钟</td><td>没有</td><td>没有</td><td>只在有单个功能超过 45,000 token 时出现；PR #43 已修</td></tr>
-      <tr><th scope="row">冻结里检查逐个执行</th><td>冻结 118 分钟里约 100 分钟</td><td>62.3 分钟里约 21 分钟</td><td>50.3 分钟里约 25 分钟</td><td><strong>三次都有。</strong>占多少取决于测试套件有多重</td></tr>
-      <tr><th scope="row">第二次基线全部重跑</th><td>40.6 分钟</td><td>6.4 分钟</td><td>8.7 分钟</td><td><strong>三次都有</strong></td></tr>
-      <tr><th scope="row">完整对比逐个执行</th><td>3 次，各 7 到 8 分钟</td><td>2 次，各约 1.6 分钟</td><td>3 次，各约 2 分钟</td><td>都有，但只在检查重的项目上值得改</td></tr>
-      <tr><th scope="row">冻结会话失败后重做</th><td>没有</td><td>2 组评审会话失败，重评约 12 分钟</td><td>没有</td><td>偶发</td></tr>
-    </tbody>
-  </table></div>
+  <h2>总览 B：冻结是瓶颈的运行</h2>
+  <p class="sub">packaging 全部，Codex 作者。十次运行里这一类有六次。画法和上图相同，用同一把时间尺。</p>
+  <figure class="card tl tips">
+    <p class="swipe">图比较宽，可以左右滑动。</p>
+    <div class="scroll">
+<svg class="tl-svg plan" viewBox="0 0 1069 502" role="img" aria-label="冻结是瓶颈的运行：packaging 实测 229 分钟，各项改动之后推算约 102 分钟。">
+<defs><marker id="pl-arrow-b" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L8 4 L0 8 z" fill="currentColor"/></marker></defs>
+<line class="grid" x1="78.0" y1="16" x2="78.0" y2="498"/>
+<text class="t-axis" x="78.0" y="11" text-anchor="middle">0</text>
+<line class="grid" x1="172.5" y1="16" x2="172.5" y2="498"/>
+<text class="t-axis" x="172.5" y="11" text-anchor="middle">30</text>
+<line class="grid" x1="267.0" y1="16" x2="267.0" y2="498"/>
+<text class="t-axis" x="267.0" y="11" text-anchor="middle">60</text>
+<line class="grid" x1="361.5" y1="16" x2="361.5" y2="498"/>
+<text class="t-axis" x="361.5" y="11" text-anchor="middle">90</text>
+<line class="grid" x1="456.0" y1="16" x2="456.0" y2="498"/>
+<text class="t-axis" x="456.0" y="11" text-anchor="middle">120</text>
+<line class="grid" x1="550.5" y1="16" x2="550.5" y2="498"/>
+<text class="t-axis" x="550.5" y="11" text-anchor="middle">150</text>
+<line class="grid" x1="645.0" y1="16" x2="645.0" y2="498"/>
+<text class="t-axis" x="645.0" y="11" text-anchor="middle">180</text>
+<line class="grid" x1="739.5" y1="16" x2="739.5" y2="498"/>
+<text class="t-axis" x="739.5" y="11" text-anchor="middle">210</text>
+<line class="grid" x1="834.0" y1="16" x2="834.0" y2="498"/>
+<text class="t-axis" x="834.0" y="11" text-anchor="middle">240</text>
+<line class="grid" x1="928.5" y1="16" x2="928.5" y2="498"/>
+<text class="t-axis" x="928.5" y="11" text-anchor="middle">270</text>
+<text class="t-axis" x="1064.6" y="11" text-anchor="end">提交后的分钟数 →</text>
+<text x="0" y="42"><tspan class="t-row">现在</tspan><tspan class="t-note" dx="14">main @ 1ef5998d，两个作业，Codex 作者，packaging 全部（实测）</tspan></text>
+<path class="bracket" d="M80.0 69 V66 H539.4 V69"/>
+<text class="t-phase" x="309.7" y="62" text-anchor="middle">冻结 147 分</text>
+<path class="bracket" d="M543.4 69 V66 H798.6 V69"/>
+<text class="t-phase" x="671.0" y="62" text-anchor="middle">导入后到交付 82 分</text>
+<text class="t-lane" x="68" y="85" text-anchor="end">main job</text>
+<g class="blk k-ko" data-tip="第一次录基线：22 个叶节点的检查逐个跑、各 3 遍，再做敲除（实测）
+32 分钟"><rect x="78.0" y="72" width="99.6" height="18" rx="4"/><text x="127.8" y="85" text-anchor="middle">基线 1</text></g>
+<g class="blk k-test" data-tip="测试设计的模型会话：25 个设计者会话分两批，墙钟 18.2 分钟（会话累计 117 分钟）（实测）
+18.2 分钟"><rect x="178.8" y="72" width="56.1" height="18" rx="4"/><text x="206.9" y="85" text-anchor="middle">设计</text></g>
+<g class="blk k-ko" data-tip="设计步骤里的其余时间：试跑设计出的测试、复测、合并（实测）
+40.3 分钟"><rect x="236.1" y="72" width="125.7" height="18" rx="4"/><text x="299.0" y="85" text-anchor="middle">试跑等</text></g>
+<g class="blk k-test" data-tip="测试评审的模型会话：20 个会话，墙钟 6.2 分钟（实测）
+6.2 分钟"><rect x="363.1" y="72" width="18.3" height="18" rx="4"/></g>
+<g class="blk k-ko" data-tip="第二次录基线：加入 94 个测试文件和 20 个场景文件后全部重跑（实测）
+50.4 分钟"><rect x="382.6" y="72" width="157.6" height="18" rx="4"/><text x="461.4" y="85" text-anchor="middle">基线 2</text></g>
+<g class="blk k-step" data-tip="导入草稿，存成第一个候选
+0.4 分钟"><rect x="541.4" y="72" width="1.6" height="18" rx="4"/></g>
+<g class="blk k-ko" data-tip="导入草稿后的第一次完整对比：153 组检查（实测）
+8 分钟"><rect x="542.6" y="72" width="24.0" height="18" rx="4"/></g>
+<g class="blk k-fix" data-tip="3 轮修复、1 次只读诊断和每轮之后的复验。总长是实测，内部怎么分没有逐步的数据
+68 分钟"><rect x="567.8" y="72" width="213.0" height="18" rx="4"/><text x="674.3" y="85" text-anchor="middle">修复、诊断、复验 68</text></g>
+<g class="blk k-step" data-tip="交付和补充回放
+5.9 分钟"><rect x="782.0" y="72" width="17.4" height="18" rx="4"/></g>
+<text class="t-total" x="808.6" y="85">229 分</text>
+<text class="t-lane" x="68" y="119" text-anchor="end">draft job</text>
+<g class="blk k-step" data-tip="draft job 的准备"><rect x="78.0" y="106" width="1.6" height="18" rx="4"/></g>
+<g class="blk k-code" data-tip="第 1 次作者调用，6.5 分钟（实测）"><rect x="80.8" y="106" width="19.3" height="18" rx="4"/><text x="90.5" y="119" text-anchor="middle">S1</text></g>
+<g class="blk k-code" data-tip="第 2 次作者调用，7.4 分钟（实测）"><rect x="101.3" y="106" width="22.1" height="18" rx="4"/><text x="112.4" y="119" text-anchor="middle">S2</text></g>
+<g class="blk k-code" data-tip="第 3 次作者调用，10.6 分钟（实测）"><rect x="124.6" y="106" width="32.2" height="18" rx="4"/><text x="140.7" y="119" text-anchor="middle">S3</text></g>
+<g class="blk k-wait" data-tip="草稿已经写完，draft job 结束；它要等 main job 封存后才被导入
+121.7 分钟（实测）"><rect x="158.0" y="106" width="382.2" height="18" rx="4"/><text x="349.1" y="119" text-anchor="middle">空等 121.7 分</text></g>
+<path class="link" d="M539.4 104.0 V94" marker-end="url(#pl-arrow-b)"/>
+<text x="0" y="162"><tspan class="t-row">+ 改动 1</tspan><tspan class="t-note" dx="14">冻结里的检查并发执行，第二次基线只跑新增部分（推算）</tspan></text>
+<path class="bracket" d="M80.0 189 V186 H248.0 V189"/>
+<text class="t-phase" x="164.0" y="182" text-anchor="middle">冻结 55 分</text>
+<path class="bracket" d="M252.0 189 V186 H507.2 V189"/>
+<text class="t-phase" x="379.6" y="182" text-anchor="middle">导入后到交付 82 分</text>
+<text class="t-lane" x="68" y="205" text-anchor="end">main job</text>
+<g class="blk k-ko" data-tip="第一次录基线：22 个叶节点的检查逐个跑、各 3 遍，再做敲除。改后：检查并发，第二次只跑新增部分（推算）
+10.7 分钟"><rect x="78.0" y="192" width="32.5" height="18" rx="4"/></g>
+<g class="blk k-test" data-tip="测试设计的模型会话：25 个设计者会话分两批，墙钟 18.2 分钟（会话累计 117 分钟）（实测）
+18.2 分钟"><rect x="111.7" y="192" width="56.1" height="18" rx="4"/><text x="139.8" y="205" text-anchor="middle">设计</text></g>
+<g class="blk k-ko" data-tip="设计步骤里的其余时间：试跑设计出的测试、复测、合并。改后：检查并发，第二次只跑新增部分（推算）
+13.4 分钟"><rect x="169.0" y="192" width="41.0" height="18" rx="4"/><text x="189.5" y="205" text-anchor="middle">试跑等</text></g>
+<g class="blk k-test" data-tip="测试评审的模型会话：20 个会话，墙钟 6.2 分钟（实测）
+6.2 分钟"><rect x="211.2" y="192" width="18.3" height="18" rx="4"/></g>
+<g class="blk k-ko" data-tip="第二次录基线：加入 94 个测试文件和 20 个场景文件后全部重跑。改后：检查并发，第二次只跑新增部分（推算）
+6.1 分钟"><rect x="230.8" y="192" width="18.0" height="18" rx="4"/></g>
+<g class="blk k-step" data-tip="导入草稿，存成第一个候选
+0.4 分钟"><rect x="250.0" y="192" width="1.6" height="18" rx="4"/></g>
+<g class="blk k-ko" data-tip="导入草稿后的第一次完整对比：153 组检查（实测）
+8 分钟"><rect x="251.2" y="192" width="24.0" height="18" rx="4"/></g>
+<g class="blk k-fix" data-tip="3 轮修复、1 次只读诊断和每轮之后的复验。总长是实测，内部怎么分没有逐步的数据
+68 分钟"><rect x="276.4" y="192" width="213.0" height="18" rx="4"/><text x="382.9" y="205" text-anchor="middle">修复、诊断、复验 68</text></g>
+<g class="blk k-step" data-tip="交付和补充回放
+5.9 分钟"><rect x="490.6" y="192" width="17.4" height="18" rx="4"/></g>
+<text class="t-total" x="517.2" y="205">137 分（-92）</text>
+<text class="t-lane" x="68" y="239" text-anchor="end">draft job</text>
+<g class="blk k-step" data-tip="draft job 的准备"><rect x="78.0" y="226" width="1.6" height="18" rx="4"/></g>
+<g class="blk k-code" data-tip="第 1 次作者调用，6.5 分钟（实测）"><rect x="80.8" y="226" width="19.3" height="18" rx="4"/><text x="90.5" y="239" text-anchor="middle">S1</text></g>
+<g class="blk k-code" data-tip="第 2 次作者调用，7.4 分钟（实测）"><rect x="101.3" y="226" width="22.1" height="18" rx="4"/><text x="112.4" y="239" text-anchor="middle">S2</text></g>
+<g class="blk k-code" data-tip="第 3 次作者调用，10.6 分钟（实测）"><rect x="124.6" y="226" width="32.2" height="18" rx="4"/><text x="140.7" y="239" text-anchor="middle">S3</text></g>
+<g class="blk k-wait" data-tip="草稿已经写完，draft job 结束；它要等 main job 封存后才被导入
+29.2 分钟（推算）"><rect x="158.0" y="226" width="90.8" height="18" rx="4"/><text x="203.4" y="239" text-anchor="middle">空等 29.2 分</text></g>
+<path class="link" d="M248.0 224.0 V214" marker-end="url(#pl-arrow-b)"/>
+<text x="0" y="282"><tspan class="t-row">+ 改动 2</tspan><tspan class="t-note" dx="14">草稿写完后不空等：先用原版已有的检查对比、修复（推算：能提前做掉 29.1 分钟的修复）</tspan></text>
+<path class="bracket" d="M80.0 309 V306 H248.0 V309"/>
+<text class="t-phase" x="164.0" y="302" text-anchor="middle">冻结 55 分</text>
+<path class="bracket" d="M252.0 309 V306 H415.6 V309"/>
+<text class="t-phase" x="333.8" y="302" text-anchor="middle">导入后到交付 53 分</text>
+<text class="t-lane" x="68" y="325" text-anchor="end">main job</text>
+<g class="blk k-ko" data-tip="第一次录基线：22 个叶节点的检查逐个跑、各 3 遍，再做敲除。改后：检查并发，第二次只跑新增部分（推算）
+10.7 分钟"><rect x="78.0" y="312" width="32.5" height="18" rx="4"/></g>
+<g class="blk k-test" data-tip="测试设计的模型会话：25 个设计者会话分两批，墙钟 18.2 分钟（会话累计 117 分钟）（实测）
+18.2 分钟"><rect x="111.7" y="312" width="56.1" height="18" rx="4"/><text x="139.8" y="325" text-anchor="middle">设计</text></g>
+<g class="blk k-ko" data-tip="设计步骤里的其余时间：试跑设计出的测试、复测、合并。改后：检查并发，第二次只跑新增部分（推算）
+13.4 分钟"><rect x="169.0" y="312" width="41.0" height="18" rx="4"/><text x="189.5" y="325" text-anchor="middle">试跑等</text></g>
+<g class="blk k-test" data-tip="测试评审的模型会话：20 个会话，墙钟 6.2 分钟（实测）
+6.2 分钟"><rect x="211.2" y="312" width="18.3" height="18" rx="4"/></g>
+<g class="blk k-ko" data-tip="第二次录基线：加入 94 个测试文件和 20 个场景文件后全部重跑。改后：检查并发，第二次只跑新增部分（推算）
+6.1 分钟"><rect x="230.8" y="312" width="18.0" height="18" rx="4"/></g>
+<g class="blk k-step" data-tip="导入草稿，存成第一个候选
+0.4 分钟"><rect x="250.0" y="312" width="1.6" height="18" rx="4"/></g>
+<g class="blk k-ko" data-tip="导入草稿后的第一次完整对比：153 组检查（实测）
+8 分钟"><rect x="251.2" y="312" width="24.0" height="18" rx="4"/></g>
+<g class="blk k-fix" data-tip="3 轮修复、1 次只读诊断和每轮之后的复验。总长是实测，内部怎么分没有逐步的数据。其中一部分已经在封存前由 draft job 做掉（推算）
+38.9 分钟"><rect x="276.4" y="312" width="121.3" height="18" rx="4"/></g>
+<g class="blk k-step" data-tip="交付和补充回放
+5.9 分钟"><rect x="399.0" y="312" width="17.4" height="18" rx="4"/></g>
+<text class="t-total" x="425.6" y="325">108 分（-29）</text>
+<text class="t-lane" x="68" y="359" text-anchor="end">draft job</text>
+<g class="blk k-step" data-tip="draft job 的准备"><rect x="78.0" y="346" width="1.6" height="18" rx="4"/></g>
+<g class="blk k-code" data-tip="第 1 次作者调用，6.5 分钟（实测）"><rect x="80.8" y="346" width="19.3" height="18" rx="4"/><text x="90.5" y="359" text-anchor="middle">S1</text></g>
+<g class="blk k-code" data-tip="第 2 次作者调用，7.4 分钟（实测）"><rect x="101.3" y="346" width="22.1" height="18" rx="4"/><text x="112.4" y="359" text-anchor="middle">S2</text></g>
+<g class="blk k-code" data-tip="第 3 次作者调用，10.6 分钟（实测）"><rect x="124.6" y="346" width="32.2" height="18" rx="4"/><text x="140.7" y="359" text-anchor="middle">S3</text></g>
+<g class="blk k-ko" data-tip="draft job 用原版已有的检查对比自己的首版（推算）
+3 分钟"><rect x="158.0" y="346" width="8.2" height="18" rx="4"/></g>
+<g class="blk k-fix" data-tip="draft job 在 main job 封存之前修复对比出的失败，并复验（推算）
+26.1 分钟"><rect x="167.5" y="346" width="81.0" height="18" rx="4"/><text x="208.0" y="359" text-anchor="middle">先修 26.1</text></g>
+<path class="link" d="M248.0 344.0 V334" marker-end="url(#pl-arrow-b)"/>
+<text x="0" y="402"><tspan class="t-row">+ 改动 4</tspan><tspan class="t-note" dx="14">对比时检查并发执行（推算）</tspan></text>
+<path class="bracket" d="M80.0 429 V426 H248.0 V429"/>
+<text class="t-phase" x="164.0" y="422" text-anchor="middle">冻结 55 分</text>
+<path class="bracket" d="M252.0 429 V426 H398.9 V429"/>
+<text class="t-phase" x="325.4" y="422" text-anchor="middle">导入后到交付 48 分</text>
+<text class="t-lane" x="68" y="445" text-anchor="end">main job</text>
+<g class="blk k-ko" data-tip="第一次录基线：22 个叶节点的检查逐个跑、各 3 遍，再做敲除。改后：检查并发，第二次只跑新增部分（推算）
+10.7 分钟"><rect x="78.0" y="432" width="32.5" height="18" rx="4"/></g>
+<g class="blk k-test" data-tip="测试设计的模型会话：25 个设计者会话分两批，墙钟 18.2 分钟（会话累计 117 分钟）（实测）
+18.2 分钟"><rect x="111.7" y="432" width="56.1" height="18" rx="4"/><text x="139.8" y="445" text-anchor="middle">设计</text></g>
+<g class="blk k-ko" data-tip="设计步骤里的其余时间：试跑设计出的测试、复测、合并。改后：检查并发，第二次只跑新增部分（推算）
+13.4 分钟"><rect x="169.0" y="432" width="41.0" height="18" rx="4"/><text x="189.5" y="445" text-anchor="middle">试跑等</text></g>
+<g class="blk k-test" data-tip="测试评审的模型会话：20 个会话，墙钟 6.2 分钟（实测）
+6.2 分钟"><rect x="211.2" y="432" width="18.3" height="18" rx="4"/></g>
+<g class="blk k-ko" data-tip="第二次录基线：加入 94 个测试文件和 20 个场景文件后全部重跑。改后：检查并发，第二次只跑新增部分（推算）
+6.1 分钟"><rect x="230.8" y="432" width="18.0" height="18" rx="4"/></g>
+<g class="blk k-step" data-tip="导入草稿，存成第一个候选
+0.4 分钟"><rect x="250.0" y="432" width="1.6" height="18" rx="4"/></g>
+<g class="blk k-ko" data-tip="导入草稿后的第一次完整对比：153 组检查。改后：检查并发（推算）
+2.7 分钟"><rect x="251.2" y="432" width="7.3" height="18" rx="4"/></g>
+<g class="blk k-fix" data-tip="3 轮修复、1 次只读诊断和每轮之后的复验。总长是实测，内部怎么分没有逐步的数据。其中一部分已经在封存前由 draft job 做掉（推算）
+38.9 分钟"><rect x="259.8" y="432" width="121.3" height="18" rx="4"/></g>
+<g class="blk k-step" data-tip="交付和补充回放
+5.9 分钟"><rect x="382.3" y="432" width="17.4" height="18" rx="4"/></g>
+<text class="t-total" x="408.9" y="445">102 分（-6）</text>
+<text class="t-lane" x="68" y="479" text-anchor="end">draft job</text>
+<g class="blk k-step" data-tip="draft job 的准备"><rect x="78.0" y="466" width="1.6" height="18" rx="4"/></g>
+<g class="blk k-code" data-tip="第 1 次作者调用，6.5 分钟（实测）"><rect x="80.8" y="466" width="19.3" height="18" rx="4"/><text x="90.5" y="479" text-anchor="middle">S1</text></g>
+<g class="blk k-code" data-tip="第 2 次作者调用，7.4 分钟（实测）"><rect x="101.3" y="466" width="22.1" height="18" rx="4"/><text x="112.4" y="479" text-anchor="middle">S2</text></g>
+<g class="blk k-code" data-tip="第 3 次作者调用，10.6 分钟（实测）"><rect x="124.6" y="466" width="32.2" height="18" rx="4"/><text x="140.7" y="479" text-anchor="middle">S3</text></g>
+<g class="blk k-ko" data-tip="draft job 用原版已有的检查对比自己的首版（推算）
+3 分钟"><rect x="158.0" y="466" width="8.2" height="18" rx="4"/></g>
+<g class="blk k-fix" data-tip="draft job 在 main job 封存之前修复对比出的失败，并复验（推算）
+26.1 分钟"><rect x="167.5" y="466" width="81.0" height="18" rx="4"/><text x="208.0" y="479" text-anchor="middle">先修 26.1</text></g>
+<path class="link" d="M248.0 464.0 V454" marker-end="url(#pl-arrow-b)"/>
+</svg>
+    </div>
+    <figcaption>第一行是实测，其余是推算：改动 1 假设两次基线和试跑降到原来的三分之一左右、第二次基线只跑新增的检查；改动 2 假设草稿写完到封存之间的时间都用来对比和修复，并且这些修复原本要在导入之后做。导入后“修复、诊断、复验”那一段的总长是实测，内部怎么分没有逐步的数据，所以画成一块。改动 3 在这次运行上没有效果（草稿不在关键路径上）。</figcaption>
+  </figure>
   <ul class="plain">
-    <li><strong>“首版串行”和“冻结里的检查逐个执行”是普遍的。</strong>三次运行都有，只是轻重不同。</li>
-    <li><strong>改动 1 对中等项目要多做一步。</strong>tqdm 的首版慢，不是因为层多，而是一个 scope 太大。只把层摊平，它只省 10 分钟左右；还要把一个装满的 scope 再切成几份同时写。代价是每多一个会话多一份固定开销，token 会变多。</li>
-    <li><strong>改动 3 的收益和项目有关。</strong>在 tqdm 上可以忽略。</li>
+    <li><strong>草稿 26 分钟就写完了，然后空等了 122 分钟。</strong>导入之后又花了 68 分钟修复。</li>
+    <li><strong>改动 1 的效果最大。</strong>冻结 147 分钟里，两次基线 82 分钟，试跑等约 40 分钟，模型会话只有 24 分钟。</li>
+    <li><strong>改动 2 用的是空等的时间。</strong>改动 1 之后草稿仍比冻结早约半小时写完，这段时间可以先做掉一部分修复。</li>
   </ul>
 </section>
 
@@ -605,22 +792,42 @@
   <p class="sub">下面的小图是示意：一格代表一份工作，上下叠在一起的格子同时进行，格子的宽窄只表示相对长短。</p>
 
   <div class="change">
-    <h3>已经有人在做：一个功能切成几段时，后面几段不再空跑（PR #43）</h3>
-    <div class="meta"><span class="chip c-dflt">已实现，尚未合并</span><span class="chip c-mode">detectron2 上约 −18 分钟（推算）</span><span class="chip c-cond">不在我的待办里</span></div>
+    <h3>改动 1　冻结里的检查并发执行，第二次基线只跑新增部分</h3>
+    <div class="meta"><span class="chip c-mode">十次运行都有</span><span class="chip c-mode">packaging 上约 −92 分钟（推算）</span><span class="chip c-dflt">改动量：中</span><span class="chip c-dflt">不改变模型行为</span></div>
     <figure class="card tl tips">
-      <div class="scroll"><svg class="tl-svg mini" width="808" height="257" viewBox="0 0 622 198" role="img" aria-label="一个功能切成三段：现在后两段空跑；PR #43 之后每段知道自己的文件、各写各的，已被写好的段跳过；再加改动 1，三段同时写"><text class="t-lane left" x="0" y="21">现在（main）</text><g class="blk k-code" data-tip="第 1 段的作者把整个功能都写了（实测 47.5 分钟）"><rect x="177" y="6" width="183" height="22" rx="4"/><text x="268.5" y="21" text-anchor="middle">S5 写了整个功能</text></g><g class="blk k-waste" data-tip="第 2 段：调用了作者，零改动（实测 20.2 分钟、$9.41）"><rect x="363" y="6" width="121" height="22" rx="4"/><text x="423.5" y="21" text-anchor="middle">S6 空跑</text></g><g class="blk k-waste" data-tip="第 3 段：调用了作者，零改动（实测 22.3 分钟、$11.68）"><rect x="487" y="6" width="121" height="22" rx="4"/><text x="547.5" y="21" text-anchor="middle">S7 空跑</text></g><text class="t-lane left" x="0" y="58">PR #43 之后</text><g class="blk k-code" data-tip="这一段的说明里列出它负责的文件；只写这些文件实现的东西"><rect x="177" y="43" width="121" height="22" rx="4"/><text x="237.5" y="58" text-anchor="middle">S5a：自己的文件</text></g><g class="blk k-code" data-tip="这一段的说明里列出它负责的文件；只写这些文件实现的东西"><rect x="301" y="43" width="121" height="22" rx="4"/><text x="361.5" y="58" text-anchor="middle">S5b：自己的文件</text></g><g class="blk k-code" data-tip="这一段的说明里列出它负责的文件；只写这些文件实现的东西"><rect x="425" y="43" width="121" height="22" rx="4"/><text x="485.5" y="58" text-anchor="middle">S5c：自己的文件</text></g><text class="t-lane left" x="0" y="95">PR #43：若前一段还是写多了</text><g class="blk k-code" data-tip="第 1 段的作者把整个功能都写了（实测 47.5 分钟）"><rect x="177" y="80" width="183" height="22" rx="4"/><text x="268.5" y="95" text-anchor="middle">S5 写了整个功能</text></g><g class="blk k-step" data-tip="后面的段已经被写好（按文件判断），不再调用作者"><rect x="363" y="80" width="59" height="22" rx="4"/><text x="392.5" y="95" text-anchor="middle">跳过</text></g><g class="blk k-step" data-tip="同上"><rect x="425" y="80" width="59" height="22" rx="4"/><text x="454.5" y="95" text-anchor="middle">跳过</text></g><text class="t-lane left" x="0" y="132">再加改动 1</text><g class="blk k-code" data-tip="这一段的说明里列出它负责的文件；只写这些文件实现的东西"><rect x="177" y="117" width="121" height="22" rx="4"/><text x="237.5" y="132" text-anchor="middle">S5a：自己的文件</text></g><g class="blk k-code" data-tip="这一段的说明里列出它负责的文件；只写这些文件实现的东西"><rect x="177" y="142" width="121" height="22" rx="4"/><text x="237.5" y="157" text-anchor="middle">S5b：自己的文件</text></g><g class="blk k-code" data-tip="这一段的说明里列出它负责的文件；只写这些文件实现的东西"><rect x="177" y="167" width="121" height="22" rx="4"/><text x="237.5" y="182" text-anchor="middle">S5c：自己的文件</text></g></svg></div>
-      <figcaption>“模型”这个功能约 9.6 万 token，超过单个 scope 45,000 token 的上限，被按文件切成三段、一段接一段写。实测里第一段的作者把整个功能都写了，后两段各跑了 20 多分钟，没有任何改动（43 分钟、$21）。</figcaption>
+      <h4>录一次基线</h4>
+      <div class="scroll"><svg class="tl-svg mini" width="975" height="291" viewBox="0 0 750 224" role="img" aria-label="录一次基线：现在检查逐个跑、敲除矩阵里多处逐个跑；改后各环节并发"><text class="t-lane left" x="0" y="21">现在</text><g class="blk k-ko" data-tip="检查 1：在原版上跑 3 遍，确认结果稳定"><rect x="119" y="6" width="59" height="22" rx="4"/><text x="148.5" y="21" text-anchor="middle">检查 1</text></g><g class="blk k-ko" data-tip="检查 2：在原版上跑 3 遍，确认结果稳定"><rect x="181" y="6" width="59" height="22" rx="4"/><text x="210.5" y="21" text-anchor="middle">检查 2</text></g><g class="blk k-ko" data-tip="检查 3：在原版上跑 3 遍，确认结果稳定"><rect x="243" y="6" width="59" height="22" rx="4"/><text x="272.5" y="21" text-anchor="middle">检查 3</text></g><g class="blk k-ko" data-tip="检查 4：在原版上跑 3 遍，确认结果稳定"><rect x="305" y="6" width="59" height="22" rx="4"/><text x="334.5" y="21" text-anchor="middle">检查 4</text></g><g class="blk k-ko" data-tip="敲除之前：在一份没有改动的副本里把所有检查逐个跑一遍"><rect x="367" y="6" width="121" height="22" rx="4"/><text x="427.5" y="21" text-anchor="middle">对照副本</text></g><g class="blk k-ko" data-tip="把叶节点 1 的代码在一份副本里禁用，重跑和它有关的检查（副本里逐个跑）"><rect x="491" y="6" width="121" height="22" rx="4"/><text x="551.5" y="21" text-anchor="middle">叶 1</text></g><g class="blk k-ko" data-tip="把叶节点 2 的代码在一份副本里禁用，重跑和它有关的检查（副本里逐个跑）"><rect x="491" y="31" width="121" height="22" rx="4"/><text x="551.5" y="46" text-anchor="middle">叶 2</text></g><g class="blk k-ko" data-tip="把叶节点 3 的代码在一份副本里禁用，重跑和它有关的检查（副本里逐个跑）"><rect x="491" y="56" width="121" height="22" rx="4"/><text x="551.5" y="71" text-anchor="middle">叶 3</text></g><g class="blk k-ko" data-tip="把叶节点 4 的代码在一份副本里禁用，重跑和它有关的检查（副本里逐个跑）"><rect x="491" y="81" width="121" height="22" rx="4"/><text x="551.5" y="96" text-anchor="middle">叶 4</text></g><g class="blk k-ko" data-tip="每个“击中”再在新的副本里单独确认一遍，逐个进行"><rect x="615" y="6" width="121" height="22" rx="4"/><text x="675.5" y="21" text-anchor="middle">逐个确认</text></g><text class="t-lane left" x="0" y="133">改后</text><g class="blk k-ko" data-tip="检查 1：在原版上跑 3 遍，确认结果稳定"><rect x="119" y="118" width="59" height="22" rx="4"/><text x="148.5" y="133" text-anchor="middle">检查 1</text></g><g class="blk k-ko" data-tip="检查 2：在原版上跑 3 遍，确认结果稳定"><rect x="119" y="143" width="59" height="22" rx="4"/><text x="148.5" y="158" text-anchor="middle">检查 2</text></g><g class="blk k-ko" data-tip="检查 3：在原版上跑 3 遍，确认结果稳定"><rect x="119" y="168" width="59" height="22" rx="4"/><text x="148.5" y="183" text-anchor="middle">检查 3</text></g><g class="blk k-ko" data-tip="检查 4：在原版上跑 3 遍，确认结果稳定"><rect x="119" y="193" width="59" height="22" rx="4"/><text x="148.5" y="208" text-anchor="middle">检查 4</text></g><g class="blk k-ko" data-tip="对照副本里的检查并发跑"><rect x="181" y="118" width="59" height="22" rx="4"/><text x="210.5" y="133" text-anchor="middle">对照</text></g><g class="blk k-ko" data-tip="把叶节点 1 的代码在一份副本里禁用，重跑和它有关的检查（副本里并发跑）"><rect x="243" y="118" width="59" height="22" rx="4"/><text x="272.5" y="133" text-anchor="middle">叶 1</text></g><g class="blk k-ko" data-tip="把叶节点 2 的代码在一份副本里禁用，重跑和它有关的检查（副本里并发跑）"><rect x="243" y="143" width="59" height="22" rx="4"/><text x="272.5" y="158" text-anchor="middle">叶 2</text></g><g class="blk k-ko" data-tip="把叶节点 3 的代码在一份副本里禁用，重跑和它有关的检查（副本里并发跑）"><rect x="243" y="168" width="59" height="22" rx="4"/><text x="272.5" y="183" text-anchor="middle">叶 3</text></g><g class="blk k-ko" data-tip="把叶节点 4 的代码在一份副本里禁用，重跑和它有关的检查（副本里并发跑）"><rect x="243" y="193" width="59" height="22" rx="4"/><text x="272.5" y="208" text-anchor="middle">叶 4</text></g><g class="blk k-ko" data-tip="确认也并发进行"><rect x="305" y="118" width="59" height="22" rx="4"/><text x="334.5" y="133" text-anchor="middle">确认</text></g></svg></div>
+      <figcaption>基线里的检查一个接一个跑，轻量的各跑 3 遍；并发设置对基线不起作用。敲除矩阵里，对照副本、每个叶节点副本里的检查、击中后的确认也都是逐个进行。只有“叶节点”这一级是并行的（默认 4 个）。</figcaption>
+    </figure>
+    <figure class="card tl tips">
+      <h4>设计之后的第二次基线</h4>
+      <div class="scroll"><svg class="tl-svg mini" width="733" height="96" viewBox="0 0 564 74" role="img" aria-label="第二次基线：现在 76 项全部重跑；改后原有的 37 项复用第一次的结果，只跑新增的"><text class="t-lane left" x="0" y="21">现在</text><g class="blk k-ko" data-tip="原有的检查和它们的敲除全部重跑一遍，结果和第一次相同"><rect x="119" y="6" width="245" height="22" rx="4"/><text x="241.5" y="21" text-anchor="middle">原有 37 项：重跑</text></g><g class="blk k-ko" data-tip="设计出的测试第一次进基线"><rect x="367" y="6" width="183" height="22" rx="4"/><text x="458.5" y="21" text-anchor="middle">新增 39 个文件</text></g><text class="t-lane left" x="0" y="58">改后</text><g class="blk k-step" data-tip="原有检查的结果和敲除直接取第一次基线的：设计只是加了测试文件，产品代码没有变"><rect x="119" y="43" width="59" height="22" rx="4"/><text x="148.5" y="58" text-anchor="middle">复用</text></g><g class="blk k-ko" data-tip="只跑新增的检查，并发"><rect x="181" y="43" width="121" height="22" rx="4"/><text x="241.5" y="58" text-anchor="middle">新增 39 个</text></g></svg></div>
+      <figcaption>设计只是往原版上加了测试文件，原有检查的结果和敲除不会变。现在整份基线按指纹失效，全部重跑：packaging 第一次 32 分钟，第二次 50 分钟；detectron2 是 24 和 41 分钟。</figcaption>
     </figure>
     <div class="facts">
-      <div class="card"><h4>为什么会这样</h4><p>每一段的作者拿到的是这个功能的一部分接口条目，但没有被告知自己负责哪些文件，也能看到整个功能的原版。于是第一段就把整个功能写完了。</p></div>
-      <div class="card"><h4>PR #43 怎么改的</h4><ul><li>每一段被告知它负责的文件，只写这些文件实现的东西。</li><li>后面的段如果已经被前面的作者写好（按文件逐个判断，占位的不算），就不再调用作者。</li></ul></div>
-      <div class="card"><h4>对计划的影响</h4><p>空跑没有了，但三段仍然是一段接一段写。按每段约 24 分钟估，草稿只比现在短约 18 分钟。要让这三段同时写，还得靠下面的改动 1。</p></div>
+      <div class="card"><h4>依据</h4><p>十次运行里，两次录基线加设计试跑占冻结的 34% 到 96%。packaging 是 147 分钟里的 123 分钟，detectron2 是 118 分钟里的 100 分钟。设计者和评审的模型会话已经是同时跑的。</p></div>
+      <div class="card"><h4>改什么</h4><ul><li>基线里的检查并发跑，各在自己的副本里。</li><li>对照副本、叶节点副本里的检查、确认都并发。</li><li>基线按检查复用结果，而不是整份失效。</li><li>设计试跑同样处理。</li><li>检查批次申请的 CPU 跟着并发数走。</li></ul></div>
+      <div class="card"><h4>怎么验证</h4><p>离线测试：同一份基线，并发和逐个跑出来的结果相同；只加测试文件之后，原有检查的结果被复用。不涉及模型，不需要跑作业。</p></div>
     </div>
   </div>
 
   <div class="change">
-    <h3>改动 1　所有 scope 同时写，再做一次集成</h3>
-    <div class="meta"><span class="chip c-dflt">改动量：中到大</span><span class="chip c-mode">detectron2 上约 −79 分钟；草稿从 197 降到约 70 分钟</span><span class="chip c-cond">需要先看设计</span></div>
+    <h3>改动 2　草稿写完后先对比、先修，不空等</h3>
+    <div class="meta"><span class="chip c-mode">十次里六次有空等，15 到 122 分钟</span><span class="chip c-mode">packaging 上约 −29 分钟（推算）</span><span class="chip c-dflt">改动量：中到大</span><span class="chip c-cond">需要先看设计</span></div>
+    <figure class="card tl tips">
+      <div class="scroll"><svg class="tl-svg mini" width="993" height="192" viewBox="0 0 764 148" role="img" aria-label="草稿写完之后：现在空等到 main job 封存，对比和修复全在封存之后一轮一轮做；改后 draft job 先用原版已有的检查对比和修复，封存后只剩新测试查出的问题"><text class="t-lane left" x="0" y="21">现在 · main job</text><g class="blk k-ko" data-tip="main job：录基线、设计测试、再录基线、封存"><rect x="133" y="6" width="245" height="22" rx="4"/><text x="255.5" y="21" text-anchor="middle">冻结</text></g><g class="blk k-step" data-tip="封存后导入草稿"><rect x="381" y="6" width="59" height="22" rx="4"/><text x="410.5" y="21" text-anchor="middle">导入</text></g><g class="blk k-ko" data-tip="第一次完整对比"><rect x="443" y="6" width="59" height="22" rx="4"/><text x="472.5" y="21" text-anchor="middle">对比</text></g><g class="blk k-fix" data-tip="修复调用"><rect x="505" y="6" width="59" height="22" rx="4"/><text x="534.5" y="21" text-anchor="middle">修复</text></g><g class="blk k-ko" data-tip="复验"><rect x="567" y="6" width="59" height="22" rx="4"/><text x="596.5" y="21" text-anchor="middle">对比</text></g><g class="blk k-fix" data-tip="修复调用"><rect x="629" y="6" width="59" height="22" rx="4"/><text x="658.5" y="21" text-anchor="middle">修复</text></g><g class="blk k-ko" data-tip="复验"><rect x="691" y="6" width="59" height="22" rx="4"/><text x="720.5" y="21" text-anchor="middle">对比</text></g><text class="t-lane left" x="0" y="58">现在 · draft job</text><g class="blk k-code" data-tip="作者写首版"><rect x="133" y="43" width="121" height="22" rx="4"/><text x="193.5" y="58" text-anchor="middle">写首版</text></g><g class="blk k-wait" data-tip="草稿写完后 draft job 就结束了，什么也不做，直到 main job 封存"><rect x="257" y="43" width="121" height="22" rx="4"/><text x="317.5" y="58" text-anchor="middle">空等到封存</text></g><text class="t-lane left" x="0" y="95">改后 · main job</text><g class="blk k-ko" data-tip="main job：录基线、设计测试、再录基线、封存"><rect x="133" y="80" width="245" height="22" rx="4"/><text x="255.5" y="95" text-anchor="middle">冻结</text></g><g class="blk k-step" data-tip="封存后导入已经修过一轮的草稿"><rect x="381" y="80" width="59" height="22" rx="4"/><text x="410.5" y="95" text-anchor="middle">导入</text></g><g class="blk k-ko" data-tip="完整对比：这时才第一次用上新设计的测试"><rect x="443" y="80" width="59" height="22" rx="4"/><text x="472.5" y="95" text-anchor="middle">对比</text></g><g class="blk k-fix" data-tip="只剩新测试查出来的问题"><rect x="505" y="80" width="59" height="22" rx="4"/><text x="534.5" y="95" text-anchor="middle">修复</text></g><g class="blk k-ko" data-tip="复验"><rect x="567" y="80" width="59" height="22" rx="4"/><text x="596.5" y="95" text-anchor="middle">对比</text></g><text class="t-lane left" x="0" y="132">改后 · draft job</text><g class="blk k-code" data-tip="作者写首版"><rect x="133" y="117" width="121" height="22" rx="4"/><text x="193.5" y="132" text-anchor="middle">写首版</text></g><g class="blk k-ko" data-tip="用 draft job 自己录的那份基线（原版已有的检查）对比首版"><rect x="257" y="117" width="59" height="22" rx="4"/><text x="286.5" y="132" text-anchor="middle">对比</text></g><g class="blk k-fix" data-tip="修复对比出的失败"><rect x="319" y="117" width="59" height="22" rx="4"/><text x="348.5" y="132" text-anchor="middle">修复</text></g><g class="blk k-ko" data-tip="复验"><rect x="381" y="117" width="59" height="22" rx="4"/><text x="410.5" y="132" text-anchor="middle">对比</text></g><g class="blk k-fix" data-tip="再修"><rect x="443" y="117" width="59" height="22" rx="4"/><text x="472.5" y="132" text-anchor="middle">修复</text></g></svg></div>
+      <figcaption>现在 draft job 写完首版就结束，对比和修复都要等 main job 封存、导入之后才开始，一轮接一轮。改后 draft job 接着用原版已有的检查对比自己的首版并修复；封存后 main job 照常做完整对比，这时只剩新设计的测试查出来的问题。</figcaption>
+    </figure>
+    <div class="facts">
+      <div class="card"><h4>为什么可行</h4><p>draft job 开头本来就自己录了一遍原版已有检查的基线，只是现在不用它做对比。提前对比只用这份基线，不碰 main job 的测试和基线，所以“草稿的任何观察都不作为验收依据”这一条不变：封存后 main job 仍然自己完整对比一遍。</p></div>
+      <div class="card"><h4>风险和限制</h4><ul><li>只能提前修原版已有检查查出的问题，新设计的测试要等封存。能挪走多少，要实测。</li><li>draft job 现在没有 controller，提前修复要按固定规则走：对比一次，修到 main job 封存或修满几轮为止。</li><li>四次运行修了 3 到 4 轮仍有失败，这种反复不会因为提前而消失。</li></ul></div>
+      <div class="card"><h4>怎么验证</h4><p>在 packaging 或 click 上实测：导入后的第一次完整对比失败几项、导入到交付用多久。现在分别是 82 和 44 分钟。</p></div>
+    </div>
+  </div>
+
+  <div class="change">
+    <h3>改动 3　所有 scope 同时写，再做一次集成</h3>
+    <div class="meta"><span class="chip c-mode">只在草稿是瓶颈时有用：十次里三次</span><span class="chip c-mode">detectron2 上约 −126 分钟（推算）</span><span class="chip c-dflt">改动量：中到大</span><span class="chip c-cond">需要先看设计</span></div>
     <figure class="card tl tips">
       <div class="scroll"><svg class="tl-svg mini" width="733" height="226" viewBox="0 0 564 174" role="img" aria-label="首版的 scope：现在按依赖排成 7 层、几乎逐个写；改后同时写，最多 4 个作者，然后合并、集成"><text class="t-lane left" x="0" y="21">现在：7 层</text><g class="blk k-code" data-tip="scope-1：配置、运行支撑"><rect x="119" y="6" width="59" height="22" rx="4"/><text x="148.5" y="21" text-anchor="middle">S1</text></g><g class="blk k-code" data-tip="scope-2：数据结构、层与算子"><rect x="181" y="6" width="59" height="22" rx="4"/><text x="210.5" y="21" text-anchor="middle">S2</text></g><g class="blk k-code" data-tip="scope-4：检查点"><rect x="181" y="31" width="59" height="22" rx="4"/><text x="210.5" y="46" text-anchor="middle">S4</text></g><g class="blk k-code" data-tip="scope-3：图像与标注"><rect x="243" y="6" width="59" height="22" rx="4"/><text x="272.5" y="21" text-anchor="middle">S3</text></g><g class="blk k-code" data-tip="scope-5：模型（第 1 段）。这个作者把整个“模型”功能都写了"><rect x="305" y="6" width="59" height="22" rx="4"/><text x="334.5" y="21" text-anchor="middle">S5</text></g><g class="blk k-waste" data-tip="scope-6：模型（第 2 段）。调用了作者，没有任何改动"><rect x="367" y="6" width="59" height="22" rx="4"/><text x="396.5" y="21" text-anchor="middle">S6</text></g><g class="blk k-waste" data-tip="scope-7：模型（第 3 段）。调用了作者，没有任何改动"><rect x="429" y="6" width="59" height="22" rx="4"/><text x="458.5" y="21" text-anchor="middle">S7</text></g><g class="blk k-code" data-tip="scope-8：安装、模型库、TorchScript、测试辅助"><rect x="491" y="6" width="59" height="22" rx="4"/><text x="520.5" y="21" text-anchor="middle">S8</text></g><text class="t-lane left" x="0" y="83">改后：1 层</text><g class="blk k-code" data-tip="scope-8：安装、模型库、TorchScript、测试辅助"><rect x="119" y="68" width="59" height="22" rx="4"/><text x="148.5" y="83" text-anchor="middle">S8</text></g><g class="blk k-code" data-tip="scope-2：数据结构、层与算子"><rect x="119" y="93" width="59" height="22" rx="4"/><text x="148.5" y="108" text-anchor="middle">S2</text></g><g class="blk k-code" data-tip="scope-3：图像与标注"><rect x="119" y="118" width="59" height="22" rx="4"/><text x="148.5" y="133" text-anchor="middle">S3</text></g><g class="blk k-code" data-tip="scope-1：配置、运行支撑"><rect x="119" y="143" width="59" height="22" rx="4"/><text x="148.5" y="158" text-anchor="middle">S1</text></g><g class="blk k-code" data-tip="模型，第 1 段"><rect x="181" y="68" width="59" height="22" rx="4"/><text x="210.5" y="83" text-anchor="middle">S5a</text></g><g class="blk k-code" data-tip="模型，第 2 段"><rect x="181" y="93" width="59" height="22" rx="4"/><text x="210.5" y="108" text-anchor="middle">S5b</text></g><g class="blk k-code" data-tip="模型，第 3 段"><rect x="181" y="118" width="59" height="22" rx="4"/><text x="210.5" y="133" text-anchor="middle">S5c</text></g><g class="blk k-code" data-tip="scope-4：检查点"><rect x="181" y="143" width="59" height="22" rx="4"/><text x="210.5" y="158" text-anchor="middle">S4</text></g><g class="blk k-step" data-tip="把 8 个工作区的文件合成一个候选"><rect x="243" y="68" width="59" height="22" rx="4"/><text x="272.5" y="83" text-anchor="middle">合并</text></g><g class="blk k-fix" data-tip="一次集成调用：把各 scope 对不上的内部名字接起来"><rect x="305" y="68" width="59" height="22" rx="4"/><text x="334.5" y="83" text-anchor="middle">集成</text></g></svg></div>
       <figcaption>现在 scope 按依赖分层：后一层要等前一层的代码写好。detectron2 的 8 个 scope 排成 7 层，会话累计 213 分钟，墙钟 209 分钟。改后所有 scope 放在一层，最多 4 个作者同时写。被切开的功能的几段也在这一层里。</figcaption>
@@ -631,71 +838,69 @@
       <figcaption>分层的理由是“后面的 scope 要基于前面写好的代码”。但 main 上每次作者调用都能只读地看到它依赖的原版源码，所以可以按原版的接口写，不必等依赖被重写完。新增的是三样：保留名单、自检时用原版顶替依赖、合并后的集成调用。</figcaption>
     </figure>
     <div class="facts">
-      <div class="card"><h4>风险</h4><p>两个 scope 各自重写后，内部名字可能对不上：A 的作者按原版用了 B 的一个内部函数，而 B 的作者把它改名或删掉了。</p></div>
-      <div class="card"><h4>怎么控制</h4><ul><li>保留名单：从原版的导入关系里算出别的 scope 会导入的名字，要求作者保留。</li><li>合并后做一次集成调用，专门接上对不齐的地方。</li><li>对不上的只会是内部名字：对外接口由契约固定。</li></ul></div>
-      <div class="card"><h4>怎么验证</h4><p>在 detectron2 上实测：草稿墙钟、集成调用改了多少文件、第一次完整对比失败几项（现在是 1 项）。失败数明显变多就说明代价超过了收益。</p></div>
+      <div class="card"><h4>什么时候值得做</h4><p>草稿比冻结慢的时候：detectron2（Claude 作者、8 次调用）、more-itertools 和 python-dotenv（不需要设计测试，冻结只有几分钟）。Codex 作者的其余六次，草稿 7 到 27 分钟就写完了，改了也不影响作业时长。</p></div>
+      <div class="card"><h4>风险和怎么控制</h4><ul><li>两个 scope 各自重写后，内部名字可能对不上。</li><li>保留名单：从原版的导入关系里算出别的 scope 会导入的名字，要求作者保留。</li><li>合并后做一次集成调用，专门接上对不齐的地方。</li></ul></div>
+      <div class="card"><h4>中等项目要多做一步</h4><p>tqdm（Claude 作者）的首版慢，不是因为层多，而是一个 scope 就装下了整个包，一次调用 50 多分钟。只把层摊平只省约 10 分钟，还要把装满的 scope 再切成几份同时写，代价是会话变多、token 变多。</p></div>
     </div>
   </div>
 
   <div class="change">
-    <h3>改动 2　冻结里的检查并发执行，第二次基线只跑新增部分</h3>
-    <div class="meta"><span class="chip c-dflt">改动量：中</span><span class="chip c-mode">detectron2 上约 −47 分钟；冻结从 118 降到约 49 分钟</span><span class="chip c-dflt">不改变模型行为</span></div>
-    <figure class="card tl tips">
-      <h4>录一次基线</h4>
-      <div class="scroll"><svg class="tl-svg mini" width="975" height="291" viewBox="0 0 750 224" role="img" aria-label="录一次基线：现在检查逐个跑、敲除矩阵里多处逐个跑；改后各环节并发"><text class="t-lane left" x="0" y="21">现在</text><g class="blk k-ko" data-tip="检查 1：在原版上跑 3 遍，确认结果稳定"><rect x="119" y="6" width="59" height="22" rx="4"/><text x="148.5" y="21" text-anchor="middle">检查 1</text></g><g class="blk k-ko" data-tip="检查 2：在原版上跑 3 遍，确认结果稳定"><rect x="181" y="6" width="59" height="22" rx="4"/><text x="210.5" y="21" text-anchor="middle">检查 2</text></g><g class="blk k-ko" data-tip="检查 3：在原版上跑 3 遍，确认结果稳定"><rect x="243" y="6" width="59" height="22" rx="4"/><text x="272.5" y="21" text-anchor="middle">检查 3</text></g><g class="blk k-ko" data-tip="检查 4：在原版上跑 3 遍，确认结果稳定"><rect x="305" y="6" width="59" height="22" rx="4"/><text x="334.5" y="21" text-anchor="middle">检查 4</text></g><g class="blk k-ko" data-tip="敲除之前：在一份没有改动的副本里把所有检查逐个跑一遍"><rect x="367" y="6" width="121" height="22" rx="4"/><text x="427.5" y="21" text-anchor="middle">对照副本</text></g><g class="blk k-ko" data-tip="把叶节点 1 的代码在一份副本里禁用，重跑和它有关的检查（副本里逐个跑）"><rect x="491" y="6" width="121" height="22" rx="4"/><text x="551.5" y="21" text-anchor="middle">叶 1</text></g><g class="blk k-ko" data-tip="把叶节点 2 的代码在一份副本里禁用，重跑和它有关的检查（副本里逐个跑）"><rect x="491" y="31" width="121" height="22" rx="4"/><text x="551.5" y="46" text-anchor="middle">叶 2</text></g><g class="blk k-ko" data-tip="把叶节点 3 的代码在一份副本里禁用，重跑和它有关的检查（副本里逐个跑）"><rect x="491" y="56" width="121" height="22" rx="4"/><text x="551.5" y="71" text-anchor="middle">叶 3</text></g><g class="blk k-ko" data-tip="把叶节点 4 的代码在一份副本里禁用，重跑和它有关的检查（副本里逐个跑）"><rect x="491" y="81" width="121" height="22" rx="4"/><text x="551.5" y="96" text-anchor="middle">叶 4</text></g><g class="blk k-ko" data-tip="每个“击中”再在新的副本里单独确认一遍，逐个进行"><rect x="615" y="6" width="121" height="22" rx="4"/><text x="675.5" y="21" text-anchor="middle">逐个确认</text></g><text class="t-lane left" x="0" y="133">改后</text><g class="blk k-ko" data-tip="检查 1：在原版上跑 3 遍，确认结果稳定"><rect x="119" y="118" width="59" height="22" rx="4"/><text x="148.5" y="133" text-anchor="middle">检查 1</text></g><g class="blk k-ko" data-tip="检查 2：在原版上跑 3 遍，确认结果稳定"><rect x="119" y="143" width="59" height="22" rx="4"/><text x="148.5" y="158" text-anchor="middle">检查 2</text></g><g class="blk k-ko" data-tip="检查 3：在原版上跑 3 遍，确认结果稳定"><rect x="119" y="168" width="59" height="22" rx="4"/><text x="148.5" y="183" text-anchor="middle">检查 3</text></g><g class="blk k-ko" data-tip="检查 4：在原版上跑 3 遍，确认结果稳定"><rect x="119" y="193" width="59" height="22" rx="4"/><text x="148.5" y="208" text-anchor="middle">检查 4</text></g><g class="blk k-ko" data-tip="对照副本里的检查并发跑"><rect x="181" y="118" width="59" height="22" rx="4"/><text x="210.5" y="133" text-anchor="middle">对照</text></g><g class="blk k-ko" data-tip="把叶节点 1 的代码在一份副本里禁用，重跑和它有关的检查（副本里并发跑）"><rect x="243" y="118" width="59" height="22" rx="4"/><text x="272.5" y="133" text-anchor="middle">叶 1</text></g><g class="blk k-ko" data-tip="把叶节点 2 的代码在一份副本里禁用，重跑和它有关的检查（副本里并发跑）"><rect x="243" y="143" width="59" height="22" rx="4"/><text x="272.5" y="158" text-anchor="middle">叶 2</text></g><g class="blk k-ko" data-tip="把叶节点 3 的代码在一份副本里禁用，重跑和它有关的检查（副本里并发跑）"><rect x="243" y="168" width="59" height="22" rx="4"/><text x="272.5" y="183" text-anchor="middle">叶 3</text></g><g class="blk k-ko" data-tip="把叶节点 4 的代码在一份副本里禁用，重跑和它有关的检查（副本里并发跑）"><rect x="243" y="193" width="59" height="22" rx="4"/><text x="272.5" y="208" text-anchor="middle">叶 4</text></g><g class="blk k-ko" data-tip="确认也并发进行"><rect x="305" y="118" width="59" height="22" rx="4"/><text x="334.5" y="133" text-anchor="middle">确认</text></g></svg></div>
-      <figcaption>基线里的检查一个接一个跑，轻量的各跑 3 遍；并发设置对基线不起作用。敲除矩阵里，对照副本、每个叶节点副本里的检查、击中后的确认也都是逐个进行。只有“叶节点”这一级是并行的（默认 4 个）。</figcaption>
-    </figure>
-    <figure class="card tl tips">
-      <h4>设计之后的第二次基线</h4>
-      <div class="scroll"><svg class="tl-svg mini" width="733" height="96" viewBox="0 0 564 74" role="img" aria-label="第二次基线：现在 76 项全部重跑；改后原有的 37 项复用第一次的结果，只跑新增的"><text class="t-lane left" x="0" y="21">现在</text><g class="blk k-ko" data-tip="原有的检查和它们的敲除全部重跑一遍，结果和第一次相同"><rect x="119" y="6" width="245" height="22" rx="4"/><text x="241.5" y="21" text-anchor="middle">原有 37 项：重跑</text></g><g class="blk k-ko" data-tip="设计出的测试第一次进基线"><rect x="367" y="6" width="183" height="22" rx="4"/><text x="458.5" y="21" text-anchor="middle">新增 39 个文件</text></g><text class="t-lane left" x="0" y="58">改后</text><g class="blk k-step" data-tip="原有检查的结果和敲除直接取第一次基线的：设计只是加了测试文件，产品代码没有变"><rect x="119" y="43" width="59" height="22" rx="4"/><text x="148.5" y="58" text-anchor="middle">复用</text></g><g class="blk k-ko" data-tip="只跑新增的检查，并发"><rect x="181" y="43" width="121" height="22" rx="4"/><text x="241.5" y="58" text-anchor="middle">新增 39 个</text></g></svg></div>
-      <figcaption>设计只是往原版上加了测试文件，原有检查的结果和敲除不会变。现在整份基线按指纹失效，76 项全部重跑（detectron2 上 40.6 分钟）。</figcaption>
-    </figure>
-    <div class="facts">
-      <div class="card"><h4>依据</h4><p>detectron2 的冻结 118 分钟里，两次基线和设计试跑共约 100 分钟，都不调用模型。设计者和评审的模型会话只有 16 分钟，而且已经是并行的。</p></div>
-      <div class="card"><h4>改什么</h4><ul><li>基线里的检查并发跑，各在自己的副本里。</li><li>对照副本、叶节点副本里的检查、确认都并发。</li><li>基线按检查复用结果，而不是整份失效。</li><li>设计试跑同样处理。</li><li>检查批次申请的 CPU 跟着并发数走。</li></ul></div>
-      <div class="card"><h4>怎么验证</h4><p>离线测试：同一份基线，并发和逐个跑出来的结果相同；只加测试文件之后，原有检查的结果被复用。不涉及模型，不需要跑作业。</p></div>
-    </div>
-  </div>
-
-  <div class="change">
-    <h3>改动 3　对比时检查并发执行</h3>
-    <div class="meta"><span class="chip c-dflt">改动量：小到中</span><span class="chip c-mode">detectron2 上约 −16 分钟</span></div>
+    <h3>改动 4　对比时检查并发执行</h3>
+    <div class="meta"><span class="chip c-mode">检查重的项目上有用</span><span class="chip c-mode">detectron2 上约 −17 分钟（推算）</span><span class="chip c-dflt">改动量：小到中</span></div>
     <figure class="card tl tips">
       <div class="scroll"><svg class="tl-svg mini" width="572" height="128" viewBox="0 0 440 99" role="img" aria-label="完整对比：现在逐个跑，安装检查排在后面；改后并发，安装检查同时进行"><text class="t-lane left" x="0" y="21">现在</text><g class="blk k-ko" data-tip="每项检查在候选上跑一遍，逐个进行（实测 7 到 8 分钟）"><rect x="119" y="6" width="245" height="22" rx="4"/><text x="241.5" y="21" text-anchor="middle">完整对比：76 项逐个</text></g><g class="blk k-ko" data-tip="安装检查，在对比之后"><rect x="367" y="6" width="59" height="22" rx="4"/><text x="396.5" y="21" text-anchor="middle">安装</text></g><text class="t-lane left" x="0" y="58">改后</text><g class="blk k-ko" data-tip="基线标为“可以同时跑”的检查各在自己的副本里并发执行"><rect x="119" y="43" width="121" height="22" rx="4"/><text x="179.5" y="58" text-anchor="middle">完整对比：并发</text></g><g class="blk k-ko" data-tip="安装检查在独立的环境里，和对比同时进行"><rect x="119" y="68" width="121" height="22" rx="4"/><text x="179.5" y="83" text-anchor="middle">安装</text></g></svg></div>
-      <figcaption>detectron2 的修复阶段做了 3 次完整对比，每次 7 到 8 分钟。检查并发默认是 1，只有打开 parallel 模式才放宽；而且对比、安装检查各占同一把锁，只能一个接一个。</figcaption>
+      <figcaption>detectron2 做了 3 次完整对比，每次 7 到 8 分钟；packaging 导入后的第一次对比约 8 分钟。tqdm 和 requests 上每次只有 2 分钟左右。检查并发默认是 1，只有打开 parallel 模式才放宽；而且对比、安装检查各占同一把锁，只能一个接一个。</figcaption>
     </figure>
     <div class="facts">
       <div class="card"><h4>改什么</h4><ul><li>检查并发默认按 CPU 配额，不依赖 parallel 模式。</li><li>安装检查在独立的环境里，和对比同时进行。</li></ul></div>
-      <div class="card"><h4>前提</h4><p>只有基线标为“可以同时跑”的检查才会并发，所以它依赖改动 2 里的基线并发（那一步顺带给每项检查做这个标记）。</p></div>
+      <div class="card"><h4>前提</h4><p>只有基线标为“可以同时跑”的检查才会并发，所以它依赖改动 1 里的基线并发（那一步顺带给每项检查做这个标记）。</p></div>
     </div>
   </div>
 
   <div class="change">
-    <h3>改动 4　草稿中途失败时保留已写好的部分；冻结会话失败时重试</h3>
-    <div class="meta"><span class="chip c-dflt">改动量：中</span><span class="chip c-cond">不影响顺利时的时长</span></div>
-    <figure class="card tl tips">
-      <div class="scroll"><svg class="tl-svg mini" width="975" height="96" viewBox="0 0 750 74" role="img" aria-label="草稿中途失败：现在整个草稿丢弃、main job 重写全部；改后保留已写好的 scope，只补缺的"><text class="t-lane left" x="0" y="21">现在</text><g class="blk k-code" data-tip="这个 scope 写完并保存了"><rect x="119" y="6" width="59" height="22" rx="4"/><text x="148.5" y="21" text-anchor="middle">S1 ✓</text></g><g class="blk k-code" data-tip="这个 scope 写完并保存了"><rect x="181" y="6" width="59" height="22" rx="4"/><text x="210.5" y="21" text-anchor="middle">S2 ✓</text></g><g class="blk k-code" data-tip="这个 scope 写完并保存了"><rect x="243" y="6" width="59" height="22" rx="4"/><text x="272.5" y="21" text-anchor="middle">S3 ✓</text></g><g class="blk k-waste" data-tip="一次作者调用失败"><rect x="305" y="6" width="59" height="22" rx="4"/><text x="334.5" y="21" text-anchor="middle">S5 失败</text></g><g class="blk k-step" data-tip="draft job 以失败结束，已经写好的 3 个 scope 也不导入"><rect x="367" y="6" width="121" height="22" rx="4"/><text x="427.5" y="21" text-anchor="middle">整个草稿丢弃</text></g><g class="blk k-code" data-tip="main job 封存后自己从头写首版"><rect x="491" y="6" width="245" height="22" rx="4"/><text x="613.5" y="21" text-anchor="middle">main job 重写 S1 到 S8</text></g><text class="t-lane left" x="0" y="58">改后</text><g class="blk k-code" data-tip="这个 scope 写完并保存了"><rect x="119" y="43" width="59" height="22" rx="4"/><text x="148.5" y="58" text-anchor="middle">S1 ✓</text></g><g class="blk k-code" data-tip="这个 scope 写完并保存了"><rect x="181" y="43" width="59" height="22" rx="4"/><text x="210.5" y="58" text-anchor="middle">S2 ✓</text></g><g class="blk k-code" data-tip="这个 scope 写完并保存了"><rect x="243" y="43" width="59" height="22" rx="4"/><text x="272.5" y="58" text-anchor="middle">S3 ✓</text></g><g class="blk k-waste" data-tip="一次作者调用失败"><rect x="305" y="43" width="59" height="22" rx="4"/><text x="334.5" y="58" text-anchor="middle">S5 失败</text></g><g class="blk k-step" data-tip="已保存的 scope 照常导入"><rect x="367" y="43" width="121" height="22" rx="4"/><text x="427.5" y="58" text-anchor="middle">导入已写好的 3 个</text></g><g class="blk k-code" data-tip="main job 只写没有草稿的 scope"><rect x="491" y="43" width="121" height="22" rx="4"/><text x="551.5" y="58" text-anchor="middle">只写剩下的</text></g></svg></div>
-      <figcaption>现在 draft job 里任何一次作者调用失败，整个草稿丢弃，main job 封存后自己从头写。detectron2 的草稿有 8 次调用、3.5 小时，越长越容易遇到一次失败。</figcaption>
-    </figure>
+    <h3>改动 5　会话失败时重试；草稿部分失败时保留已写好的</h3>
+    <div class="meta"><span class="chip c-dflt">改动量：中</span><span class="chip c-cond">证据少：十次里各出现 1 次和 0 次</span></div>
     <div class="facts">
-      <div class="card"><h4>另一半：冻结会话</h4><p>设计者和评审的会话失败后不重试，也不区分限流和真失败。tqdm 两个作业那次，两组评审会话因登录失效而失败，重评多花了约 12 分钟。</p></div>
-      <div class="card"><h4>改什么</h4><ul><li>草稿失败时导入已保存的 scope，main job 只写缺的。</li><li>冻结会话失败先判断是不是限流或登录问题，是就等一等重试。</li></ul></div>
+      <div class="card"><h4>冻结会话失败</h4><p>设计者和评审的会话失败后不重试，也不区分限流和真失败。tqdm（Claude 作者）那次，两组评审会话因登录失效而失败，重评多花了约 12 分钟。其余九次没有遇到。</p></div>
+      <div class="card"><h4>草稿部分失败</h4><p>现在 draft job 里任何一次作者调用失败，整个草稿丢弃，main job 自己从头写。这是读代码看到的，十次运行里没有发生过，所以排在最后。</p></div>
     </div>
   </div>
 </section>
 
 <section>
   <h2>预计效果</h2>
-  <p class="sub">每一行是做到这一步之后的作业总时长。detectron2 一列和总览图一致；tqdm 一列按它那次两个作业的实测（80 分钟，已扣掉排队）推算。</p>
+  <p class="sub">每一行是做到这一步之后的作业总时长，两列分别对应上面的总览 A 和总览 B。同一项改动在两类运行上的效果不同：对一类有效的，对另一类往往没有变化。</p>
   <figure class="card">
     <p class="swipe">图比较宽，可以左右滑动。</p>
-    <div class="scroll"><div class="ef" role="table" aria-label="每做完一项改动之后的作业总时长，detectron2 和 tqdm"><div class="ef-row ef-head" role="row"><span role="columnheader">做到哪一步</span><span role="columnheader">detectron2 核心（23.5 万 token）</span><span role="columnheader">tqdm 全部（6.4 万 token）</span></div><div class="ef-row" role="row"><span class="ef-name" role="rowheader">现在（实测）</span><span class="ef-cell" role="cell"><span class="ef-bar" style="--v:1.0000"></span><span class="ef-val">284 分</span></span><span class="ef-cell" role="cell"><span class="ef-bar" style="--v:0.2817"></span><span class="ef-val">80 分</span><span class="ef-why">实测：冻结 62.3 和草稿 62.6 同时进行，之后 17.6</span></span></div><div class="ef-row" role="row"><span class="ef-name" role="rowheader">+ PR #43（已实现）</span><span class="ef-cell" role="cell"><span class="ef-bar" style="--v:0.9366"></span><span class="ef-val">266 分</span></span><span class="ef-cell" role="cell"><span class="ef-bar" style="--v:0.2817"></span><span class="ef-val">80 分</span><span class="ef-why">tqdm 没有被切成几段的功能</span></span></div><div class="ef-row" role="row"><span class="ef-name" role="rowheader">+ 改动 1</span><span class="ef-cell" role="cell"><span class="ef-bar" style="--v:0.6585"></span><span class="ef-val">187 分</span></span><span class="ef-cell" role="cell"><span class="ef-bar" style="--v:0.2817"></span><span class="ef-val">80 分</span><span class="ef-why">草稿约 33 分钟，但冻结 62.3 分钟成了瓶颈</span></span></div><div class="ef-row" role="row"><span class="ef-name" role="rowheader">+ 改动 2</span><span class="ef-cell" role="cell"><span class="ef-bar" style="--v:0.4930"></span><span class="ef-val">140 分</span></span><span class="ef-cell" role="cell"><span class="ef-bar" style="--v:0.2394"></span><span class="ef-val">68 分</span><span class="ef-why">冻结约 50 分钟：检查执行只占它的三分之一</span></span></div><div class="ef-row" role="row"><span class="ef-name" role="rowheader">+ 改动 3</span><span class="ef-cell" role="cell"><span class="ef-bar" style="--v:0.4331"></span><span class="ef-val">123 分</span></span><span class="ef-cell" role="cell"><span class="ef-bar" style="--v:0.2359"></span><span class="ef-val">67 分</span><span class="ef-why">完整对比本来只有 1.6 分钟</span></span></div></div></div>
-    <figcaption>两个项目的瓶颈不同。detectron2 这样的大项目，草稿是瓶颈，改动 1 的收益最大。tqdm 上草稿和冻结一样长，而它的冻结主要是模型会话（约 40 分钟），检查执行只占约 21 分钟，所以总收益小一些。</figcaption>
+    <div class="scroll"><div class="ef" role="table" aria-label="每做完一项之后的作业总时长：草稿是瓶颈的 detectron2 和冻结是瓶颈的 packaging"><div class="ef-row ef-head" role="row"><span role="columnheader">做到哪一步</span><span role="columnheader">草稿是瓶颈：detectron2 核心，Claude 作者</span><span role="columnheader">冻结是瓶颈：packaging，Codex 作者</span></div><div class="ef-row" role="row"><span class="ef-name" role="rowheader">现在（实测）</span><span class="ef-cell" role="cell"><span class="ef-bar" style="--v:0.9993"></span><span class="ef-val">284 分</span><span class="ef-why">main job 封存后等草稿 97 分钟</span></span><span class="ef-cell" role="cell"><span class="ef-bar" style="--v:0.8077"></span><span class="ef-val">229 分</span><span class="ef-why">草稿写完后空等 122 分钟</span></span></div><div class="ef-row" role="row"><span class="ef-name" role="rowheader">PR #43（已实现）</span><span class="ef-cell" role="cell"><span class="ef-bar" style="--v:0.9359"></span><span class="ef-val">266 分</span><span class="ef-why">切开的功能不再空跑</span></span><span class="ef-cell" role="cell"><span class="ef-bar" style="--v:0.8077"></span><span class="ef-val">229 分</span><span class="ef-why">没有被切开的功能</span></span></div><div class="ef-row" role="row"><span class="ef-name" role="rowheader">+ 改动 1　冻结里的检查</span><span class="ef-cell" role="cell"><span class="ef-bar" style="--v:0.9359"></span><span class="ef-val">266 分</span><span class="ef-why">没有变化：草稿才是瓶颈</span></span><span class="ef-cell" role="cell"><span class="ef-bar" style="--v:0.4820"></span><span class="ef-val">137 分</span><span class="ef-why">冻结 147 → 约 55 分钟</span></span></div><div class="ef-row" role="row"><span class="ef-name" role="rowheader">+ 改动 2　草稿先对比、先修</span><span class="ef-cell" role="cell"><span class="ef-bar" style="--v:0.9359"></span><span class="ef-val">266 分</span><span class="ef-why">没有变化：草稿没有空等的时间</span></span><span class="ef-cell" role="cell"><span class="ef-bar" style="--v:0.3796"></span><span class="ef-val">108 分</span><span class="ef-why">约 29 分钟的修复挪到封存之前</span></span></div><div class="ef-row" role="row"><span class="ef-name" role="rowheader">+ 改动 3　scope 同时写</span><span class="ef-cell" role="cell"><span class="ef-bar" style="--v:0.4915"></span><span class="ef-val">140 分</span><span class="ef-why">草稿 197 → 约 70 分钟</span></span><span class="ef-cell" role="cell"><span class="ef-bar" style="--v:0.3796"></span><span class="ef-val">108 分</span><span class="ef-why">没有变化：草稿不在关键路径上</span></span></div><div class="ef-row" role="row"><span class="ef-name" role="rowheader">+ 改动 4　对比并发</span><span class="ef-cell" role="cell"><span class="ef-bar" style="--v:0.4338"></span><span class="ef-val">123 分</span><span class="ef-why">4 次对比各省 5 分钟左右</span></span><span class="ef-cell" role="cell"><span class="ef-bar" style="--v:0.3609"></span><span class="ef-val">102 分</span><span class="ef-why">只算了导入后的第一次对比</span></span></div></div></div>
+    <figcaption>改动 1 和 2 对“冻结是瓶颈”的运行有效，改动 3 对“草稿是瓶颈”的运行有效。两类都要处理，才不会把瓶颈从一边赶到另一边。</figcaption>
   </figure>
   <ul class="plain">
-    <li><strong>改动 1 和 2 要都做才看得到全部收益。</strong>只做一个，另一边马上成为瓶颈。</li>
-    <li><strong>费用变化不大。</strong>PR #43 省掉两次空跑；改动 1 多一次集成调用；2 和 3 不调用模型。</li>
+    <li><strong>先做改动 1。</strong>它对十次运行都有用，不改变模型行为，离线就能验证。</li>
+    <li><strong>改动 2 和改动 3 各管一类运行。</strong>按出现的次数，改动 2 在前；按单次的收益，改动 3 在 detectron2 上最大。两项都要先定设计。</li>
+    <li><strong>费用变化不大。</strong>改动 1 和 4 不调用模型；改动 2 把修复提前，调用次数不变；改动 3 多一次集成调用。</li>
   </ul>
+</section>
+
+<section>
+  <h2>已经在 PR #43 里的两项</h2>
+  <p class="sub">仓库里尚未合并的 PR #43 已经实现了下面两项，不再列为待办。它没有碰分层、基线并发和草稿导入，和上面五项不冲突。</p>
+  <div class="change">
+    <h3>一个功能切成几段时，后面几段不再空跑</h3>
+    <div class="meta"><span class="chip c-dflt">已实现，尚未合并</span><span class="chip c-mode">detectron2 上约 −18 分钟（推算）</span></div>
+    <figure class="card tl tips">
+      <div class="scroll"><svg class="tl-svg mini" width="808" height="257" viewBox="0 0 622 198" role="img" aria-label="一个功能切成三段：现在后两段空跑；PR #43 之后每段知道自己的文件、各写各的，已被写好的段跳过；再加改动 3，三段同时写"><text class="t-lane left" x="0" y="21">现在（main）</text><g class="blk k-code" data-tip="第 1 段的作者把整个功能都写了（实测 47.5 分钟）"><rect x="177" y="6" width="183" height="22" rx="4"/><text x="268.5" y="21" text-anchor="middle">S5 写了整个功能</text></g><g class="blk k-waste" data-tip="第 2 段：调用了作者，零改动（实测 20.2 分钟、$9.41）"><rect x="363" y="6" width="121" height="22" rx="4"/><text x="423.5" y="21" text-anchor="middle">S6 空跑</text></g><g class="blk k-waste" data-tip="第 3 段：调用了作者，零改动（实测 22.3 分钟、$11.68）"><rect x="487" y="6" width="121" height="22" rx="4"/><text x="547.5" y="21" text-anchor="middle">S7 空跑</text></g><text class="t-lane left" x="0" y="58">PR #43 之后</text><g class="blk k-code" data-tip="这一段的说明里列出它负责的文件；只写这些文件实现的东西"><rect x="177" y="43" width="121" height="22" rx="4"/><text x="237.5" y="58" text-anchor="middle">S5a：自己的文件</text></g><g class="blk k-code" data-tip="这一段的说明里列出它负责的文件；只写这些文件实现的东西"><rect x="301" y="43" width="121" height="22" rx="4"/><text x="361.5" y="58" text-anchor="middle">S5b：自己的文件</text></g><g class="blk k-code" data-tip="这一段的说明里列出它负责的文件；只写这些文件实现的东西"><rect x="425" y="43" width="121" height="22" rx="4"/><text x="485.5" y="58" text-anchor="middle">S5c：自己的文件</text></g><text class="t-lane left" x="0" y="95">PR #43：若前一段还是写多了</text><g class="blk k-code" data-tip="第 1 段的作者把整个功能都写了（实测 47.5 分钟）"><rect x="177" y="80" width="183" height="22" rx="4"/><text x="268.5" y="95" text-anchor="middle">S5 写了整个功能</text></g><g class="blk k-step" data-tip="后面的段已经被写好（按文件判断），不再调用作者"><rect x="363" y="80" width="59" height="22" rx="4"/><text x="392.5" y="95" text-anchor="middle">跳过</text></g><g class="blk k-step" data-tip="同上"><rect x="425" y="80" width="59" height="22" rx="4"/><text x="454.5" y="95" text-anchor="middle">跳过</text></g><text class="t-lane left" x="0" y="132">再加改动 3</text><g class="blk k-code" data-tip="这一段的说明里列出它负责的文件；只写这些文件实现的东西"><rect x="177" y="117" width="121" height="22" rx="4"/><text x="237.5" y="132" text-anchor="middle">S5a：自己的文件</text></g><g class="blk k-code" data-tip="这一段的说明里列出它负责的文件；只写这些文件实现的东西"><rect x="177" y="142" width="121" height="22" rx="4"/><text x="237.5" y="157" text-anchor="middle">S5b：自己的文件</text></g><g class="blk k-code" data-tip="这一段的说明里列出它负责的文件；只写这些文件实现的东西"><rect x="177" y="167" width="121" height="22" rx="4"/><text x="237.5" y="182" text-anchor="middle">S5c：自己的文件</text></g></svg></div>
+      <figcaption>“模型”这个功能约 9.6 万 token，超过单个 scope 45,000 token 的上限，被按文件切成三段、一段接一段写。实测里第一段的作者把整个功能都写了，后两段各跑了 20 多分钟，没有任何改动（43 分钟、$21）。PR #43 之后每一段被告知它负责的文件；已经被写好的段不再调用作者。三段仍然是一段接一段写，要同时写得靠改动 3。</figcaption>
+    </figure>
+  </div>
+  <div class="change">
+    <h3>提交时就拒绝会在封存时才失败的清单</h3>
+    <div class="meta"><span class="chip c-dflt">已实现，尚未合并</span><span class="chip c-mode">click 那次白做 71 分钟</span></div>
+    <figure class="card tl tips">
+      <div class="scroll"><svg class="tl-svg mini" width="1206" height="96" viewBox="0 0 928 74" role="img" aria-label="一项检查把产品文件当成冻结输入：现在做完整个冻结、封存时才失败，改好后从头再来；PR #43 之后提交时就拒绝"><text class="t-lane left" x="0" y="21">现在</text><g class="blk k-ko" data-tip="main job 把整个冻结做完（Click 那次 70.6 分钟）"><rect x="111" y="6" width="307" height="22" rx="4"/><text x="264.5" y="21" text-anchor="middle">冻结：两遍基线、测试设计</text></g><g class="blk k-waste" data-tip="封存时发现一项检查把要改写的产品文件当成了冻结输入，作业失败"><rect x="421" y="6" width="121" height="22" rx="4"/><text x="481.5" y="21" text-anchor="middle">封存时才失败</text></g><g class="blk k-step" data-tip="改掉那项检查，重新提交"><rect x="545" y="6" width="59" height="22" rx="4"/><text x="574.5" y="21" text-anchor="middle">改清单</text></g><g class="blk k-ko" data-tip="第二次提交重新做一遍冻结"><rect x="607" y="6" width="307" height="22" rx="4"/><text x="760.5" y="21" text-anchor="middle">冻结，从头再来</text></g><text class="t-lane left" x="0" y="58">PR #43 之后</text><g class="blk k-step" data-tip="提交时就指出哪项检查冻结了产品文件"><rect x="111" y="43" width="121" height="22" rx="4"/><text x="171.5" y="58" text-anchor="middle">提交时拒绝</text></g><g class="blk k-step" data-tip="改掉那项检查，重新提交"><rect x="235" y="43" width="59" height="22" rx="4"/><text x="264.5" y="58" text-anchor="middle">改清单</text></g><g class="blk k-ko" data-tip="只做一遍"><rect x="297" y="43" width="307" height="22" rx="4"/><text x="450.5" y="58" text-anchor="middle">冻结：两遍基线、测试设计</text></g></svg></div>
+      <figcaption>一项检查把要改写的产品文件列成了冻结输入。现在要到封存时才发现，这时两遍基线和测试设计都做完了。十次运行里 click 和 tomli 遇到过；bidict 则是两个作业都在第一次录基线时因为一个读不到的输入而终止。</figcaption>
+    </figure>
+  </div>
 </section>
 
 <section>
@@ -703,11 +908,11 @@
   <div class="scroll"><table class="todo">
     <thead><tr><th>改动</th><th>主要位置（main 的 src/nanolize/）</th><th>改动量</th><th>怎么验证</th></tr></thead>
     <tbody>
-      <tr><th scope="row">（PR #43）不再空跑</th><td>scopes.py、source_reference.py、strategies/advice.py</td><td>已实现</td><td>等它合并</td></tr>
-      <tr><th scope="row">1　scope 同时写</th><td>strategies/advice.py、job_tools/workspaces.py、source_reference.py、static_imports.py、prompts/prompts.json</td><td>中到大</td><td>离线夹具 + detectron2 实测</td></tr>
-      <tr><th scope="row">2　冻结里的检查</th><td>verification.py、leaf_test_validity.py、baseline_guard.py、leaf_test_design.py、check_executor.py</td><td>中</td><td>离线测试</td></tr>
-      <tr><th scope="row">3　对比并发</th><td>execution.py、job_tools/verify.py</td><td>小到中</td><td>离线测试</td></tr>
-      <tr><th scope="row">4　失败时保留</th><td>job_tools/pair.py、leaf_test_design.py</td><td>中</td><td>离线夹具</td></tr>
+      <tr><th scope="row">1　冻结里的检查</th><td>verification.py、leaf_test_validity.py、baseline_guard.py、leaf_test_design.py、check_executor.py</td><td>中</td><td>离线测试</td></tr>
+      <tr><th scope="row">2　草稿先对比、先修</th><td>pair.py、job_tools/pair.py、strategies/advice.py、job_tools/verify.py</td><td>中到大</td><td>离线夹具 + packaging 或 click 实测</td></tr>
+      <tr><th scope="row">3　scope 同时写</th><td>strategies/advice.py、job_tools/workspaces.py、source_reference.py、static_imports.py、prompts/prompts.json</td><td>中到大</td><td>离线夹具 + detectron2 实测</td></tr>
+      <tr><th scope="row">4　对比并发</th><td>execution.py、job_tools/verify.py</td><td>小到中</td><td>离线测试</td></tr>
+      <tr><th scope="row">5　失败时重试和保留</th><td>leaf_test_design.py、job_tools/pair.py</td><td>中</td><td>离线夹具</td></tr>
     </tbody>
   </table></div>
 </section>
@@ -715,10 +920,11 @@
 <section>
   <h2>口径</h2>
   <ul class="plain">
-    <li>“现在”的数字来自 main 上的两次实测：detectron2 核心（main @ 1ef5998d，pair on，effort=high，284 分钟）和 tqdm（两个作业，80 分钟，已扣掉排队）。</li>
-    <li>“改后”的数字全部是推算，四项改动都还没有实现。实际效果取决于检查之间能不能同时跑、集成调用要修多少、以及模型每次写出什么。</li>
-    <li>总览图第一行里，测试设计的模型会话、试跑和评审按各自的合计时长画成三段，实际是交替进行的。</li>
-    <li>改动 1 是设计上的改动，动手之前要先定下保留名单怎么算、原版怎么顶替依赖。其余三项不改变作业的流程。</li>
+    <li>十次实测都是新流程下两个作业的运行：detectron2 核心和 tqdm（Claude 作者，effort=high），以及 python-dotenv、tomli、more-itertools、requests、bidict、tqdm、click、packaging（Codex 作者，main @ 1ef5998d）。数字取自各次运行自己的报告。</li>
+    <li>“改后”的数字全部是推算，五项改动都还没有实现。实际效果取决于检查之间能不能同时跑、有多少修复能提前做、集成调用要修多少，以及模型每次写出什么。</li>
+    <li>两类作者的首版速度差别很大：Codex 作者 7 到 27 分钟，Claude 作者 63 和 214 分钟。哪一边是瓶颈主要由这个决定，样本里 Claude 作者只有两次。</li>
+    <li>总览 A 第一行里，测试设计的模型会话、试跑和评审按各自的合计时长画成三段，实际是交替进行的。总览 B 里导入后的修复阶段只有总长。</li>
+    <li>改动 2 和改动 3 是设计上的改动，动手之前要先定下细节。其余三项不改变作业的流程。</li>
     <li>main 的现状来自读代码（main @ 33814711），代码位置是当时的。PR #43 读的是它 2026-11-19 的末端 7af748cb，只看了和这份计划有关的提交。</li>
   </ul>
 </section>
