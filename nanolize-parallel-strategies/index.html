@@ -1,0 +1,441 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<meta name="description" content="nanolize main 里所有的并行策略：作业之间、阶段内部、controller 自选，和一条全串行基线画在一起比较。对象：main @ 33814711（2026-11-19）。">
+<title>nanolize 并行策略图</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%231c5cab'/%3E%3Cpath d='M4 11V5l8 6V5' fill='none' stroke='white' stroke-width='1.6'/%3E%3C/svg%3E">
+<style>
+  :root { color-scheme: light; }
+  html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+  body { margin: 0; }
+  [hidden] { display: none !important; }
+</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500;700&family=Space+Grotesk:wght@500;700&display=swap">
+<style>
+  :root {
+    --bg: #f3f5f7; --surface: #ffffff; --sunken: #e8ecf0; --ink: #15202b; --muted: #566573; --line: #d5dce3;
+    --accent: #0f5ea8; --par-line: #8fb4dc; --par-bg: #f4f8fd;
+    --s-test: #2a78d6; --s-ko: #eb6834; --s-code: #1baf7a; --s-fix: #eda100; --on-series: #0d141b;
+    --font-display: "Space Grotesk", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    --font-body: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, "Noto Sans SC", "PingFang SC", "Microsoft YaHei", monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f151b; --surface: #172029; --sunken: #1f2a35; --ink: #e4eaf0; --muted: #97a5b2; --line: #2b3743;
+      --accent: #6fb1f2; --par-line: #3f6893; --par-bg: #131c26;
+      --s-test: #3987e5; --s-ko: #d95926; --s-code: #199e70; --s-fix: #c98500;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f151b; --surface: #172029; --sunken: #1f2a35; --ink: #e4eaf0; --muted: #97a5b2; --line: #2b3743;
+    --accent: #6fb1f2; --par-line: #3f6893; --par-bg: #131c26;
+    --s-test: #3987e5; --s-ko: #d95926; --s-code: #199e70; --s-fix: #c98500;
+    color-scheme: dark;
+  }
+  body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 1rem; line-height: 1.7; }
+  .wrap {
+    max-width: 70rem; margin-inline: auto;
+    padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 2.5rem 4rem; display: grid; gap: 2.75rem;
+  }
+  section, header.page { display: grid; gap: 1.1rem; min-width: 0; }
+  h1, h2, h3, p, ul, ol, dl, dd, figure { margin: 0; }
+  h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; line-height: 1.25; }
+  h1 { font-size: clamp(1.7rem, 4.2vw, 2.35rem); font-weight: 700; letter-spacing: -0.01em; }
+  h2 { font-size: 1.3rem; font-weight: 700; }
+  h3 { font-size: 1rem; font-weight: 700; }
+  p, li, dd { overflow-wrap: anywhere; }
+  code { font-family: var(--font-mono); font-size: 0.84em; background: var(--sunken); padding: 0.08em 0.36em; border-radius: 4px; }
+  .eyebrow { font-family: var(--font-mono); font-size: 0.8125rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: 0.25rem 1.1rem; }
+  .lead { font-size: 1.0625rem; max-width: 44em; }
+  .sub { color: var(--muted); max-width: 48em; font-size: 0.9375rem; }
+  ul.plain { padding-left: 1.2em; display: grid; gap: 0.45rem; max-width: 50em; }
+
+  .layers { display: grid; gap: 0.9rem; grid-template-columns: repeat(auto-fit, minmax(15.5rem, 1fr)); }
+  .layer { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 1rem 1.1rem; display: grid; gap: 0.4rem; align-content: start; }
+  .layer .n { font-family: var(--font-mono); font-size: 0.8125rem; color: var(--muted); }
+  .layer p { font-size: 0.9375rem; }
+
+  dl.terms { display: grid; grid-template-columns: max-content 1fr; gap: 0.35rem 1rem; font-size: 0.9375rem; max-width: 52em; }
+  dl.terms dt { font-family: var(--font-mono); font-size: 0.875rem; color: var(--accent); }
+  @media (max-width: 34rem) { dl.terms { grid-template-columns: 1fr; gap: 0.1rem; } dl.terms dd { margin-bottom: 0.5rem; } }
+
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 1rem 1.1rem 1.1rem; display: grid; gap: 0.8rem; min-width: 0; }
+  .legend { display: flex; flex-wrap: wrap; gap: 0.4rem 0.5rem; align-items: center; }
+  .legend .hint { font-size: 0.8125rem; color: var(--muted); margin-right: 0.25rem; }
+  .lg { font: inherit; font-size: 0.8438rem; color: var(--ink); display: inline-flex; align-items: center; gap: 0.45rem;
+        padding: 0.25rem 0.7rem; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); }
+  button.lg { cursor: pointer; }
+  button.lg:hover { border-color: var(--accent); }
+  button.lg[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+  button.lg:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .sw { width: 0.8rem; height: 0.8rem; border-radius: 3px; flex: none; }
+  .sw.k-test { background: var(--s-test); } .sw.k-ko { background: var(--s-ko); } .sw.k-code { background: var(--s-code); }
+  .sw.k-fix { background: var(--s-fix); } .sw.k-step { background: var(--sunken); border: 1px solid var(--line); }
+
+  .scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .tl-svg { display: block; width: 100%; min-width: 900px; height: auto; color: var(--ink); font-family: var(--font-body); }
+  .swipe { display: none; font-size: 0.8125rem; color: var(--muted); }
+  @media (max-width: 60rem) { .swipe { display: block; } }
+  .tl-svg text { fill: var(--ink); }
+  .tl-svg .t-row { font-size: 13.5px; font-weight: 700; font-family: var(--font-display); }
+  .tl-svg .t-note, .tl-svg .t-lane, .tl-svg .t-phase { font-size: 11px; fill: var(--muted); }
+  .tl-svg .t-axis { font-size: 10.5px; fill: var(--muted); font-family: var(--font-mono); }
+  .tl-svg .t-total { font-size: 12.5px; font-weight: 700; font-family: var(--font-display); }
+  .tl-svg .grid { stroke: var(--line); stroke-width: 1; stroke-dasharray: 2 4; }
+  .tl-svg .bracket { fill: none; stroke: var(--muted); stroke-width: 1; opacity: 0.7; }
+  .tl-svg .link { fill: none; stroke: currentColor; stroke-width: 1.3; stroke-dasharray: 4 3; }
+  .blk rect { stroke: var(--surface); stroke-width: 0; }
+  .blk text { font-size: 11px; font-weight: 500; fill: var(--on-series); pointer-events: none; }
+  .blk.k-test rect { fill: var(--s-test); } .blk.k-ko rect { fill: var(--s-ko); }
+  .blk.k-code rect { fill: var(--s-code); } .blk.k-fix rect { fill: var(--s-fix); }
+  .blk.k-step rect { fill: var(--sunken); stroke: var(--line); stroke-width: 1; }
+  .blk.k-step text { fill: var(--ink); }
+  .blk { transition: opacity 0.15s; }
+  .blk:hover rect { stroke: var(--ink); stroke-width: 1.5; }
+  .tl[data-focus] .blk { opacity: 0.16; }
+  .tl[data-focus="test"] .blk.k-test, .tl[data-focus="ko"] .blk.k-ko,
+  .tl[data-focus="code"] .blk.k-code, .tl[data-focus="fix"] .blk.k-fix { opacity: 1; }
+  figcaption { font-size: 0.875rem; color: var(--muted); max-width: 54em; }
+  #tip { position: fixed; z-index: 20; max-width: 19rem; padding: 0.45rem 0.65rem; border-radius: 8px; font-size: 0.8438rem; line-height: 1.5;
+         background: var(--ink); color: var(--bg); pointer-events: none; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25); }
+
+  table { border-collapse: collapse; width: 100%; font-size: 0.9063rem; }
+  th, td { text-align: left; vertical-align: top; padding: 0.55rem 0.7rem; border-bottom: 1px solid var(--line); }
+  thead th { font-size: 0.8125rem; font-weight: 500; color: var(--muted); white-space: nowrap; }
+  tbody th[scope="row"] { font-weight: 700; white-space: nowrap; }
+  table.inv { min-width: 56rem; }
+  table.inv .grp th { font-family: var(--font-display); font-size: 0.875rem; color: var(--accent); background: var(--sunken); border-bottom: none; padding-block: 0.35rem; }
+  table.num { min-width: 34rem; }
+  table.num td, table.num thead th:not(:first-child) { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  table.num td.t { font-weight: 700; }
+  .chip { display: inline-block; font-size: 0.78rem; padding: 0.05rem 0.5rem; border-radius: 999px; border: 1px solid var(--line); white-space: nowrap; }
+  .chip.c-dflt { background: var(--sunken); }
+  .chip.c-mode { border-color: var(--par-line); background: var(--par-bg); }
+  .chip.c-cond { border-style: dashed; }
+  details > summary { cursor: pointer; font-size: 0.9063rem; color: var(--accent); }
+
+  .pair { display: grid; gap: 0.9rem; grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr)); }
+  .mech { display: block; width: 100%; height: auto; color: var(--ink); font-family: var(--font-body); }
+  .mech text { fill: var(--ink); }
+  .mech .m-main { font-size: 12.5px; font-weight: 500; }
+  .mech .m-sub { font-size: 11px; fill: var(--muted); }
+  .mech .m-edge { font-size: 11px; fill: var(--muted); }
+  .mech .edge { stroke: currentColor; stroke-width: 1.2; }
+  .mech .b-cand { fill: var(--surface); stroke: currentColor; stroke-width: 1.2; }
+  .mech .b-auth { fill: var(--par-bg); stroke: var(--par-line); stroke-width: 1.2; }
+  .mech .b-new { fill: var(--surface); stroke: var(--s-code); stroke-width: 2; }
+  footer { font-size: 0.8438rem; color: var(--muted); border-top: 1px solid var(--line); padding-top: 1rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="page">
+  <div class="eyebrow"><span>对象：main @ 33814711</span><span>2026-11-19</span><span>依据：代码和文档，未实测</span></div>
+  <h1>nanolize main 的并行策略</h1>
+  <p class="lead">main 里的并行分三层：两个作业之间、一个阶段内部、以及 controller 在修复阶段自己选用的分组。下面用同一个示例项目，把它们和一条全串行的基线画在一起。</p>
+  <div class="layers">
+    <div class="layer"><span class="n">第一层</span><h3>作业之间：pair</h3>
+      <p>main job 做 freeze（写测试、封存），draft job 同时写首版代码。是否拆成两个作业在提交时按规则决定。</p></div>
+    <div class="layer"><span class="n">第二层</span><h3>阶段内部：主线按规则展开</h3>
+      <p>写测试时每个 leaf 一个 session；knockout 多个 leaf 同时做；写首版代码时同一层的 scope 同时写。</p></div>
+    <div class="layer"><span class="n">第三层</span><h3>controller 自选</h3>
+      <p>第一次全量比较之后，controller 可以把修复拆给多个 author、让几个版本并排，或在独立 workspace 里各写各的。</p></div>
+  </div>
+</header>
+
+<section>
+  <h2>名词</h2>
+  <dl class="terms">
+    <dt>leaf</dt><dd>capability 树上的叶子。测试按 leaf 设计。</dd>
+    <dt>scope</dt><dd>一组文件互不重叠的 capability，最多 45,000 原版 token。代码按 scope 分给 author，scope 之间有依赖时分层。</dd>
+    <dt>freeze</dt><dd>抓原版 baseline、设计测试、封存合同。封存后测试不再改。</dd>
+    <dt>knockout</dt><dd>在原版副本里禁用一个 leaf 的代码再跑 check，确认测试真的在测它。</dd>
+    <dt>全量比较</dt><dd>候选代码在所有 check 上对比原版 baseline。第一次全量比较返回之后，controller 才开始参与决策。</dd>
+  </dl>
+</section>
+
+<section>
+  <h2>同一个项目，四种跑法</h2>
+  <p class="sub">示例项目：6 个 leaf 需要测试，5 个 scope 分三层（1 / 3 / 1），第一次比较后有 3 个 scope 出问题。一格代表一份工作，上下叠在一起的格子同时进行。</p>
+  <figure class="card tl">
+    <div class="legend" role="group" aria-label="图例，点击可只看一种工作">
+      <span class="hint">点一下只看一种：</span>
+      <button type="button" class="lg" data-kind="test" aria-pressed="false"><span class="sw k-test"></span>写测试（L：每个 leaf 一格）</button>
+      <button type="button" class="lg" data-kind="ko" aria-pressed="false"><span class="sw k-ko"></span>knockout（K）</button>
+      <button type="button" class="lg" data-kind="code" aria-pressed="false"><span class="sw k-code"></span>写首版代码（S：每个 scope 一格）</button>
+      <button type="button" class="lg" data-kind="fix" aria-pressed="false"><span class="sw k-fix"></span>修复（R）</button>
+      <span class="lg"><span class="sw k-step"></span>固定步骤</span>
+    </div>
+    <p class="swipe">图比较宽，可以左右滑动。</p>
+    <div class="scroll">
+<svg class="tl-svg" viewBox="0 0 1044 860" role="img" aria-label="同一个示例项目的四种跑法：全串行基线 26 格，main 默认 15 格，加 pair 13 格，再加 parallel 模式 10 格。上下叠在一起的格子同时进行。">
+<defs><marker id="tl-arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L8 4 L0 8 z" fill="currentColor"/></marker></defs>
+<line class="grid" x1="266" y1="16" x2="266" y2="856"/>
+<text class="t-axis" x="266" y="11" text-anchor="middle">5</text>
+<line class="grid" x1="436" y1="16" x2="436" y2="856"/>
+<text class="t-axis" x="436" y="11" text-anchor="middle">10</text>
+<line class="grid" x1="606" y1="16" x2="606" y2="856"/>
+<text class="t-axis" x="606" y="11" text-anchor="middle">15</text>
+<line class="grid" x1="776" y1="16" x2="776" y2="856"/>
+<text class="t-axis" x="776" y="11" text-anchor="middle">20</text>
+<line class="grid" x1="946" y1="16" x2="946" y2="856"/>
+<text class="t-axis" x="946" y="11" text-anchor="middle">25</text>
+<text class="t-axis" x="96" y="11">时间 →（格）</text>
+<text x="0" y="44"><tspan class="t-row">A　串行基线</tspan><tspan class="t-note" dx="14">对照用：每一步只做一份工作</tspan></text>
+<text class="t-lane" x="86" y="87" text-anchor="end">单作业</text>
+<path class="bracket" d="M98 71 V68 H604 V71"/>
+<text class="t-phase" x="351.0" y="64" text-anchor="middle">freeze</text>
+<path class="bracket" d="M608 71 V68 H774 V71"/>
+<text class="t-phase" x="691.0" y="64" text-anchor="middle">首版实现</text>
+<path class="bracket" d="M778 71 V68 H944 V71"/>
+<text class="t-phase" x="861.0" y="64" text-anchor="middle">验证与修复</text>
+<g class="blk k-step" data-tip="准备：建 workspace，抓一次原版 baseline"><rect x="97" y="74" width="32" height="18" rx="4"/><text x="113.0" y="87" text-anchor="middle">准备</text></g>
+<g class="blk k-test" data-tip="设计者 session：给 leaf 1 写测试"><rect x="131" y="74" width="32" height="18" rx="4"/><text x="147.0" y="87" text-anchor="middle">L1</text></g>
+<g class="blk k-test" data-tip="设计者 session：给 leaf 2 写测试"><rect x="165" y="74" width="32" height="18" rx="4"/><text x="181.0" y="87" text-anchor="middle">L2</text></g>
+<g class="blk k-test" data-tip="设计者 session：给 leaf 3 写测试"><rect x="199" y="74" width="32" height="18" rx="4"/><text x="215.0" y="87" text-anchor="middle">L3</text></g>
+<g class="blk k-test" data-tip="设计者 session：给 leaf 4 写测试"><rect x="233" y="74" width="32" height="18" rx="4"/><text x="249.0" y="87" text-anchor="middle">L4</text></g>
+<g class="blk k-test" data-tip="设计者 session：给 leaf 5 写测试"><rect x="267" y="74" width="32" height="18" rx="4"/><text x="283.0" y="87" text-anchor="middle">L5</text></g>
+<g class="blk k-test" data-tip="设计者 session：给 leaf 6 写测试"><rect x="301" y="74" width="32" height="18" rx="4"/><text x="317.0" y="87" text-anchor="middle">L6</text></g>
+<g class="blk k-test" data-tip="评审 session：检查设计出来的测试文件（一个评审者最多读 8 个文件）"><rect x="335" y="74" width="32" height="18" rx="4"/><text x="351.0" y="87" text-anchor="middle">评审</text></g>
+<g class="blk k-ko" data-tip="knockout：在原版副本里禁用 leaf 1 的代码，重跑 check，确认测试真的在测它"><rect x="369" y="74" width="32" height="18" rx="4"/><text x="385.0" y="87" text-anchor="middle">K1</text></g>
+<g class="blk k-ko" data-tip="knockout：在原版副本里禁用 leaf 2 的代码，重跑 check，确认测试真的在测它"><rect x="403" y="74" width="32" height="18" rx="4"/><text x="419.0" y="87" text-anchor="middle">K2</text></g>
+<g class="blk k-ko" data-tip="knockout：在原版副本里禁用 leaf 3 的代码，重跑 check，确认测试真的在测它"><rect x="437" y="74" width="32" height="18" rx="4"/><text x="453.0" y="87" text-anchor="middle">K3</text></g>
+<g class="blk k-ko" data-tip="knockout：在原版副本里禁用 leaf 4 的代码，重跑 check，确认测试真的在测它"><rect x="471" y="74" width="32" height="18" rx="4"/><text x="487.0" y="87" text-anchor="middle">K4</text></g>
+<g class="blk k-ko" data-tip="knockout：在原版副本里禁用 leaf 5 的代码，重跑 check，确认测试真的在测它"><rect x="505" y="74" width="32" height="18" rx="4"/><text x="521.0" y="87" text-anchor="middle">K5</text></g>
+<g class="blk k-ko" data-tip="knockout：在原版副本里禁用 leaf 6 的代码，重跑 check，确认测试真的在测它"><rect x="539" y="74" width="32" height="18" rx="4"/><text x="555.0" y="87" text-anchor="middle">K6</text></g>
+<g class="blk k-step" data-tip="封存合同：之后测试和 baseline 不再改"><rect x="573" y="74" width="32" height="18" rx="4"/><text x="589.0" y="87" text-anchor="middle">封存</text></g>
+<g class="blk k-code" data-tip="author session：写 scope 1 的代码"><rect x="607" y="74" width="32" height="18" rx="4"/><text x="623.0" y="87" text-anchor="middle">S1</text></g>
+<g class="blk k-code" data-tip="author session：写 scope 2 的代码"><rect x="641" y="74" width="32" height="18" rx="4"/><text x="657.0" y="87" text-anchor="middle">S2</text></g>
+<g class="blk k-code" data-tip="author session：写 scope 3 的代码"><rect x="675" y="74" width="32" height="18" rx="4"/><text x="691.0" y="87" text-anchor="middle">S3</text></g>
+<g class="blk k-code" data-tip="author session：写 scope 4 的代码"><rect x="709" y="74" width="32" height="18" rx="4"/><text x="725.0" y="87" text-anchor="middle">S4</text></g>
+<g class="blk k-code" data-tip="author session：写 scope 5 的代码"><rect x="743" y="74" width="32" height="18" rx="4"/><text x="759.0" y="87" text-anchor="middle">S5</text></g>
+<g class="blk k-step" data-tip="第一次全量比较：候选代码在所有 check 上对比原版 baseline。之后 controller 才开始参与"><rect x="777" y="74" width="32" height="18" rx="4"/><text x="793.0" y="87" text-anchor="middle">比较</text></g>
+<g class="blk k-fix" data-tip="一次 repair 调用：一个 author 修完 3 个 scope 里的失败"><rect x="811" y="74" width="100" height="18" rx="4"/><text x="861.0" y="87" text-anchor="middle">修复：1 次调用</text></g>
+<g class="blk k-step" data-tip="再做一次全量比较，确认修复有效"><rect x="913" y="74" width="32" height="18" rx="4"/><text x="929.0" y="87" text-anchor="middle">比较</text></g>
+<g class="blk k-step" data-tip="选定候选并交付"><rect x="947" y="74" width="32" height="18" rx="4"/><text x="963.0" y="87" text-anchor="middle">交付</text></g>
+<text class="t-total" x="988" y="87">26 格</text>
+<text x="0" y="136"><tspan class="t-row">B　main 默认</tspan><tspan class="t-note" dx="14">单作业，不开任何开关</tspan></text>
+<text class="t-lane" x="86" y="179" text-anchor="end">单作业</text>
+<path class="bracket" d="M98 163 V160 H298 V163"/>
+<text class="t-phase" x="198.0" y="156" text-anchor="middle">freeze</text>
+<path class="bracket" d="M302 163 V160 H400 V163"/>
+<text class="t-phase" x="351.0" y="156" text-anchor="middle">首版实现</text>
+<path class="bracket" d="M404 163 V160 H570 V163"/>
+<text class="t-phase" x="487.0" y="156" text-anchor="middle">验证与修复</text>
+<g class="blk k-step" data-tip="准备：建 workspace，抓一次原版 baseline"><rect x="97" y="166" width="32" height="18" rx="4"/><text x="113.0" y="179" text-anchor="middle">准备</text></g>
+<g class="blk k-test" data-tip="设计者 session：给 leaf 1 写测试"><rect x="131" y="166" width="32" height="18" rx="4"/><text x="147.0" y="179" text-anchor="middle">L1</text></g>
+<g class="blk k-test" data-tip="设计者 session：给 leaf 2 写测试"><rect x="131" y="186" width="32" height="18" rx="4"/><text x="147.0" y="199" text-anchor="middle">L2</text></g>
+<g class="blk k-test" data-tip="设计者 session：给 leaf 3 写测试"><rect x="131" y="206" width="32" height="18" rx="4"/><text x="147.0" y="219" text-anchor="middle">L3</text></g>
+<g class="blk k-test" data-tip="设计者 session：给 leaf 4 写测试"><rect x="131" y="226" width="32" height="18" rx="4"/><text x="147.0" y="239" text-anchor="middle">L4</text></g>
+<g class="blk k-test" data-tip="设计者 session：给 leaf 5 写测试"><rect x="131" y="246" width="32" height="18" rx="4"/><text x="147.0" y="259" text-anchor="middle">L5</text></g>
+<g class="blk k-test" data-tip="设计者 session：给 leaf 6 写测试"><rect x="131" y="266" width="32" height="18" rx="4"/><text x="147.0" y="279" text-anchor="middle">L6</text></g>
+<g class="blk k-test" data-tip="评审 session：检查设计出来的测试文件（一个评审者最多读 8 个文件）"><rect x="165" y="166" width="32" height="18" rx="4"/><text x="181.0" y="179" text-anchor="middle">评审</text></g>
+<g class="blk k-ko" data-tip="knockout：在原版副本里禁用 leaf 1 的代码，重跑 check，确认测试真的在测它"><rect x="199" y="166" width="32" height="18" rx="4"/><text x="215.0" y="179" text-anchor="middle">K1</text></g>
+<g class="blk k-ko" data-tip="knockout：在原版副本里禁用 leaf 2 的代码，重跑 check，确认测试真的在测它"><rect x="199" y="186" width="32" height="18" rx="4"/><text x="215.0" y="199" text-anchor="middle">K2</text></g>
+<g class="blk k-ko" data-tip="knockout：在原版副本里禁用 leaf 3 的代码，重跑 check，确认测试真的在测它"><rect x="199" y="206" width="32" height="18" rx="4"/><text x="215.0" y="219" text-anchor="middle">K3</text></g>
+<g class="blk k-ko" data-tip="knockout：在原版副本里禁用 leaf 4 的代码，重跑 check，确认测试真的在测它"><rect x="199" y="226" width="32" height="18" rx="4"/><text x="215.0" y="239" text-anchor="middle">K4</text></g>
+<g class="blk k-ko" data-tip="knockout：在原版副本里禁用 leaf 5 的代码，重跑 check，确认测试真的在测它"><rect x="233" y="166" width="32" height="18" rx="4"/><text x="249.0" y="179" text-anchor="middle">K5</text></g>
+<g class="blk k-ko" data-tip="knockout：在原版副本里禁用 leaf 6 的代码，重跑 check，确认测试真的在测它"><rect x="233" y="186" width="32" height="18" rx="4"/><text x="249.0" y="199" text-anchor="middle">K6</text></g>
+<g class="blk k-step" data-tip="封存合同：之后测试和 baseline 不再改"><rect x="267" y="166" width="32" height="18" rx="4"/><text x="283.0" y="179" text-anchor="middle">封存</text></g>
+<g class="blk k-code" data-tip="author session：写 scope 1 的代码"><rect x="301" y="166" width="32" height="18" rx="4"/><text x="317.0" y="179" text-anchor="middle">S1</text></g>
+<g class="blk k-code" data-tip="author session：写 scope 2 的代码"><rect x="335" y="166" width="32" height="18" rx="4"/><text x="351.0" y="179" text-anchor="middle">S2</text></g>
+<g class="blk k-code" data-tip="author session：写 scope 3 的代码"><rect x="335" y="186" width="32" height="18" rx="4"/><text x="351.0" y="199" text-anchor="middle">S3</text></g>
+<g class="blk k-code" data-tip="author session：写 scope 4 的代码"><rect x="335" y="206" width="32" height="18" rx="4"/><text x="351.0" y="219" text-anchor="middle">S4</text></g>
+<g class="blk k-code" data-tip="author session：写 scope 5 的代码"><rect x="369" y="166" width="32" height="18" rx="4"/><text x="385.0" y="179" text-anchor="middle">S5</text></g>
+<g class="blk k-step" data-tip="第一次全量比较：候选代码在所有 check 上对比原版 baseline。之后 controller 才开始参与"><rect x="403" y="166" width="32" height="18" rx="4"/><text x="419.0" y="179" text-anchor="middle">比较</text></g>
+<g class="blk k-fix" data-tip="一次 repair 调用：一个 author 修完 3 个 scope 里的失败"><rect x="437" y="166" width="100" height="18" rx="4"/><text x="487.0" y="179" text-anchor="middle">修复：1 次调用</text></g>
+<g class="blk k-step" data-tip="再做一次全量比较，确认修复有效"><rect x="539" y="166" width="32" height="18" rx="4"/><text x="555.0" y="179" text-anchor="middle">比较</text></g>
+<g class="blk k-step" data-tip="选定候选并交付"><rect x="573" y="166" width="32" height="18" rx="4"/><text x="589.0" y="179" text-anchor="middle">交付</text></g>
+<text class="t-total" x="614" y="179">15 格</text>
+<text x="0" y="328"><tspan class="t-row">C　main + pair</tspan><tspan class="t-note" dx="14">两个作业同时跑：选择范围 ≥ 20,000 原版 token（或 pair=on），且有可用的计算节点</tspan></text>
+<text class="t-lane" x="86" y="371" text-anchor="end">main job</text>
+<path class="bracket" d="M98 355 V352 H298 V355"/>
+<text class="t-phase" x="198.0" y="348" text-anchor="middle">freeze</text>
+<path class="bracket" d="M336 355 V352 H502 V355"/>
+<text class="t-phase" x="419.0" y="348" text-anchor="middle">验证与修复</text>
+<g class="blk k-step" data-tip="准备：建 workspace，抓一次原版 baseline"><rect x="97" y="358" width="32" height="18" rx="4"/><text x="113.0" y="371" text-anchor="middle">准备</text></g>
+<g class="blk k-test" data-tip="设计者 session：给 leaf 1 写测试"><rect x="131" y="358" width="32" height="18" rx="4"/><text x="147.0" y="371" text-anchor="middle">L1</text></g>
+<g class="blk k-test" data-tip="设计者 session：给 leaf 2 写测试"><rect x="131" y="378" width="32" height="18" rx="4"/><text x="147.0" y="391" text-anchor="middle">L2</text></g>
+<g class="blk k-test" data-tip="设计者 session：给 leaf 3 写测试"><rect x="131" y="398" width="32" height="18" rx="4"/><text x="147.0" y="411" text-anchor="middle">L3</text></g>
+<g class="blk k-test" data-tip="设计者 session：给 leaf 4 写测试"><rect x="131" y="418" width="32" height="18" rx="4"/><text x="147.0" y="431" text-anchor="middle">L4</text></g>
+<g class="blk k-test" data-tip="设计者 session：给 leaf 5 写测试"><rect x="131" y="438" width="32" height="18" rx="4"/><text x="147.0" y="451" text-anchor="middle">L5</text></g>
+<g class="blk k-test" data-tip="设计者 session：给 leaf 6 写测试"><rect x="131" y="458" width="32" height="18" rx="4"/><text x="147.0" y="471" text-anchor="middle">L6</text></g>
+<g class="blk k-test" data-tip="评审 session：检查设计出来的测试文件（一个评审者最多读 8 个文件）"><rect x="165" y="358" width="32" height="18" rx="4"/><text x="181.0" y="371" text-anchor="middle">评审</text></g>
+<g class="blk k-ko" data-tip="knockout：在原版副本里禁用 leaf 1 的代码，重跑 check，确认测试真的在测它"><rect x="199" y="358" width="32" height="18" rx="4"/><text x="215.0" y="371" text-anchor="middle">K1</text></g>
+<g class="blk k-ko" data-tip="knockout：在原版副本里禁用 leaf 2 的代码，重跑 check，确认测试真的在测它"><rect x="199" y="378" width="32" height="18" rx="4"/><text x="215.0" y="391" text-anchor="middle">K2</text></g>
+<g class="blk k-ko" data-tip="knockout：在原版副本里禁用 leaf 3 的代码，重跑 check，确认测试真的在测它"><rect x="199" y="398" width="32" height="18" rx="4"/><text x="215.0" y="411" text-anchor="middle">K3</text></g>
+<g class="blk k-ko" data-tip="knockout：在原版副本里禁用 leaf 4 的代码，重跑 check，确认测试真的在测它"><rect x="199" y="418" width="32" height="18" rx="4"/><text x="215.0" y="431" text-anchor="middle">K4</text></g>
+<g class="blk k-ko" data-tip="knockout：在原版副本里禁用 leaf 5 的代码，重跑 check，确认测试真的在测它"><rect x="233" y="358" width="32" height="18" rx="4"/><text x="249.0" y="371" text-anchor="middle">K5</text></g>
+<g class="blk k-ko" data-tip="knockout：在原版副本里禁用 leaf 6 的代码，重跑 check，确认测试真的在测它"><rect x="233" y="378" width="32" height="18" rx="4"/><text x="249.0" y="391" text-anchor="middle">K6</text></g>
+<g class="blk k-step" data-tip="封存合同：之后测试和 baseline 不再改"><rect x="267" y="358" width="32" height="18" rx="4"/><text x="283.0" y="371" text-anchor="middle">封存</text></g>
+<g class="blk k-step" data-tip="导入草稿：把 draft job 写好的首版存成本作业的第一个候选"><rect x="301" y="358" width="32" height="18" rx="4"/><text x="317.0" y="371" text-anchor="middle">导入</text></g>
+<g class="blk k-step" data-tip="第一次全量比较：候选代码在所有 check 上对比原版 baseline。之后 controller 才开始参与"><rect x="335" y="358" width="32" height="18" rx="4"/><text x="351.0" y="371" text-anchor="middle">比较</text></g>
+<g class="blk k-fix" data-tip="一次 repair 调用：一个 author 修完 3 个 scope 里的失败"><rect x="369" y="358" width="100" height="18" rx="4"/><text x="419.0" y="371" text-anchor="middle">修复：1 次调用</text></g>
+<g class="blk k-step" data-tip="再做一次全量比较，确认修复有效"><rect x="471" y="358" width="32" height="18" rx="4"/><text x="487.0" y="371" text-anchor="middle">比较</text></g>
+<g class="blk k-step" data-tip="选定候选并交付"><rect x="505" y="358" width="32" height="18" rx="4"/><text x="521.0" y="371" text-anchor="middle">交付</text></g>
+<text class="t-lane" x="86" y="523" text-anchor="end">draft job</text>
+<path class="bracket" d="M98 507 V504 H230 V507"/>
+<text class="t-phase" x="164.0" y="500" text-anchor="middle">首版实现</text>
+<g class="blk k-step" data-tip="draft job 的准备：建 workspace、抓一次 baseline、封存（不设计测试，不做 knockout）"><rect x="97" y="510" width="32" height="18" rx="4"/><text x="113.0" y="523" text-anchor="middle">准备</text></g>
+<g class="blk k-code" data-tip="author session：写 scope 1 的代码"><rect x="131" y="510" width="32" height="18" rx="4"/><text x="147.0" y="523" text-anchor="middle">S1</text></g>
+<g class="blk k-code" data-tip="author session：写 scope 2 的代码"><rect x="165" y="510" width="32" height="18" rx="4"/><text x="181.0" y="523" text-anchor="middle">S2</text></g>
+<g class="blk k-code" data-tip="author session：写 scope 3 的代码"><rect x="165" y="530" width="32" height="18" rx="4"/><text x="181.0" y="543" text-anchor="middle">S3</text></g>
+<g class="blk k-code" data-tip="author session：写 scope 4 的代码"><rect x="165" y="550" width="32" height="18" rx="4"/><text x="181.0" y="563" text-anchor="middle">S4</text></g>
+<g class="blk k-code" data-tip="author session：写 scope 5 的代码"><rect x="199" y="510" width="32" height="18" rx="4"/><text x="215.0" y="523" text-anchor="middle">S5</text></g>
+<text class="t-total" x="546" y="371">13 格</text>
+<path class="link" d="M235 519.0 H317.0 V381" marker-end="url(#tl-arrow)"/>
+<text class="t-phase" x="241" y="535.0">草稿就绪，等 main job 封存后导入</text>
+<text x="0" y="612"><tspan class="t-row">D　main + pair + parallel 模式</tspan><tspan class="t-note" dx="14">owner 打开 parallel 模式：修复按 scope 拆开，knockout 并发放宽到 8</tspan></text>
+<text class="t-lane" x="86" y="655" text-anchor="end">main job</text>
+<path class="bracket" d="M98 639 V636 H264 V639"/>
+<text class="t-phase" x="181.0" y="632" text-anchor="middle">freeze</text>
+<path class="bracket" d="M302 639 V636 H400 V639"/>
+<text class="t-phase" x="351.0" y="632" text-anchor="middle">验证与修复</text>
+<g class="blk k-step" data-tip="准备：建 workspace，抓一次原版 baseline"><rect x="97" y="642" width="32" height="18" rx="4"/><text x="113.0" y="655" text-anchor="middle">准备</text></g>
+<g class="blk k-test" data-tip="设计者 session：给 leaf 1 写测试"><rect x="131" y="642" width="32" height="18" rx="4"/><text x="147.0" y="655" text-anchor="middle">L1</text></g>
+<g class="blk k-test" data-tip="设计者 session：给 leaf 2 写测试"><rect x="131" y="662" width="32" height="18" rx="4"/><text x="147.0" y="675" text-anchor="middle">L2</text></g>
+<g class="blk k-test" data-tip="设计者 session：给 leaf 3 写测试"><rect x="131" y="682" width="32" height="18" rx="4"/><text x="147.0" y="695" text-anchor="middle">L3</text></g>
+<g class="blk k-test" data-tip="设计者 session：给 leaf 4 写测试"><rect x="131" y="702" width="32" height="18" rx="4"/><text x="147.0" y="715" text-anchor="middle">L4</text></g>
+<g class="blk k-test" data-tip="设计者 session：给 leaf 5 写测试"><rect x="131" y="722" width="32" height="18" rx="4"/><text x="147.0" y="735" text-anchor="middle">L5</text></g>
+<g class="blk k-test" data-tip="设计者 session：给 leaf 6 写测试"><rect x="131" y="742" width="32" height="18" rx="4"/><text x="147.0" y="755" text-anchor="middle">L6</text></g>
+<g class="blk k-test" data-tip="评审 session：检查设计出来的测试文件（一个评审者最多读 8 个文件）"><rect x="165" y="642" width="32" height="18" rx="4"/><text x="181.0" y="655" text-anchor="middle">评审</text></g>
+<g class="blk k-ko" data-tip="knockout：在原版副本里禁用 leaf 1 的代码，重跑 check，确认测试真的在测它"><rect x="199" y="642" width="32" height="18" rx="4"/><text x="215.0" y="655" text-anchor="middle">K1</text></g>
+<g class="blk k-ko" data-tip="knockout：在原版副本里禁用 leaf 2 的代码，重跑 check，确认测试真的在测它"><rect x="199" y="662" width="32" height="18" rx="4"/><text x="215.0" y="675" text-anchor="middle">K2</text></g>
+<g class="blk k-ko" data-tip="knockout：在原版副本里禁用 leaf 3 的代码，重跑 check，确认测试真的在测它"><rect x="199" y="682" width="32" height="18" rx="4"/><text x="215.0" y="695" text-anchor="middle">K3</text></g>
+<g class="blk k-ko" data-tip="knockout：在原版副本里禁用 leaf 4 的代码，重跑 check，确认测试真的在测它"><rect x="199" y="702" width="32" height="18" rx="4"/><text x="215.0" y="715" text-anchor="middle">K4</text></g>
+<g class="blk k-ko" data-tip="knockout：在原版副本里禁用 leaf 5 的代码，重跑 check，确认测试真的在测它"><rect x="199" y="722" width="32" height="18" rx="4"/><text x="215.0" y="735" text-anchor="middle">K5</text></g>
+<g class="blk k-ko" data-tip="knockout：在原版副本里禁用 leaf 6 的代码，重跑 check，确认测试真的在测它"><rect x="199" y="742" width="32" height="18" rx="4"/><text x="215.0" y="755" text-anchor="middle">K6</text></g>
+<g class="blk k-step" data-tip="封存合同：之后测试和 baseline 不再改"><rect x="233" y="642" width="32" height="18" rx="4"/><text x="249.0" y="655" text-anchor="middle">封存</text></g>
+<g class="blk k-step" data-tip="导入草稿：把 draft job 写好的首版存成本作业的第一个候选"><rect x="267" y="642" width="32" height="18" rx="4"/><text x="283.0" y="655" text-anchor="middle">导入</text></g>
+<g class="blk k-step" data-tip="第一次全量比较：候选代码在所有 check 上对比原版 baseline。之后 controller 才开始参与"><rect x="301" y="642" width="32" height="18" rx="4"/><text x="317.0" y="655" text-anchor="middle">比较</text></g>
+<g class="blk k-fix" data-tip="repair author：只修 scope 1 里的失败（一个 split 组里的一个请求）"><rect x="335" y="642" width="32" height="18" rx="4"/><text x="351.0" y="655" text-anchor="middle">R1</text></g>
+<g class="blk k-fix" data-tip="repair author：只修 scope 2 里的失败（一个 split 组里的一个请求）"><rect x="335" y="662" width="32" height="18" rx="4"/><text x="351.0" y="675" text-anchor="middle">R2</text></g>
+<g class="blk k-fix" data-tip="repair author：只修 scope 3 里的失败（一个 split 组里的一个请求）"><rect x="335" y="682" width="32" height="18" rx="4"/><text x="351.0" y="695" text-anchor="middle">R3</text></g>
+<g class="blk k-step" data-tip="再做一次全量比较，确认修复有效"><rect x="369" y="642" width="32" height="18" rx="4"/><text x="385.0" y="655" text-anchor="middle">比较</text></g>
+<g class="blk k-step" data-tip="选定候选并交付"><rect x="403" y="642" width="32" height="18" rx="4"/><text x="419.0" y="655" text-anchor="middle">交付</text></g>
+<text class="t-lane" x="86" y="807" text-anchor="end">draft job</text>
+<path class="bracket" d="M98 791 V788 H230 V791"/>
+<text class="t-phase" x="164.0" y="784" text-anchor="middle">首版实现</text>
+<g class="blk k-step" data-tip="draft job 的准备：建 workspace、抓一次 baseline、封存（不设计测试，不做 knockout）"><rect x="97" y="794" width="32" height="18" rx="4"/><text x="113.0" y="807" text-anchor="middle">准备</text></g>
+<g class="blk k-code" data-tip="author session：写 scope 1 的代码"><rect x="131" y="794" width="32" height="18" rx="4"/><text x="147.0" y="807" text-anchor="middle">S1</text></g>
+<g class="blk k-code" data-tip="author session：写 scope 2 的代码"><rect x="165" y="794" width="32" height="18" rx="4"/><text x="181.0" y="807" text-anchor="middle">S2</text></g>
+<g class="blk k-code" data-tip="author session：写 scope 3 的代码"><rect x="165" y="814" width="32" height="18" rx="4"/><text x="181.0" y="827" text-anchor="middle">S3</text></g>
+<g class="blk k-code" data-tip="author session：写 scope 4 的代码"><rect x="165" y="834" width="32" height="18" rx="4"/><text x="181.0" y="847" text-anchor="middle">S4</text></g>
+<g class="blk k-code" data-tip="author session：写 scope 5 的代码"><rect x="199" y="794" width="32" height="18" rx="4"/><text x="215.0" y="807" text-anchor="middle">S5</text></g>
+<text class="t-total" x="444" y="655">10 格</text>
+<path class="link" d="M235 803.0 H283.0 V665" marker-end="url(#tl-arrow)"/>
+<text class="t-phase" x="241" y="819.0">草稿就绪，等 main job 封存后导入</text>
+</svg>
+    </div>
+    <figcaption>示意图，不是实测耗时。假设每份工作耗时相同，不含排队、合并和重写的开销；格数只说明这个示例里的并发关系。把鼠标移到格子上（或点一下）可以看它是什么。</figcaption>
+    <details>
+      <summary>用表格看这张图</summary>
+      <div class="scroll"><table class="num">
+        <thead><tr><th>跑法</th><th>freeze</th><th>首版实现</th><th>导入草稿</th><th>验证与修复</th><th>交付</th><th>合计（格）</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">A　串行基线</th><td>15</td><td>5</td><td>—</td><td>5</td><td>1</td><td class="t">26</td></tr>
+          <tr><th scope="row">B　main 默认</th><td>6</td><td>3</td><td>—</td><td>5</td><td>1</td><td class="t">15</td></tr>
+          <tr><th scope="row">C　main + pair</th><td>6</td><td>与 freeze 同时</td><td>1</td><td>5</td><td>1</td><td class="t">13</td></tr>
+          <tr><th scope="row">D　main + pair + parallel 模式</th><td>5</td><td>与 freeze 同时</td><td>1</td><td>3</td><td>1</td><td class="t">10</td></tr>
+        </tbody>
+      </table></div>
+    </details>
+  </figure>
+  <ul class="plain">
+    <li><strong>A → B 不需要任何开关。</strong>freeze 从 15 格变成 6 格：6 个 leaf 的测试同时写，knockout 4 个一批。首版从 5 格变成 3 格：第 2 层的 3 个 scope 同时写。</li>
+    <li><strong>B → C 是 pair。</strong>首版实现挪到 draft job，和 main job 的 freeze 同时进行；main job 封存之后才导入草稿，所以草稿影响不到测试。</li>
+    <li><strong>C → D 是 parallel 模式。</strong>修复按 scope 拆成一组同时修；knockout 的并发从 4 放宽到 8，6 个 leaf 一批做完。</li>
+    <li><strong>A 只是对照，不是 main 的某个配置。</strong>main 里最接近它的是 <code>fixed</code> 策略：代码一个 scope 接一个写，但写测试和 knockout 仍然并行。</li>
+  </ul>
+</section>
+
+<section>
+  <h2>并行清单</h2>
+  <p class="sub">每一行是一处并行。「默认」表示不需要任何开关；「parallel 模式」由 owner 在提交时打开，controller 不能自己开关，也不能改并发上限。</p>
+  <div class="scroll"><table class="inv"><thead><tr><th>并行点</th><th>同时跑的是什么</th><th>默认并发</th><th>谁触发</th><th>是否默认生效</th><th>条件和说明</th></tr></thead><tbody><tr class="grp"><th colspan="6" scope="colgroup">作业之间</th></tr><tr><th scope="row">pair：freeze 与首版实现</th><td>两个作业：main job 做 freeze，draft job 写首版代码</td><td>2 个作业</td><td>提交时按规则</td><td><span class="chip c-cond">需 pair 条件</span></td><td>controller 策略；选择范围 ≥ 20,000 原版 token 或 <code>pair=on</code>；有可用的计算节点</td></tr></tbody><tbody><tr class="grp"><th colspan="6" scope="colgroup">阶段内部（主线按固定规则展开）</th></tr><tr><th scope="row">测试设计</th><td>每个需要测试的 leaf 一个设计者 session</td><td>每个 leaf 一个，最多 32</td><td>主线</td><td><span class="chip c-dflt">默认</span></td><td>owner 可用 <code>runner_workers</code> 改成固定数</td></tr><tr><th scope="row">测试评审</th><td>评审 session，每个最多读 8 个测试文件</td><td>同测试设计</td><td>主线</td><td><span class="chip c-dflt">默认</span></td><td>紧接在设计之后</td></tr><tr><th scope="row">knockout</th><td>多个 leaf 各在一份原版副本里被禁用后重跑 check</td><td>4；parallel 模式下 8</td><td>主线</td><td><span class="chip c-dflt">默认</span></td><td>leaf 测试校验开启时（默认开启）</td></tr><tr><th scope="row">首版代码分层</th><td>同一层的 scope 各分给一个 author，写完合并成一个候选</td><td>4；parallel 模式下为 <code>max_agents</code>（2–8）</td><td>主线</td><td><span class="chip c-dflt">默认</span></td><td>controller 策略；一层里至少有 2 个 scope</td></tr><tr><th scope="row">修复 split</th><td>每个出问题的 scope 一个 repair author</td><td><code>max_agents</code></td><td>主线</td><td><span class="chip c-mode">需 parallel 模式</span></td><td>每个失败 issue 只属于一个 scope，且共涉及 2–20 个 scope；否则仍是一次调用</td></tr></tbody><tbody><tr class="grp"><th colspan="6" scope="colgroup">controller 自选（第一次全量比较之后）</th></tr><tr><th scope="row">split 组</th><td>2–20 个请求，按 scope 或 capability 分，合并成一个候选</td><td><code>max_agents</code></td><td>controller</td><td><span class="chip c-mode">需 parallel 模式</span></td><td>一组只算一次 author 调用</td></tr><tr><th scope="row">speculate 组</th><td>同一份工作的多个版本并排，各存成一个候选</td><td>最多 <code>speculation</code> 个（默认 2，范围 1–4）</td><td>controller</td><td><span class="chip c-mode">需 parallel 模式</span></td><td>主线从不 speculate，也不替 controller 挑版本</td></tr><tr><th scope="row">独立 workspace 批次</th><td>最多 20 个请求，各在自己的 workspace 里写</td><td>2，上限 8；parallel 模式下为 <code>max_agents</code></td><td>controller</td><td><span class="chip c-dflt">默认</span></td><td>写完不会自动成为候选，要 controller 逐个保存</td></tr></tbody><tbody><tr class="grp"><th colspan="6" scope="colgroup">执行层的并发</th></tr><tr><th scope="row">check 执行</th><td>一次比较或一次 baseline 里的多条 check</td><td>1；parallel 模式下按 CPU 配额，最多 8</td><td>owner 设置</td><td><span class="chip c-dflt">默认</span></td><td>owner 可用 <code>check_executor.workers</code> 指定</td></tr><tr><th scope="row">task 评估</th><td>task agent</td><td>2；parallel 模式下 4</td><td>owner 设置</td><td><span class="chip c-cond">需开 task 评估</span></td><td>只在 owner 打开 task 评估时运行</td></tr></tbody></table></div>
+</section>
+
+<section>
+  <h2>split 和 speculate 的区别</h2>
+  <p class="sub">两者都是 parallel 模式下的 author 分组，都从同一个候选出发，区别在结果怎么收。</p>
+  <div class="pair">
+    <figure class="card">
+      <h3>split：分工，合成一个</h3>
+      <svg class="mech" viewBox="0 0 520 236" role="img" aria-label="split：三个 author 从同一个候选出发，各写一个 scope，结果按顺序合并成一个新的当前候选。"><defs><marker id="sp-arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L8 4 L0 8 z" fill="currentColor"/></marker></defs><rect class="b-cand" x="8" y="96" width="104" height="44" rx="6"/><text class="m-main" x="60.0" y="122.0" text-anchor="middle">当前候选</text><rect class="b-auth" x="190" y="16" width="140" height="44" rx="6"/><text class="m-main" x="260.0" y="34.5" text-anchor="middle">author 1</text><text class="m-sub" x="260.0" y="49.5" text-anchor="middle">只写 scope A</text><line class="edge" x1="112" y1="118" x2="188" y2="38" marker-end="url(#sp-arrow)"/><line class="edge" x1="330" y1="38" x2="406" y2="118" marker-end="url(#sp-arrow)"/><rect class="b-auth" x="190" y="96" width="140" height="44" rx="6"/><text class="m-main" x="260.0" y="114.5" text-anchor="middle">author 2</text><text class="m-sub" x="260.0" y="129.5" text-anchor="middle">只写 scope B</text><line class="edge" x1="112" y1="118" x2="188" y2="118" marker-end="url(#sp-arrow)"/><line class="edge" x1="330" y1="118" x2="406" y2="118" marker-end="url(#sp-arrow)"/><rect class="b-auth" x="190" y="176" width="140" height="44" rx="6"/><text class="m-main" x="260.0" y="194.5" text-anchor="middle">author 3</text><text class="m-sub" x="260.0" y="209.5" text-anchor="middle">只写 scope C</text><line class="edge" x1="112" y1="118" x2="188" y2="198" marker-end="url(#sp-arrow)"/><line class="edge" x1="330" y1="198" x2="406" y2="118" marker-end="url(#sp-arrow)"/><rect class="b-new" x="408" y="96" width="104" height="44" rx="6"/><text class="m-main" x="460.0" y="122.0" text-anchor="middle">新的当前候选</text><text class="m-edge" x="60" y="86" text-anchor="middle">同一起点</text><text class="m-edge" x="460" y="86" text-anchor="middle">按顺序合并</text></svg>
+      <figcaption>每个 author 只写自己的 scope。两个请求改了同一路径时靠前的保留，丢了文件的请求随后单独重写一次。主线写首版和做并行修复用的都是它。</figcaption>
+    </figure>
+    <figure class="card">
+      <h3>speculate：同题多解，挑一个</h3>
+      <svg class="mech" viewBox="0 0 520 236" role="img" aria-label="speculate：两个 author 从同一个候选出发，用不同做法写同一份工作，各存成一个候选，当前候选不变，由 controller 之后比较并挑选。"><defs><marker id="sc-arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L8 4 L0 8 z" fill="currentColor"/></marker></defs><rect class="b-cand" x="8" y="96" width="104" height="44" rx="6"/><text class="m-main" x="60.0" y="114.5" text-anchor="middle">当前候选</text><text class="m-sub" x="60.0" y="129.5" text-anchor="middle">保持不变</text><rect class="b-auth" x="190" y="40" width="140" height="44" rx="6"/><text class="m-main" x="260.0" y="58.5" text-anchor="middle">author 1</text><text class="m-sub" x="260.0" y="73.5" text-anchor="middle">同一份工作，最小改动</text><line class="edge" x1="112" y1="118" x2="188" y2="62" marker-end="url(#sc-arrow)"/><line class="edge" x1="330" y1="62" x2="406" y2="62" marker-end="url(#sc-arrow)"/><rect class="b-new" x="408" y="40" width="104" height="44" rx="6"/><text class="m-main" x="460.0" y="58.5" text-anchor="middle">版本 1</text><text class="m-sub" x="460.0" y="73.5" text-anchor="middle">存成候选</text><rect class="b-auth" x="190" y="152" width="140" height="44" rx="6"/><text class="m-main" x="260.0" y="170.5" text-anchor="middle">author 2</text><text class="m-sub" x="260.0" y="185.5" text-anchor="middle">同一份工作，整块重写</text><line class="edge" x1="112" y1="118" x2="188" y2="174" marker-end="url(#sc-arrow)"/><line class="edge" x1="330" y1="174" x2="406" y2="174" marker-end="url(#sc-arrow)"/><rect class="b-new" x="408" y="152" width="104" height="44" rx="6"/><text class="m-main" x="460.0" y="170.5" text-anchor="middle">版本 2</text><text class="m-sub" x="460.0" y="185.5" text-anchor="middle">存成候选</text><text class="m-edge" x="60" y="86" text-anchor="middle">同一起点</text><text class="m-edge" x="460" y="122" text-anchor="middle">controller 比较后</text><text class="m-edge" x="460" y="137" text-anchor="middle">挑一个</text></svg>
+      <figcaption>几个 author 用不同做法写同一份工作，互相不知道对方。每个版本各存成一个候选，由 controller 逐个恢复、比较后自己挑。只有 controller 会用它，主线从不 speculate。</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section>
+  <h2>仍然串行的地方</h2>
+  <ul class="plain">
+    <li><strong>层与层之间。</strong>后一层的 scope 要基于前一层写好的代码。一个超过 45,000 token 的大组会被切成几段，段与段之间也是串行。</li>
+    <li><strong>单作业里的 freeze 和 rewrite。</strong>没有 pair 时，必须封存之后才能开始写代码。</li>
+    <li><strong>默认的修复。</strong>不开 parallel 模式时，一轮修复是一次 author 调用。</li>
+    <li><strong>controller 的一批调用。</strong>一批最多 24 个调用，逐个执行。一个作业同一时刻只有一个改状态的操作在跑；后台调用运行时，只有查询和取消可以同时应答。</li>
+    <li><strong>author 调用次数不够时。</strong>owner 给的次数不够分层用，整个选择范围退回一次调用。</li>
+    <li><strong>小项目。</strong>只划得出一个 scope 时没有可并行的代码工作；选择范围不到 20,000 token 时默认也不拆成两个作业。</li>
+  </ul>
+</section>
+
+<section>
+  <h2>口径</h2>
+  <ul class="plain">
+    <li>内容来自 main @ 33814711 的代码和文档，没有实际跑作业；表里的并发数是代码里的默认值。</li>
+    <li>对比图是按规则画出来的示意，示例项目是虚构的。真实耗时还取决于每个 session 多久、模型和计算节点的排队，以及合并冲突后的重写。</li>
+    <li>图里没有画 controller 自选的三种分组，因为用不用、怎么用由它每一轮自己决定。</li>
+  </ul>
+</section>
+
+<footer>nanolize 并行策略图 · main @ 33814711 · 2026-11-19</footer>
+</div>
+<div id="tip" role="status" hidden></div>
+<script>
+(function () {
+  var fig = document.querySelector('.tl');
+  var tip = document.getElementById('tip');
+  var buttons = Array.prototype.slice.call(document.querySelectorAll('button.lg'));
+  buttons.forEach(function (button) {
+    button.addEventListener('click', function () {
+      var on = button.getAttribute('aria-pressed') === 'true';
+      buttons.forEach(function (other) { other.setAttribute('aria-pressed', 'false'); });
+      if (on) { fig.removeAttribute('data-focus'); return; }
+      button.setAttribute('aria-pressed', 'true');
+      fig.setAttribute('data-focus', button.getAttribute('data-kind'));
+    });
+  });
+  function hide() { tip.hidden = true; }
+  function show(event) {
+    var block = event.target.closest ? event.target.closest('.blk') : null;
+    if (!block) { hide(); return; }
+    tip.textContent = block.getAttribute('data-tip');
+    tip.hidden = false;
+    var box = tip.getBoundingClientRect();
+    var left = Math.min(event.clientX + 12, window.innerWidth - box.width - 8);
+    var top = event.clientY + 16;
+    if (top + box.height > window.innerHeight - 8) { top = event.clientY - box.height - 10; }
+    tip.style.left = Math.max(8, left) + 'px';
+    tip.style.top = Math.max(8, top) + 'px';
+  }
+  fig.addEventListener('pointermove', show);
+  fig.addEventListener('pointerdown', show);
+  fig.addEventListener('pointerleave', hide);
+  window.addEventListener('scroll', hide, { passive: true });
+})();
+</script>
+</body>
+</html>
