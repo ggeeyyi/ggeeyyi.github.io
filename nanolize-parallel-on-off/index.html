@@ -1,0 +1,1342 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<meta name="description" content="nanolize 在 structlog 26.1.0 上各跑一次 parallel off 和 parallel on 的实测轨迹：每一部分花了多少时间、多少 token，以及按功能并行写代码有没有带来收益。">
+<title>nanolize parallel on / off 实测对比</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%231c5cab'/%3E%3Cpath d='M4 11V5l8 6V5' fill='none' stroke='white' stroke-width='1.6'/%3E%3C/svg%3E">
+<style>
+  :root { color-scheme: light; }
+  html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+  body { margin: 0; }
+  [hidden] { display: none !important; }
+</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500;700&family=Space+Grotesk:wght@500;700&display=swap">
+<style>
+  :root {
+    --bg: #f3f5f7; --surface: #ffffff; --sunken: #e8ecf0; --ink: #15202b; --muted: #566573; --line: #d5dce3;
+    --accent: #0f5ea8; --par-line: #8fb4dc; --par-bg: #f4f8fd;
+    --s-test: #2a78d6; --s-ko: #eb6834; --s-code: #1baf7a; --s-fix: #eda100; --on-series: #0d141b;
+    --font-display: "Space Grotesk", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    --font-body: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, "Noto Sans SC", "PingFang SC", "Microsoft YaHei", monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f151b; --surface: #172029; --sunken: #1f2a35; --ink: #e4eaf0; --muted: #97a5b2; --line: #2b3743;
+      --accent: #6fb1f2; --par-line: #3f6893; --par-bg: #131c26;
+      --s-test: #3987e5; --s-ko: #d95926; --s-code: #199e70; --s-fix: #c98500;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f151b; --surface: #172029; --sunken: #1f2a35; --ink: #e4eaf0; --muted: #97a5b2; --line: #2b3743;
+    --accent: #6fb1f2; --par-line: #3f6893; --par-bg: #131c26;
+    --s-test: #3987e5; --s-ko: #d95926; --s-code: #199e70; --s-fix: #c98500;
+    color-scheme: dark;
+  }
+  body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 1rem; line-height: 1.7; }
+  .wrap {
+    max-width: 70rem; margin-inline: auto;
+    padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 2.5rem 4rem; display: grid; gap: 2.75rem;
+  }
+  section, header.page { display: grid; gap: 1.1rem; min-width: 0; }
+  h1, h2, h3, p, ul, ol, dl, dd, figure { margin: 0; }
+  h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; line-height: 1.25; }
+  h1 { font-size: clamp(1.7rem, 4.2vw, 2.35rem); font-weight: 700; letter-spacing: -0.01em; }
+  h2 { font-size: 1.3rem; font-weight: 700; }
+  h3 { font-size: 1rem; font-weight: 700; }
+  p, li, dd { overflow-wrap: anywhere; }
+  code { font-family: var(--font-mono); font-size: 0.84em; background: var(--sunken); padding: 0.08em 0.36em; border-radius: 4px; }
+  .eyebrow { font-family: var(--font-mono); font-size: 0.8125rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: 0.25rem 1.1rem; }
+  .lead { font-size: 1.0625rem; max-width: 44em; }
+  .sub { color: var(--muted); max-width: 48em; font-size: 0.9375rem; }
+  ul.plain { padding-left: 1.2em; display: grid; gap: 0.45rem; max-width: 50em; }
+
+  .layers { display: grid; gap: 0.9rem; grid-template-columns: repeat(auto-fit, minmax(15.5rem, 1fr)); }
+  .layer { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 1rem 1.1rem; display: grid; gap: 0.4rem; align-content: start; }
+  .layer .n { font-family: var(--font-mono); font-size: 0.8125rem; color: var(--muted); }
+  .layer p { font-size: 0.9375rem; }
+
+  dl.terms { display: grid; grid-template-columns: max-content 1fr; gap: 0.35rem 1rem; font-size: 0.9375rem; max-width: 52em; }
+  dl.terms dt { font-family: var(--font-mono); font-size: 0.875rem; color: var(--accent); }
+  @media (max-width: 34rem) { dl.terms { grid-template-columns: 1fr; gap: 0.1rem; } dl.terms dd { margin-bottom: 0.5rem; } }
+
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 1rem 1.1rem 1.1rem; display: grid; gap: 0.8rem; min-width: 0; }
+  .legend { display: flex; flex-wrap: wrap; gap: 0.4rem 0.5rem; align-items: center; }
+  .legend .hint { font-size: 0.8125rem; color: var(--muted); margin-right: 0.25rem; }
+  .lg { font: inherit; font-size: 0.8438rem; color: var(--ink); display: inline-flex; align-items: center; gap: 0.45rem;
+        padding: 0.25rem 0.7rem; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); }
+  button.lg { cursor: pointer; }
+  button.lg:hover { border-color: var(--accent); }
+  button.lg[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+  button.lg:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .sw { width: 0.8rem; height: 0.8rem; border-radius: 3px; flex: none; }
+  .sw.k-test { background: var(--s-test); } .sw.k-ko { background: var(--s-ko); } .sw.k-code { background: var(--s-code); }
+  .sw.k-fix { background: var(--s-fix); } .sw.k-step { background: var(--sunken); border: 1px solid var(--line); }
+
+  .scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .tl-svg { display: block; width: 100%; min-width: 900px; height: auto; color: var(--ink); font-family: var(--font-body); }
+  .swipe { display: none; font-size: 0.8125rem; color: var(--muted); }
+  @media (max-width: 60rem) { .swipe { display: block; } }
+  .tl-svg text { fill: var(--ink); }
+  .tl-svg .t-row { font-size: 13.5px; font-weight: 700; font-family: var(--font-display); }
+  .tl-svg .t-note, .tl-svg .t-lane, .tl-svg .t-phase { font-size: 11px; fill: var(--muted); }
+  .tl-svg .t-axis { font-size: 10.5px; fill: var(--muted); font-family: var(--font-mono); }
+  .tl-svg .t-total { font-size: 12.5px; font-weight: 700; font-family: var(--font-display); }
+  .tl-svg .grid { stroke: var(--line); stroke-width: 1; stroke-dasharray: 2 4; }
+  .tl-svg .bracket { fill: none; stroke: var(--muted); stroke-width: 1; opacity: 0.7; }
+  .tl-svg .link { fill: none; stroke: currentColor; stroke-width: 1.3; stroke-dasharray: 4 3; }
+  .blk rect { stroke: var(--surface); stroke-width: 0; }
+  .blk text { font-size: 11px; font-weight: 500; fill: var(--on-series); pointer-events: none; }
+  .blk.k-test rect { fill: var(--s-test); } .blk.k-ko rect { fill: var(--s-ko); }
+  .blk.k-code rect { fill: var(--s-code); } .blk.k-fix rect { fill: var(--s-fix); }
+  .blk.k-step rect { fill: var(--sunken); stroke: var(--line); stroke-width: 1; }
+  .blk.k-step text { fill: var(--ink); }
+  .blk { transition: opacity 0.15s; }
+  .blk:hover rect { stroke: var(--ink); stroke-width: 1.5; }
+  .tl[data-focus] .blk { opacity: 0.16; }
+  .tl[data-focus="test"] .blk.k-test, .tl[data-focus="ko"] .blk.k-ko,
+  .tl[data-focus="code"] .blk.k-code, .tl[data-focus="fix"] .blk.k-fix { opacity: 1; }
+  figcaption { font-size: 0.875rem; color: var(--muted); max-width: 54em; }
+  #tip { position: fixed; z-index: 20; max-width: 19rem; padding: 0.45rem 0.65rem; border-radius: 8px; font-size: 0.8438rem; line-height: 1.5;
+         background: var(--ink); color: var(--bg); pointer-events: none; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25); }
+
+  table { border-collapse: collapse; width: 100%; font-size: 0.9063rem; }
+  th, td { text-align: left; vertical-align: top; padding: 0.55rem 0.7rem; border-bottom: 1px solid var(--line); }
+  thead th { font-size: 0.8125rem; font-weight: 500; color: var(--muted); white-space: nowrap; }
+  tbody th[scope="row"] { font-weight: 700; white-space: nowrap; }
+  table.inv { min-width: 56rem; }
+  table.inv .grp th { font-family: var(--font-display); font-size: 0.875rem; color: var(--accent); background: var(--sunken); border-bottom: none; padding-block: 0.35rem; }
+  table.num { min-width: 34rem; }
+  table.num td, table.num thead th:not(:first-child) { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  table.num td.t { font-weight: 700; }
+  .chip { display: inline-block; font-size: 0.78rem; padding: 0.05rem 0.5rem; border-radius: 999px; border: 1px solid var(--line); white-space: nowrap; }
+  .chip.c-dflt { background: var(--sunken); }
+  .chip.c-mode { border-color: var(--par-line); background: var(--par-bg); }
+  .chip.c-cond { border-style: dashed; }
+  details > summary { cursor: pointer; font-size: 0.9063rem; color: var(--accent); }
+
+  .pair { display: grid; gap: 0.9rem; grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr)); }
+  .mech { display: block; width: 100%; height: auto; color: var(--ink); font-family: var(--font-body); }
+  .mech text { fill: var(--ink); }
+  .mech .m-main { font-size: 12.5px; font-weight: 500; }
+  .mech .m-sub { font-size: 11px; fill: var(--muted); }
+  .mech .m-edge { font-size: 11px; fill: var(--muted); }
+  .mech .edge { stroke: currentColor; stroke-width: 1.2; }
+  .mech .b-cand { fill: var(--surface); stroke: currentColor; stroke-width: 1.2; }
+  .mech .b-auth { fill: var(--par-bg); stroke: var(--par-line); stroke-width: 1.2; }
+  .mech .b-new { fill: var(--surface); stroke: var(--s-code); stroke-width: 2; }
+  footer { font-size: 0.8438rem; color: var(--muted); border-top: 1px solid var(--line); padding-top: 1rem; }
+
+  :root { --s-facts: #2a78d6; --s-design: #eb6834; --s-ctl: #e87ba4; --s-base: #7d8a97; --s-rest: #c3ccd5; --r-off: #8f9ba8; --r-on: #27384a; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --s-facts: #3987e5; --s-design: #d95926; --s-ctl: #d55181; --s-base: #7b8996; --s-rest: #3b4957; --r-off: #66788a; --r-on: #d3dce5; }
+  }
+  :root[data-theme="dark"] { --s-facts: #3987e5; --s-design: #d95926; --s-ctl: #d55181; --s-base: #7b8996; --s-rest: #3b4957; --r-off: #66788a; --r-on: #d3dce5; }
+  .sw.k-facts { background: var(--s-facts); } .sw.k-design { background: var(--s-design); } .sw.k-ctl { background: var(--s-ctl); }
+  .sw.k-local, .sw.k-base { background: var(--s-base); } .sw.k-rest { background: var(--s-rest); }
+  .sw.r-off { background: var(--r-off); } .sw.r-on { background: var(--r-on); }
+  .blk.k-facts rect { fill: var(--s-facts); } .blk.k-design rect { fill: var(--s-design); } .blk.k-ctl rect { fill: var(--s-ctl); }
+  .blk.k-local rect, .blk.k-base rect { fill: var(--s-base); } .blk.k-rest rect { fill: var(--s-rest); }
+  .blk.big text { font-size: 11px; font-weight: 500; fill: var(--on-series); pointer-events: none; }
+  .blk.k-local text, .blk.k-base text { fill: #ffffff; font-size: 10.5px; }
+  .blk.k-rest text { fill: var(--ink); }
+  .tl[data-focus="facts"] .blk.k-facts, .tl[data-focus="design"] .blk.k-design, .tl[data-focus="ctl"] .blk.k-ctl,
+  .tl[data-focus="local"] .blk.k-local { opacity: 1; }
+  .tl-svg .grid { stroke-dasharray: none; }
+  .tl-svg.gantt, .tl-svg.share { min-width: 940px; }
+  .tl-svg.zoom { min-width: 900px; }
+  .tl-svg .tick { stroke: var(--muted); stroke-width: 1; }
+  .tl-svg .t-mark { font-size: 10.5px; fill: var(--muted); }
+  .tl-svg .guide { stroke: var(--ink); stroke-width: 1.2; }
+  .tl-svg .t-guide { font-size: 11.5px; font-weight: 700; font-family: var(--font-display); }
+  #tip { white-space: pre-line; max-width: 22rem; }
+  .tl-svg.scat { min-width: 0; max-width: 34rem; }
+  .blk.dot circle { stroke: var(--surface); stroke-width: 2; } .blk.dot circle.hit { fill: transparent; stroke: none; }
+  .blk.dot.r-off circle:not(.hit) { fill: var(--r-off); } .blk.dot.r-on circle:not(.hit) { fill: var(--r-on); }
+  .tl-svg .t-dot { font-size: 11px; fill: var(--ink); }
+
+  .verdict { background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: 10px; padding: 1rem 1.2rem; display: grid; gap: 0.5rem; max-width: 56em; }
+  .verdict p { font-size: 1.0313rem; }
+  .tiles { display: grid; gap: 0.9rem; grid-template-columns: repeat(auto-fit, minmax(14.5rem, 1fr)); }
+  .tile { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 0.9rem 1.1rem 1rem; display: grid; gap: 0.25rem; align-content: start; }
+  .tile .k { font-size: 0.8438rem; color: var(--muted); }
+  .tile .v { font-family: var(--font-display); font-size: 1.55rem; font-weight: 700; line-height: 1.2; }
+  .tile .v small { font-size: 0.9rem; font-weight: 500; color: var(--muted); }
+  .tile .d { font-size: 0.875rem; }
+  .tile .d b { font-weight: 700; }
+
+  .pb { display: grid; min-width: 46rem; font-size: 0.875rem; }
+  .pb-row { display: grid; grid-template-columns: 13.5rem repeat(3, minmax(0, 1fr)); gap: 0 1.4rem; align-items: center; padding: 0.42rem 0; border-bottom: 1px solid var(--line); }
+  .pb-head { font-size: 0.8125rem; color: var(--muted); padding-top: 0; }
+  .pb-name { font-weight: 500; }
+  .pb-cell { display: grid; gap: 3px; }
+  .pb-line { display: flex; align-items: center; gap: 0.45rem; height: 0.95rem; }
+  .pb-bar { display: block; height: 8px; border-radius: 0 4px 4px 0; width: calc(var(--v) * (100% - 3.6rem)); min-width: 1px; }
+  .pb-bar.r-off { background: var(--r-off); } .pb-bar.r-on { background: var(--r-on); }
+  .pb-val { font-variant-numeric: tabular-nums; font-size: 0.8125rem; color: var(--ink); white-space: nowrap; }
+  table.parts { min-width: 60rem; } table.parts thead th { text-align: center; } table.parts thead tr:first-child th:first-child { text-align: left; }
+  table.steps { min-width: 52rem; font-size: 0.8438rem; }
+  table.steps td.what { text-align: left; white-space: normal; min-width: 22rem; }
+  table.steps tbody th[scope="row"] { font-weight: 500; }
+  table.steps tr.ctl td, table.steps tr.ctl th { background: var(--par-bg); }
+  table.q { max-width: 48rem; } table.q td { font-variant-numeric: tabular-nums; }
+  ol.reasons { padding-left: 1.3em; display: grid; gap: 0.6rem; font-size: 0.8438rem; }
+  ol.reasons .orig { color: var(--muted); }
+  .two { display: grid; gap: 0.9rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr)); }
+  .two .card h3 { font-size: 1rem; }
+  .two .card p, .two .card li { font-size: 0.9375rem; }
+  details.card > summary { font-size: 0.9688rem; font-weight: 500; color: var(--ink); }
+  details.card[open] > summary { margin-bottom: 0.4rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="page">
+  <div class="eyebrow"><span>对象：structlog 26.1.0（5.25 万 token 源码）</span><span>nanolize fix-parallel @ 0155c762</span><span>2026-11-18 至 11-19 实测</span><span>两种配置各跑 1 次</span></div>
+  <h1>parallel on 和 parallel off：每一步花了多少时间和 token</h1>
+  <p class="lead">同一份清单、同一个选中范围，只改一个开关，各跑一次完整作业。下面把两次作业的每个模型会话和每个步骤画在时间轴上，再按部分汇总时间和 token，最后回答按功能并行写代码有没有带来收益。</p>
+  <div class="verdict">
+    <p><strong>结论：这一对运行里，看不出并行带来了收益。</strong></p>
+    <p>并行模式做两件事：把冻结阶段同时进行的会话数从 8 放宽到 16，以及把代码按 scope 分给几个作者同时写。前一件让「写测试事实」快了 11.9 分钟，但冻结的其余步骤没有变快。后一件，并行组本身是通的：三个 scope 同时写，58.1 分钟的工作在 23.3 分钟内完成，合并没有冲突；可是把代码拆成 4 个 scope 之后，每个会话并没有按比例变短，写首版代码的墙钟时间是 43.2 分钟对 44.9 分钟，基本持平，token 多了五成。</p>
+    <p>on 更早交付（快 11 分钟），是因为 off 的首版被原创性检查整体驳回、重写了一遍；on 的作业总时长多 43 分钟，是因为控制器多做了一轮测试设计。这两项都和并行无关。每种配置只跑了 1 次。</p>
+  </div>
+  <div class="tiles">
+    <div class="tile"><span class="k">冻结：写测试事实</span><span class="v">34.3 → 22.5 <small>分钟</small></span>
+      <span class="d"><b>-35%</b>。同时进行的会话从最多 8 个变成 16 个。冻结里只有这一步变快了</span></div>
+    <div class="tile"><span class="k">并行组：三个 scope 同时写</span><span class="v">23.3 <small>分钟</small></span>
+      <span class="d">三个会话累计 58.1 分钟，压缩 <b>2.5 倍</b>，合并无冲突</span></div>
+    <div class="tile"><span class="k">写首版代码：墙钟时间</span><span class="v">43.2 → 44.9 <small>分钟</small></span>
+      <span class="d"><b>持平</b>。off 是 2 个会话依次写；on 先写 20 分钟地基，再用 24.6 分钟同时写 3 个部分并合并</span></div>
+    <div class="tile"><span class="k">写首版代码：token（输入 + 输出）</span><span class="v">21.3M → 32.4M</span>
+      <span class="d"><b>+52%</b>，费用 $29 → $48。会话 2 → 4 个，累计 43.1 → 78.3 分钟</span></div>
+    <div class="tile"><span class="k">开始写代码 → 交付</span><span class="v">111.0 → 99.8 <small>分钟</small></span>
+      <span class="d"><b>-10%</b>。off 的首版被整体驳回，多重写了 49 分钟；不是并行带来的差别</span></div>
+    <div class="tile"><span class="k">整个作业</span><span class="v">267.5 → 310.2 <small>分钟</small></span>
+      <span class="d"><b>+16%</b>，费用 $396 → $429。on 的冻结多了 53.3 分钟：控制器多做了一轮测试设计</span></div>
+  </div>
+</header>
+
+<section>
+  <h2>全程时间线</h2>
+  <p class="sub">横轴是提交作业后的分钟数，两次作业用同一把尺。一个色块是一个模型会话或一个本机步骤，上下叠在一起的色块同时进行。冻结阶段 off 同时最多 8 个会话，on 最多 16 个；写代码阶段 off 始终只有 1 个作者，on 有一段是 3 个。</p>
+  <figure class="card tl tips">
+    <div class="legend" role="group" aria-label="图例，点击可只看一种工作">
+      <span class="hint">点一下只看一种：</span>
+      <button type="button" class="lg" data-kind="facts" aria-pressed="false"><span class="sw k-facts"></span>写测试事实</button>
+      <button type="button" class="lg" data-kind="design" aria-pressed="false"><span class="sw k-design"></span>设计测试</button>
+      <button type="button" class="lg" data-kind="code" aria-pressed="false"><span class="sw k-code"></span>写首版代码</button>
+      <button type="button" class="lg" data-kind="fix" aria-pressed="false"><span class="sw k-fix"></span>重写与修复</button>
+      <button type="button" class="lg" data-kind="ctl" aria-pressed="false"><span class="sw k-ctl"></span>控制器决策</button>
+      <button type="button" class="lg" data-kind="local" aria-pressed="false"><span class="sw k-local"></span>本机步骤（测基线、对比、安装、封存、交付）</button>
+    </div>
+    <p class="swipe">图比较宽，可以左右滑动。</p>
+    <div class="scroll">
+<svg class="tl-svg gantt" viewBox="0 0 940 432" role="img" aria-label="两次作业的全程时间线：每个模型会话和每个本机步骤是一个色块，上下叠放的色块同时进行"><line class="grid" x1="14.0" y1="50" x2="14.0" y2="396"/><text class="t-axis" x="14.0" y="410" text-anchor="middle">0</text><line class="grid" x1="101.0" y1="50" x2="101.0" y2="396"/><text class="t-axis" x="101.0" y="410" text-anchor="middle">30</text><line class="grid" x1="188.0" y1="50" x2="188.0" y2="396"/><text class="t-axis" x="188.0" y="410" text-anchor="middle">60</text><line class="grid" x1="275.0" y1="50" x2="275.0" y2="396"/><text class="t-axis" x="275.0" y="410" text-anchor="middle">90</text><line class="grid" x1="362.0" y1="50" x2="362.0" y2="396"/><text class="t-axis" x="362.0" y="410" text-anchor="middle">120</text><line class="grid" x1="449.0" y1="50" x2="449.0" y2="396"/><text class="t-axis" x="449.0" y="410" text-anchor="middle">150</text><line class="grid" x1="536.0" y1="50" x2="536.0" y2="396"/><text class="t-axis" x="536.0" y="410" text-anchor="middle">180</text><line class="grid" x1="623.0" y1="50" x2="623.0" y2="396"/><text class="t-axis" x="623.0" y="410" text-anchor="middle">210</text><line class="grid" x1="710.0" y1="50" x2="710.0" y2="396"/><text class="t-axis" x="710.0" y="410" text-anchor="middle">240</text><line class="grid" x1="797.0" y1="50" x2="797.0" y2="396"/><text class="t-axis" x="797.0" y="410" text-anchor="middle">270</text><line class="grid" x1="884.0" y1="50" x2="884.0" y2="396"/><text class="t-axis" x="884.0" y="410" text-anchor="middle">300</text><text class="t-axis" x="935.6" y="426" text-anchor="end">提交作业后的分钟数</text><text class="t-row" x="14" y="19">parallel off（串行）</text><text class="t-note" x="175" y="19">作业 267.5 分钟 · 130 个模型会话 · $396</text><path class="bracket" d="M18.2 45 V42 H115.8 V45"/><text class="t-phase" x="67.0" y="38" text-anchor="middle">写测试事实</text><path class="bracket" d="M117.8 45 V42 H126.2 V45"/><path class="bracket" d="M131.8 45 V42 H390.6 V45"/><text class="t-phase" x="261.2" y="38" text-anchor="middle">设计测试 89.9 分</text><path class="bracket" d="M392.6 45 V42 H451.7 V45"/><text class="t-phase" x="422.1" y="38" text-anchor="middle">再测基线</text><path class="bracket" d="M456.0 45 V42 H788.7 V45"/><text class="t-phase" x="622.3" y="38" text-anchor="middle">写代码、验证、交付 115.4 分</text><g class="blk k-ctl" data-tip="控制器决定下一批调用
+开始于 +0.5 分，持续 0.5 分
+输入 63k token（其中缓存读取 36k），输出 3k
+2 轮对话，$0.42"><rect x="15.5" y="50" width="1.6" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +1.1 分，持续 5.2 分
+输入 376k token（其中缓存读取 297k），输出 34k
+14 轮对话，$2.93"><rect x="17.3" y="50" width="14.1" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +1.1 分，持续 4.6 分
+输入 197k token（其中缓存读取 144k），输出 29k
+8 轮对话，$2.25"><rect x="17.3" y="61" width="12.4" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +1.1 分，持续 3.7 分
+输入 146k token（其中缓存读取 105k），输出 24k
+9 轮对话，$1.79"><rect x="17.3" y="72" width="9.7" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +1.1 分，持续 3.3 分
+输入 151k token（其中缓存读取 106k），输出 21k
+7 轮对话，$1.74"><rect x="17.3" y="83" width="8.6" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +1.1 分，持续 4.4 分
+输入 300k token（其中缓存读取 233k），输出 28k
+10 轮对话，$2.47"><rect x="17.3" y="94" width="11.8" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +1.1 分，持续 4.3 分
+输入 151k token（其中缓存读取 105k），输出 28k
+9 轮对话，$2.04"><rect x="17.3" y="105" width="11.3" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +1.1 分，持续 6.9 分
+输入 650k token（其中缓存读取 544k），输出 45k
+18 轮对话，$3.96"><rect x="17.3" y="116" width="19.1" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +1.1 分，持续 4.2 分
+输入 142k token（其中缓存读取 89k），输出 27k
+7 轮对话，$2.16"><rect x="17.3" y="127" width="11.3" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +4.5 分，持续 3.6 分
+输入 210k token（其中缓存读取 161k），输出 23k
+8 轮对话，$1.90"><rect x="26.9" y="83" width="9.5" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +4.9 分，持续 1.9 分
+输入 164k token（其中缓存读取 129k），输出 12k
+8 轮对话，$1.17"><rect x="28.1" y="72" width="4.5" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +5.4 分，持续 5.0 分
+输入 177k token（其中缓存读取 122k），输出 31k
+9 轮对话，$2.36"><rect x="29.7" y="105" width="13.6" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +5.4 分，持续 2.2 分
+输入 121k token（其中缓存读取 85k），输出 14k
+7 轮对话，$1.29"><rect x="29.7" y="127" width="5.4" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +5.6 分，持续 7.1 分
+输入 656k token（其中缓存读取 553k），输出 42k
+21 轮对话，$3.77"><rect x="30.2" y="94" width="19.7" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +5.8 分，持续 4.2 分
+输入 262k token（其中缓存读取 196k），输出 27k
+8 轮对话，$2.40"><rect x="30.8" y="61" width="11.2" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +6.4 分，持续 5.2 分
+输入 695k token（其中缓存读取 600k），输出 33k
+14 轮对话，$3.23"><rect x="32.5" y="50" width="14.0" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +6.8 分，持续 4.4 分
+输入 555k token（其中缓存读取 476k），输出 29k
+14 轮对话，$2.75"><rect x="33.6" y="72" width="11.8" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +7.6 分，持续 4.0 分
+输入 271k token（其中缓存读取 209k），输出 26k
+11 轮对话，$2.28"><rect x="36.1" y="127" width="10.5" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +8.1 分，持续 5.8 分
+输入 729k token（其中缓存读取 615k），输出 36k
+16 轮对话，$3.73"><rect x="37.5" y="83" width="15.8" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +8.1 分，持续 3.0 分
+输入 128k token（其中缓存读取 89k），输出 21k
+7 轮对话，$1.61"><rect x="37.5" y="116" width="7.7" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +10.0 分，持续 5.0 分
+输入 390k token（其中缓存读取 300k），输出 32k
+11 轮对话，$3.06"><rect x="43.1" y="61" width="13.6" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +10.5 分，持续 1.9 分
+输入 164k token（其中缓存读取 138k），输出 11k
+8 轮对话，$0.99"><rect x="44.4" y="105" width="4.5" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +11.1 分，持续 2.5 分
+输入 200k token（其中缓存读取 158k），输出 15k
+9 轮对话，$1.43"><rect x="46.3" y="116" width="6.2" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +11.2 分，持续 4.4 分
+输入 523k token（其中缓存读取 424k），输出 27k
+13 轮对话，$3.02"><rect x="46.5" y="72" width="11.6" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +11.6 分，持续 3.6 分
+输入 141k token（其中缓存读取 93k），输出 23k
+9 轮对话，$1.88"><rect x="47.5" y="50" width="9.3" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +11.6 分，持续 2.4 分
+输入 370k token（其中缓存读取 316k），输出 15k
+15 轮对话，$1.67"><rect x="47.7" y="127" width="6.0" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +12.4 分，持续 2.6 分
+输入 137k token（其中缓存读取 104k），输出 15k
+7 轮对话，$1.26"><rect x="49.9" y="105" width="6.6" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +12.8 分，持续 2.8 分
+输入 229k token（其中缓存读取 190k），输出 16k
+13 轮对话，$1.47"><rect x="51.0" y="94" width="7.2" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +13.6 分，持续 3.6 分
+输入 215k token（其中缓存读取 162k），输出 23k
+10 轮对话，$1.99"><rect x="53.6" y="116" width="9.5" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +13.9 分，持续 3.5 分
+输入 460k token（其中缓存读取 408k），输出 20k
+20 轮对话，$1.90"><rect x="54.3" y="83" width="9.1" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +14.0 分，持续 3.7 分
+输入 241k token（其中缓存读取 190k），输出 23k
+12 轮对话，$1.95"><rect x="54.7" y="127" width="9.8" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +15.0 分，持续 4.7 分
+输入 173k token（其中缓存读取 124k），输出 30k
+8 轮对话，$2.19"><rect x="57.6" y="105" width="12.5" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +15.1 分，持续 11.2 分
+输入 508k token（其中缓存读取 374k），输出 66k
+14 轮对话，$5.34"><rect x="57.8" y="50" width="31.6" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +15.1 分，持续 2.7 分
+输入 221k token（其中缓存读取 170k），输出 17k
+9 轮对话，$1.66"><rect x="57.9" y="61" width="6.8" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +15.6 分，持续 3.3 分
+输入 301k token（其中缓存读取 252k），输出 21k
+16 轮对话，$1.84"><rect x="59.3" y="72" width="8.6" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +15.6 分，持续 0.7 分
+输入 56k token（其中缓存读取 44k），输出 4k
+5 轮对话，$0.39"><rect x="59.3" y="94" width="1.6" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +16.4 分，持续 1.0 分
+输入 127k token（其中缓存读取 110k），输出 5k
+9 轮对话，$0.54"><rect x="61.5" y="94" width="1.9" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +17.3 分，持续 2.1 分
+输入 340k token（其中缓存读取 283k），输出 13k
+12 轮对话，$1.64"><rect x="64.1" y="116" width="5.2" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +17.4 分，持续 5.5 分
+输入 344k token（其中缓存读取 271k），输出 35k
+12 轮对话，$2.89"><rect x="64.5" y="83" width="14.9" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +17.4 分，持续 3.2 分
+输入 451k token（其中缓存读取 394k），输出 18k
+19 轮对话，$1.90"><rect x="64.5" y="94" width="8.3" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +17.8 分，持续 4.0 分
+输入 219k token（其中缓存读取 162k），输出 26k
+9 轮对话，$2.20"><rect x="65.6" y="127" width="10.7" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +17.9 分，持续 3.7 分
+输入 304k token（其中缓存读取 257k），输出 23k
+13 轮对话，$1.91"><rect x="65.8" y="61" width="9.9" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +19.0 分，持续 3.0 分
+输入 104k token（其中缓存读取 74k），输出 18k
+7 轮对话，$1.33"><rect x="69.0" y="72" width="7.8" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +19.5 分，持续 3.2 分
+输入 130k token（其中缓存读取 93k），输出 21k
+8 轮对话，$1.60"><rect x="70.4" y="116" width="8.3" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +19.7 分，持续 2.0 分
+输入 132k token（其中缓存读取 91k），输出 13k
+6 轮对话，$1.32"><rect x="71.2" y="105" width="4.9" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +20.7 分，持续 3.7 分
+输入 209k token（其中缓存读取 162k），输出 23k
+13 轮对话，$1.88"><rect x="73.9" y="94" width="9.8" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +21.6 分，持续 2.9 分
+输入 201k token（其中缓存读取 153k），输出 19k
+9 轮对话，$1.71"><rect x="76.7" y="61" width="7.5" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +21.8 分，持续 3.5 分
+输入 158k token（其中缓存读取 116k），输出 24k
+8 轮对话，$1.82"><rect x="77.1" y="105" width="9.2" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +21.9 分，持续 2.8 分
+输入 134k token（其中缓存读取 101k），输出 18k
+8 轮对话，$1.37"><rect x="77.4" y="127" width="7.2" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +22.0 分，持续 2.4 分
+输入 142k token（其中缓存读取 105k），输出 15k
+6 轮对话，$1.34"><rect x="77.8" y="72" width="5.9" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +22.7 分，持续 2.0 分
+输入 238k token（其中缓存读取 199k），输出 13k
+10 轮对话，$1.32"><rect x="79.8" y="116" width="4.8" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +22.9 分，持续 4.3 分
+输入 409k token（其中缓存读取 340k），输出 28k
+15 轮对话，$2.54"><rect x="80.5" y="83" width="11.4" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +24.4 分，持续 3.9 分
+输入 127k token（其中缓存读取 88k），输出 24k
+9 轮对话，$1.77"><rect x="84.8" y="72" width="10.3" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +24.4 分，持续 3.8 分
+输入 245k token（其中缓存读取 190k），输出 23k
+10 轮对话，$2.04"><rect x="84.8" y="94" width="9.9" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +24.6 分，持续 0.6 分
+输入 53k token（其中缓存读取 41k），输出 3k
+6 轮对话，$0.35"><rect x="85.3" y="61" width="1.6" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +24.7 分，持续 2.3 分
+输入 147k token（其中缓存读取 108k），输出 15k
+7 轮对话，$1.36"><rect x="85.6" y="116" width="5.7" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +24.7 分，持续 2.3 分
+输入 103k token（其中缓存读取 71k），输出 15k
+7 轮对话，$1.24"><rect x="85.7" y="127" width="5.7" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +25.3 分，持续 1.1 分
+输入 50k token（其中缓存读取 37k），输出 6k
+6 轮对话，$0.50"><rect x="87.3" y="61" width="2.2" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +25.3 分，持续 1.9 分
+输入 220k token（其中缓存读取 174k），输出 12k
+8 轮对话，$1.40"><rect x="87.4" y="105" width="4.4" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +26.4 分，持续 2.1 分
+输入 70k token（其中缓存读取 44k），输出 13k
+8 轮对话，$1.03"><rect x="90.5" y="50" width="5.1" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +26.4 分，持续 2.1 分
+输入 89k token（其中缓存读取 65k），输出 13k
+7 轮对话，$1.02"><rect x="90.6" y="61" width="5.0" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +27.0 分，持续 3.2 分
+输入 320k token（其中缓存读取 248k），输出 19k
+13 轮对话，$2.16"><rect x="92.3" y="116" width="8.3" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +27.1 分，持续 2.2 分
+输入 190k token（其中缓存读取 146k），输出 14k
+10 轮对话，$1.42"><rect x="92.5" y="127" width="5.4" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +27.2 分，持续 2.1 分
+输入 189k token（其中缓存读取 160k），输出 11k
+11 轮对话，$1.05"><rect x="92.9" y="83" width="5.0" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +27.2 分，持续 1.0 分
+输入 60k token（其中缓存读取 45k），输出 6k
+6 轮对话，$0.53"><rect x="93.0" y="105" width="1.9" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +28.2 分，持续 2.8 分
+输入 195k token（其中缓存读取 161k），输出 15k
+12 轮对话，$1.32"><rect x="95.8" y="94" width="7.0" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +28.3 分，持续 2.0 分
+输入 143k token（其中缓存读取 119k），输出 12k
+9 轮对话，$0.97"><rect x="95.9" y="105" width="4.7" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +28.3 分，持续 2.5 分
+输入 209k token（其中缓存读取 168k），输出 16k
+10 轮对话，$1.47"><rect x="96.2" y="72" width="6.4" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +28.5 分，持续 1.8 分
+输入 139k token（其中缓存读取 110k），输出 12k
+8 轮对话，$1.04"><rect x="96.6" y="50" width="4.3" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +28.5 分，持续 1.7 分
+输入 100k token（其中缓存读取 71k），输出 11k
+6 轮对话，$1.01"><rect x="96.7" y="61" width="4.0" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +29.3 分，持续 0.4 分
+输入 40k token（其中缓存读取 34k），输出 2k
+4 轮对话，$0.19"><rect x="99.0" y="83" width="1.6" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +29.3 分，持续 2.3 分
+输入 253k token（其中缓存读取 209k），输出 14k
+11 轮对话，$1.41"><rect x="99.0" y="127" width="5.7" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +29.8 分，持续 0.8 分
+输入 64k token（其中缓存读取 53k），输出 4k
+7 轮对话，$0.38"><rect x="100.4" y="83" width="1.6" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +30.2 分，持续 3.0 分
+输入 527k token（其中缓存读取 465k），输出 18k
+18 轮对话，$1.97"><rect x="101.7" y="61" width="7.8" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +30.3 分，持续 1.1 分
+输入 87k token（其中缓存读取 66k），输出 6k
+6 轮对话，$0.64"><rect x="101.7" y="105" width="2.3" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +31.0 分，持续 2.7 分
+输入 221k token（其中缓存读取 181k），输出 16k
+10 轮对话，$1.45"><rect x="103.9" y="50" width="6.7" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +31.4 分，持续 2.4 分
+输入 231k token（其中缓存读取 191k），输出 14k
+15 轮对话，$1.36"><rect x="105.1" y="72" width="6.1" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +33.3 分，持续 0.5 分
+输入 52k token（其中缓存读取 42k），输出 2k
+5 轮对话，$0.31"><rect x="110.6" y="61" width="1.6" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +33.8 分，持续 1.6 分
+输入 109k token（其中缓存读取 86k），输出 9k
+8 轮对话，$0.82"><rect x="112.1" y="50" width="3.6" height="9" rx="2"/></g><g class="blk k-local" data-tip="测原版基线：16 个检查，重复运行并做叶节点敲除
+开始于 +35.5 分，持续 3.6 分（不调用模型）"><rect x="116.8" y="50" width="9.4" height="9" rx="2"/></g><g class="blk k-ctl" data-tip="控制器决定下一批调用
+开始于 +39.1 分，持续 1.2 分
+输入 105k token（其中缓存读取 72k），输出 6k
+3 轮对话，$0.65"><rect x="127.3" y="50" width="2.5" height="9" rx="2"/></g><g class="blk k-design" data-tip="设计测试（一个模型会话）
+开始于 +40.3 分，持续 11.8 分
+输入 1.4M token（其中缓存读取 1.3M），输出 69k
+23 轮对话，$5.25"><rect x="130.9" y="50" width="33.3" height="9" rx="2"/></g><g class="blk k-design" data-tip="设计测试（一个模型会话）
+开始于 +40.3 分，持续 11.7 分
+输入 1.5M token（其中缓存读取 1.3M），输出 71k
+23 轮对话，$5.45"><rect x="130.9" y="61" width="33.1" height="9" rx="2"/></g><g class="blk k-design" data-tip="设计测试（一个模型会话）
+开始于 +40.3 分，持续 10.0 分
+输入 807k token（其中缓存读取 716k），输出 62k
+14 轮对话，$4.51"><rect x="130.9" y="72" width="28.1" height="9" rx="2"/></g><g class="blk k-design" data-tip="设计测试（一个模型会话）
+开始于 +40.3 分，持续 12.8 分
+输入 1.2M token（其中缓存读取 1.1M），输出 80k
+17 轮对话，$5.79"><rect x="130.9" y="83" width="36.2" height="9" rx="2"/></g><g class="blk k-design" data-tip="设计测试（一个模型会话）
+开始于 +40.3 分，持续 9.5 分
+输入 999k token（其中缓存读取 896k），输出 64k
+18 轮对话，$4.84"><rect x="130.9" y="94" width="26.7" height="9" rx="2"/></g><g class="blk k-design" data-tip="设计测试（一个模型会话）
+开始于 +40.3 分，持续 8.7 分
+输入 968k token（其中缓存读取 854k），输出 55k
+17 轮对话，$4.60"><rect x="130.9" y="105" width="24.2" height="9" rx="2"/></g><g class="blk k-design" data-tip="设计测试（一个模型会话）
+开始于 +40.3 分，持续 11.6 分
+输入 1.7M token（其中缓存读取 1.5M），输出 78k
+17 轮对话，$6.54"><rect x="130.9" y="116" width="32.5" height="9" rx="2"/></g><g class="blk k-design" data-tip="设计测试（一个模型会话）
+开始于 +40.3 分，持续 8.0 分
+输入 859k token（其中缓存读取 769k），输出 50k
+16 轮对话，$3.94"><rect x="130.9" y="127" width="22.1" height="9" rx="2"/></g><g class="blk k-design" data-tip="设计测试（一个模型会话）
+开始于 +48.3 分，持续 9.1 分
+输入 872k token（其中缓存读取 767k），输出 58k
+14 轮对话，$4.56"><rect x="154.1" y="127" width="25.3" height="9" rx="2"/></g><g class="blk k-design" data-tip="设计测试（一个模型会话）
+开始于 +49.0 分，持续 8.5 分
+输入 821k token（其中缓存读取 729k），输出 53k
+13 轮对话，$4.12"><rect x="156.2" y="105" width="23.8" height="9" rx="2"/></g><g class="blk k-design" data-tip="设计测试（一个模型会话）
+开始于 +49.9 分，持续 15.8 分
+输入 3.1M token（其中缓存读取 2.9M），输出 101k
+26 轮对话，$8.48"><rect x="158.6" y="94" width="44.8" height="9" rx="2"/></g><g class="blk k-design" data-tip="设计测试（一个模型会话）
+开始于 +50.4 分，持续 6.5 分
+输入 2.2M token（其中缓存读取 2.0M），输出 39k
+22 轮对话，$4.84"><rect x="160.1" y="72" width="17.7" height="9" rx="2"/></g><g class="blk k-design" data-tip="设计测试（一个模型会话）
+开始于 +51.9 分，持续 8.8 分
+输入 1.3M token（其中缓存读取 1.2M），输出 57k
+19 轮对话，$4.76"><rect x="164.5" y="116" width="24.5" height="9" rx="2"/></g><g class="blk k-design" data-tip="设计测试（一个模型会话）
+开始于 +52.1 分，持续 12.3 分
+输入 1.7M token（其中缓存读取 1.6M），输出 77k
+21 轮对话，$6.05"><rect x="165.0" y="61" width="34.5" height="9" rx="2"/></g><g class="blk k-design" data-tip="设计测试（一个模型会话）
+开始于 +52.2 分，持续 6.5 分
+输入 803k token（其中缓存读取 709k），输出 38k
+15 轮对话，$3.48"><rect x="165.3" y="50" width="17.8" height="9" rx="2"/></g><g class="blk k-design" data-tip="评审测试（一个模型会话）
+开始于 +72.2 分，持续 13.6 分
+输入 2.3M token（其中缓存读取 2.1M），输出 81k
+29 轮对话，$7.73"><rect x="223.4" y="50" width="38.4" height="9" rx="2"/></g><g class="blk k-design" data-tip="评审测试（一个模型会话）
+开始于 +72.2 分，持续 11.0 分
+输入 1.7M token（其中缓存读取 1.6M），输出 68k
+24 轮对话，$5.92"><rect x="223.4" y="61" width="31.0" height="9" rx="2"/></g><g class="blk k-design" data-tip="评审测试（一个模型会话）
+开始于 +72.2 分，持续 8.2 分
+输入 1.9M token（其中缓存读取 1.8M），输出 46k
+25 轮对话，$4.92"><rect x="223.4" y="72" width="22.7" height="9" rx="2"/></g><g class="blk k-design" data-tip="评审测试（一个模型会话）
+开始于 +72.2 分，持续 11.5 分
+输入 2.0M token（其中缓存读取 1.8M），输出 71k
+25 轮对话，$6.44"><rect x="223.4" y="83" width="32.5" height="9" rx="2"/></g><g class="blk k-design" data-tip="评审测试（一个模型会话）
+开始于 +72.2 分，持续 9.6 分
+输入 873k token（其中缓存读取 740k），输出 61k
+16 轮对话，$5.21"><rect x="223.4" y="94" width="26.9" height="9" rx="2"/></g><g class="blk k-design" data-tip="评审测试（一个模型会话）
+开始于 +72.2 分，持续 8.6 分
+输入 1.7M token（其中缓存读取 1.5M），输出 52k
+23 轮对话，$5.36"><rect x="223.4" y="105" width="24.0" height="9" rx="2"/></g><g class="blk k-design" data-tip="评审测试（一个模型会话）
+开始于 +72.2 分，持续 5.6 分
+输入 1.4M token（其中缓存读取 1.3M），输出 32k
+26 轮对话，$3.68"><rect x="223.4" y="116" width="15.4" height="9" rx="2"/></g><g class="blk k-design" data-tip="评审测试（一个模型会话）
+开始于 +72.2 分，持续 14.9 分
+输入 1.2M token（其中缓存读取 1.1M），输出 86k
+18 轮对话，$6.84"><rect x="223.4" y="127" width="42.2" height="9" rx="2"/></g><g class="blk k-design" data-tip="评审测试（一个模型会话）
+开始于 +77.9 分，持续 9.0 分
+输入 1.6M token（其中缓存读取 1.5M），输出 54k
+27 轮对话，$5.53"><rect x="239.9" y="116" width="25.1" height="9" rx="2"/></g><g class="blk k-design" data-tip="评审测试（一个模型会话）
+开始于 +80.4 分，持续 6.7 分
+输入 1.7M token（其中缓存读取 1.6M），输出 40k
+28 轮对话，$4.19"><rect x="247.2" y="72" width="18.3" height="9" rx="2"/></g><g class="blk k-design" data-tip="评审测试（一个模型会话）
+开始于 +80.8 分，持续 9.5 分
+输入 821k token（其中缓存读取 694k），输出 59k
+18 轮对话，$4.97"><rect x="248.5" y="105" width="26.5" height="9" rx="2"/></g><g class="blk k-design" data-tip="设计测试（一个模型会话）
+开始于 +90.4 分，持续 9.5 分
+输入 812k token（其中缓存读取 713k），输出 58k
+15 轮对话，$4.45"><rect x="276.1" y="50" width="26.6" height="9" rx="2"/></g><g class="blk k-design" data-tip="设计测试（一个模型会话）
+开始于 +90.4 分，持续 7.7 分
+输入 1.9M token（其中缓存读取 1.8M），输出 47k
+21 轮对话，$5.02"><rect x="276.1" y="61" width="21.2" height="9" rx="2"/></g><g class="blk k-design" data-tip="设计测试（一个模型会话）
+开始于 +90.4 分，持续 6.9 分
+输入 1.2M token（其中缓存读取 1.1M），输出 42k
+21 轮对话，$3.80"><rect x="276.1" y="72" width="19.1" height="9" rx="2"/></g><g class="blk k-design" data-tip="设计测试（一个模型会话）
+开始于 +90.4 分，持续 5.3 分
+输入 338k token（其中缓存读取 259k），输出 35k
+9 轮对话，$2.98"><rect x="276.1" y="83" width="14.3" height="9" rx="2"/></g><g class="blk k-design" data-tip="设计测试（一个模型会话）
+开始于 +90.4 分，持续 0.8 分
+输入 352k token（其中缓存读取 294k），输出 4k
+7 轮对话，$1.25"><rect x="276.1" y="94" width="1.6" height="9" rx="2"/></g><g class="blk k-design" data-tip="设计测试（一个模型会话）
+开始于 +90.4 分，持续 6.9 分
+输入 520k token（其中缓存读取 438k），输出 45k
+13 轮对话，$3.53"><rect x="276.1" y="105" width="18.9" height="9" rx="2"/></g><g class="blk k-design" data-tip="设计测试（一个模型会话）
+开始于 +90.4 分，持续 15.2 分
+输入 2.1M token（其中缓存读取 2.0M），输出 102k
+22 轮对话，$8.09"><rect x="276.1" y="116" width="43.1" height="9" rx="2"/></g><g class="blk k-design" data-tip="设计测试（一个模型会话）
+开始于 +90.4 分，持续 0.9 分
+输入 215k token（其中缓存读取 180k），输出 4k
+7 轮对话，$0.84"><rect x="276.1" y="127" width="1.6" height="9" rx="2"/></g><g class="blk k-design" data-tip="设计测试（一个模型会话）
+开始于 +91.2 分，持续 6.5 分
+输入 873k token（其中缓存读取 779k），输出 41k
+16 轮对话，$3.63"><rect x="278.6" y="94" width="17.8" height="9" rx="2"/></g><g class="blk k-design" data-tip="评审测试（一个模型会话）
+开始于 +107.4 分，持续 16.2 分
+输入 2.2M token（其中缓存读取 2.0M），输出 95k
+28 轮对话，$8.38"><rect x="325.5" y="50" width="45.9" height="9" rx="2"/></g><g class="blk k-design" data-tip="评审测试（一个模型会话）
+开始于 +107.4 分，持续 9.4 分
+输入 3.4M token（其中缓存读取 3.2M），输出 60k
+32 轮对话，$7.11"><rect x="325.5" y="61" width="26.4" height="9" rx="2"/></g><g class="blk k-design" data-tip="评审测试（一个模型会话）
+开始于 +107.4 分，持续 7.7 分
+输入 1.1M token（其中缓存读取 915k），输出 49k
+19 轮对话，$4.86"><rect x="325.5" y="72" width="21.3" height="9" rx="2"/></g><g class="blk k-local" data-tip="带着新设计的测试再测一次原版基线：107 个检查，重复运行并做叶节点敲除
+开始于 +130.2 分，持续 21.1 分（不调用模型）"><rect x="391.6" y="50" width="60.1" height="9" rx="2"/></g><g class="blk k-ctl" data-tip="控制器决定下一批调用
+开始于 +151.3 分，持续 0.4 分
+输入 73k token（其中缓存读取 38k），输出 2k
+3 轮对话，$0.47"><rect x="452.8" y="50" width="1.6" height="9" rx="2"/></g><g class="blk k-local" data-tip="封存契约：之后测试和基线不再改
+开始于 +151.7 分，持续 0.4 分（不调用模型）"><rect x="453.9" y="50" width="1.6" height="9" rx="2"/></g><g class="blk k-ctl" data-tip="控制器决定下一批调用
+开始于 +152.1 分，持续 4.3 分
+输入 618k token（其中缓存读取 530k），输出 29k
+10 轮对话，$2.37"><rect x="455.1" y="50" width="11.5" height="9" rx="2"/></g><g class="blk k-code" data-tip="作者写 scope-1 的首版（3.7 万原版 token）：类型协议、绑定日志器、输出日志器、contextvars、日志级别、调用点辅助、traceback、处理器、控制台渲染器、配置、线程本地上下文
+开始于 +156.4 分，持续 26.8 分
+输入 12.6M token（其中缓存读取 12.2M），输出 176k
+52 轮对话，$17.95"><rect x="467.7" y="50" width="76.7" height="9" rx="2"/></g><g class="blk k-code" data-tip="作者写 scope-2 的首版（1.55 万原版 token）：stdlib 集成、twisted、testing、包入口和打包。它建立在 scope-1 之上，所以排在后面
+开始于 +183.3 分，持续 16.3 分
+输入 8.4M token（其中缓存读取 8.2M），输出 103k
+59 轮对话，$11.39"><rect x="545.7" y="50" width="46.1" height="9" rx="2"/></g><g class="blk k-ctl" data-tip="控制器决定下一批调用
+开始于 +199.7 分，持续 5.3 分
+输入 502k token（其中缓存读取 414k），输出 35k
+7 轮对话，$2.59"><rect x="593.1" y="50" width="14.3" height="9" rx="2"/></g><g class="blk k-fix" data-tip="保存被拒后重写 scope-1：全部草稿有 45% 的行与原版重复（上限 40%），要求换成自己的实现
+开始于 +205.0 分，持续 30.2 分
+输入 16.7M token（其中缓存读取 16.3M），输出 156k
+87 轮对话，$16.02"><rect x="608.5" y="50" width="86.5" height="9" rx="2"/></g><g class="blk k-fix" data-tip="保存被拒后重写 scope-2
+开始于 +235.2 分，持续 18.4 分
+输入 6.9M token（其中缓存读取 6.6M），输出 118k
+46 轮对话，$11.94"><rect x="696.2" y="50" width="52.3" height="9" rx="2"/></g><g class="blk k-local" data-tip="全量行为对比：有检查失败
+开始于 +253.7 分，持续 2.0 分（不调用模型）"><rect x="749.8" y="50" width="4.8" height="9" rx="2"/></g><g class="blk k-local" data-tip="安装检查：通过
+开始于 +255.7 分，持续 0.2 分（不调用模型）"><rect x="755.6" y="50" width="1.6" height="9" rx="2"/></g><g class="blk k-ctl" data-tip="控制器决定下一批调用
+开始于 +256.0 分，持续 3.2 分
+输入 790k token（其中缓存读取 694k），输出 20k
+12 轮对话，$2.07"><rect x="756.4" y="50" width="8.4" height="9" rx="2"/></g><g class="blk k-fix" data-tip="定向修复：候选 2 只有 check-41（控制台渲染器）失败。按规则这次调用可以读该能力的 2 个原版文件
+开始于 +259.3 分，持续 4.6 分
+输入 694k token（其中缓存读取 629k），输出 27k
+17 轮对话，$2.46"><rect x="765.9" y="50" width="12.3" height="9" rx="2"/></g><g class="blk k-local" data-tip="定向行为对比：所查的检查通过
+开始于 +264.0 分，持续 0.6 分（不调用模型）"><rect x="779.5" y="50" width="1.6" height="9" rx="2"/></g><g class="blk k-local" data-tip="全量行为对比：全部通过
+开始于 +264.6 分，持续 2.0 分（不调用模型）"><rect x="781.4" y="50" width="4.7" height="9" rx="2"/></g><g class="blk k-local" data-tip="安装检查：通过
+开始于 +266.6 分，持续 0.2 分（不调用模型）"><rect x="787.1" y="50" width="1.6" height="9" rx="2"/></g><g class="blk k-local" data-tip="交付并在新代码上回放原版测试
+开始于 +266.9 分，持续 0.6 分（不调用模型）"><rect x="788.0" y="50" width="1.6" height="9" rx="2"/></g><text class="t-row" x="14" y="177">parallel on（并行）</text><text class="t-note" x="168" y="177">作业 310.2 分钟 · 138 个模型会话 · $429</text><path class="bracket" d="M19.1 203 V200 H82.3 V203"/><text class="t-phase" x="50.7" y="196" text-anchor="middle">写测试事实</text><path class="bracket" d="M84.3 203 V200 H92.1 V203"/><path class="bracket" d="M96.4 203 V200 H398.2 V203"/><text class="t-phase" x="247.3" y="196" text-anchor="middle">设计测试 104.8 分</text><path class="bracket" d="M400.2 203 V200 H459.2 V203"/><text class="t-phase" x="429.7" y="196" text-anchor="middle">再测基线</text><path class="bracket" d="M464.7 203 V200 H534.3 V203"/><text class="t-phase" x="499.5" y="196" text-anchor="middle">设计测试</text><path class="bracket" d="M536.3 203 V200 H606.1 V203"/><text class="t-phase" x="571.2" y="196" text-anchor="middle">再测基线</text><path class="bracket" d="M610.6 203 V200 H912.6 V203"/><text class="t-phase" x="761.6" y="196" text-anchor="middle">写代码、验证、交付 104.8 分</text><g class="blk k-ctl" data-tip="控制器决定下一批调用
+开始于 +0.5 分，持续 0.9 分
+输入 71k token（其中缓存读取 40k），输出 5k
+3 轮对话，$0.55"><rect x="15.4" y="208" width="1.6" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +1.4 分，持续 3.9 分
+输入 261k token（其中缓存读取 206k），输出 25k
+11 轮对话，$2.11"><rect x="18.2" y="208" width="10.4" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +1.4 分，持续 4.4 分
+输入 359k token（其中缓存读取 276k），输出 27k
+12 轮对话，$2.72"><rect x="18.2" y="219" width="11.8" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +1.4 分，持续 4.2 分
+输入 193k token（其中缓存读取 149k），输出 27k
+8 轮对话，$1.97"><rect x="18.2" y="230" width="11.0" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +1.4 分，持续 3.8 分
+输入 256k token（其中缓存读取 202k），输出 24k
+13 轮对话，$2.06"><rect x="18.2" y="241" width="10.0" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +1.4 分，持续 2.6 分
+输入 89k token（其中缓存读取 54k），输出 18k
+6 轮对话，$1.43"><rect x="18.2" y="252" width="6.7" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +1.4 分，持续 3.7 分
+输入 220k token（其中缓存读取 167k），输出 23k
+9 轮对话，$2.00"><rect x="18.2" y="263" width="9.7" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +1.4 分，持续 3.5 分
+输入 115k token（其中缓存读取 76k），输出 23k
+9 轮对话，$1.69"><rect x="18.2" y="274" width="9.1" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +1.4 分，持续 6.4 分
+输入 537k token（其中缓存读取 459k），输出 42k
+17 轮对话，$3.31"><rect x="18.2" y="285" width="17.6" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +1.4 分，持续 4.5 分
+输入 195k token（其中缓存读取 142k），输出 28k
+9 轮对话，$2.22"><rect x="18.2" y="296" width="11.9" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +1.4 分，持续 4.1 分
+输入 326k token（其中缓存读取 255k），输出 26k
+11 轮对话，$2.46"><rect x="18.2" y="307" width="10.9" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +1.4 分，持续 3.1 分
+输入 261k token（其中缓存读取 209k），输出 20k
+16 轮对话，$1.83"><rect x="18.2" y="318" width="8.0" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +1.4 分，持续 5.1 分
+输入 397k token（其中缓存读取 319k），输出 35k
+14 轮对话，$2.96"><rect x="18.2" y="329" width="13.7" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +1.4 分，持续 4.1 分
+输入 158k token（其中缓存读取 110k），输出 22k
+8 轮对话，$1.85"><rect x="18.2" y="340" width="10.8" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +1.4 分，持续 3.4 分
+输入 114k token（其中缓存读取 68k），输出 22k
+6 轮对话，$1.81"><rect x="18.2" y="351" width="9.0" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +1.4 分，持续 3.4 分
+输入 138k token（其中缓存读取 100k），输出 22k
+9 轮对话，$1.67"><rect x="18.2" y="362" width="8.7" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +1.4 分，持续 5.8 分
+输入 396k token（其中缓存读取 327k），输出 37k
+16 轮对话，$2.89"><rect x="18.2" y="373" width="15.8" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +4.1 分，持续 2.9 分
+输入 173k token（其中缓存读取 128k），输出 18k
+9 轮对话，$1.62"><rect x="25.9" y="252" width="7.3" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +4.6 分，持续 2.2 分
+输入 385k token（其中缓存读取 326k），输出 13k
+16 轮对话，$1.68"><rect x="27.3" y="318" width="5.5" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +4.8 分，持续 2.3 分
+输入 160k token（其中缓存读取 122k），输出 15k
+9 轮对话，$1.36"><rect x="28.0" y="362" width="5.6" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +4.9 分，持续 2.4 分
+输入 179k token（其中缓存读取 129k），输出 16k
+7 轮对话，$1.60"><rect x="28.2" y="351" width="5.8" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +5.0 分，持续 2.3 分
+输入 188k token（其中缓存读取 151k），输出 15k
+8 轮对话，$1.36"><rect x="28.4" y="274" width="5.7" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +5.2 分，持续 2.6 分
+输入 286k token（其中缓存读取 228k），输出 17k
+10 轮对话，$1.82"><rect x="29.0" y="263" width="6.6" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +5.2 分，持续 4.1 分
+输入 210k token（其中缓存读取 158k），输出 26k
+8 轮对话，$2.10"><rect x="29.2" y="241" width="10.9" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +5.4 分，持续 4.3 分
+输入 295k token（其中缓存读取 235k），输出 27k
+9 轮对话，$2.30"><rect x="29.6" y="208" width="11.6" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +5.5 分，持续 2.7 分
+输入 180k token（其中缓存读取 138k），输出 17k
+9 轮对话，$1.53"><rect x="30.1" y="307" width="6.9" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +5.6 分，持续 2.5 分
+输入 342k token（其中缓存读取 271k），输出 17k
+11 轮对话，$2.05"><rect x="30.1" y="340" width="6.2" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +5.6 分，持续 2.7 分
+输入 285k token（其中缓存读取 230k），输出 17k
+9 轮对话，$1.77"><rect x="30.3" y="230" width="6.9" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +5.9 分，持续 4.0 分
+输入 466k token（其中缓存读取 380k），输出 25k
+14 轮对话，$2.71"><rect x="31.0" y="219" width="10.5" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +5.9 分，持续 4.4 分
+输入 253k token（其中缓存读取 188k），输出 27k
+8 轮对话，$2.39"><rect x="31.2" y="296" width="11.9" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +6.5 分，持续 5.3 分
+输入 914k token（其中缓存读取 818k），输出 31k
+18 轮对话，$3.24"><rect x="32.9" y="329" width="14.4" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +6.8 分，持续 5.2 分
+输入 416k token（其中缓存读取 353k），输出 33k
+12 轮对话，$2.64"><rect x="33.8" y="318" width="14.1" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +7.0 分，持续 0.4 分
+输入 64k token（其中缓存读取 49k），输出 2k
+4 轮对话，$0.34"><rect x="34.2" y="252" width="1.6" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +7.1 分，持续 3.3 分
+输入 235k token（其中缓存读取 193k），输出 20k
+12 轮对话，$1.68"><rect x="34.6" y="362" width="8.6" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +7.3 分，持续 4.5 分
+输入 529k token（其中缓存读取 447k），输出 30k
+16 轮对话，$2.84"><rect x="35.1" y="274" width="12.1" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +7.3 分，持续 1.4 分
+输入 65k token（其中缓存读取 47k），输出 9k
+6 轮对话，$0.73"><rect x="35.1" y="351" width="3.0" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +7.3 分，持续 3.5 分
+输入 163k token（其中缓存读取 123k），输出 22k
+9 轮对话，$1.71"><rect x="35.2" y="373" width="9.0" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +7.4 分，持续 0.5 分
+输入 72k token（其中缓存读取 60k），输出 2k
+6 轮对话，$0.33"><rect x="35.4" y="252" width="1.6" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +7.8 分，持续 3.9 分
+输入 246k token（其中缓存读取 198k），输出 24k
+12 轮对话，$1.95"><rect x="36.6" y="263" width="10.3" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +7.9 分，持续 5.6 分
+输入 640k token（其中缓存读取 552k），输出 35k
+19 轮对话，$3.21"><rect x="36.9" y="252" width="15.3" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +7.9 分，持续 4.0 分
+输入 167k token（其中缓存读取 117k），输出 27k
+9 轮对话，$2.08"><rect x="36.9" y="285" width="10.5" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +8.1 分，持续 3.7 分
+输入 105k token（其中缓存读取 69k），输出 24k
+7 轮对话，$1.70"><rect x="37.4" y="340" width="9.7" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +8.3 分，持续 2.6 分
+输入 116k token（其中缓存读取 88k），输出 15k
+9 轮对话，$1.20"><rect x="38.0" y="307" width="6.4" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +8.4 分，持续 3.6 分
+输入 124k token（其中缓存读取 77k），输出 23k
+7 轮对话，$1.88"><rect x="38.3" y="230" width="9.3" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +8.7 分，持续 1.6 分
+输入 98k token（其中缓存读取 71k），输出 11k
+5 轮对话，$0.96"><rect x="39.2" y="351" width="3.6" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +9.4 分，持续 0.4 分
+输入 45k token（其中缓存读取 37k），输出 2k
+5 轮对话，$0.22"><rect x="41.2" y="241" width="1.6" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +9.8 分，持续 2.3 分
+输入 100k token（其中缓存读取 73k），输出 14k
+6 轮对话，$1.11"><rect x="42.3" y="208" width="5.7" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +9.8 分，持续 1.2 分
+输入 72k token（其中缓存读取 57k），输出 7k
+8 轮对话，$0.58"><rect x="42.3" y="241" width="2.5" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +9.9 分，持续 3.2 分
+输入 81k token（其中缓存读取 50k），输出 20k
+6 轮对话，$1.44"><rect x="42.6" y="219" width="8.1" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +10.3 分，持续 3.3 分
+输入 289k token（其中缓存读取 237k），输出 19k
+13 轮对话，$1.80"><rect x="43.8" y="351" width="8.6" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +10.4 分，持续 1.1 分
+输入 98k token（其中缓存读取 79k），输出 6k
+7 轮对话，$0.60"><rect x="44.1" y="296" width="2.2" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +10.5 分，持续 2.6 分
+输入 262k token（其中缓存读取 216k），输出 16k
+9 轮对话，$1.58"><rect x="44.3" y="362" width="6.4" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +10.8 分，持续 2.3 分
+输入 216k token（其中缓存读取 176k），输出 14k
+12 轮对话，$1.38"><rect x="45.3" y="373" width="5.6" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +10.9 分，持续 2.5 分
+输入 145k token（其中缓存读取 106k），输出 17k
+9 轮对话，$1.44"><rect x="45.6" y="307" width="6.4" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +11.0 分，持续 0.7 分
+输入 40k token（其中缓存读取 28k），输出 4k
+4 轮对话，$0.41"><rect x="45.9" y="241" width="1.6" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +11.5 分，持续 1.4 分
+输入 172k token（其中缓存读取 142k），输出 8k
+11 轮对话，$0.90"><rect x="47.4" y="296" width="3.1" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +11.7 分，持续 3.7 分
+输入 256k token（其中缓存读取 192k），输出 24k
+11 轮对话，$2.21"><rect x="48.0" y="241" width="9.7" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +11.7 分，持续 1.1 分
+输入 98k token（其中缓存读取 79k），输出 7k
+6 轮对话，$0.66"><rect x="48.0" y="263" width="2.3" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +11.8 分，持续 2.3 分
+输入 201k token（其中缓存读取 163k），输出 15k
+9 轮对话，$1.36"><rect x="48.2" y="274" width="5.6" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +11.8 分，持续 4.8 分
+输入 143k token（其中缓存读取 101k），输出 28k
+8 轮对话，$2.00"><rect x="48.3" y="329" width="12.8" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +11.9 分，持续 0.4 分
+输入 40k token（其中缓存读取 34k），输出 2k
+4 轮对话，$0.21"><rect x="48.4" y="285" width="1.6" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +11.9 分，持续 3.0 分
+输入 303k token（其中缓存读取 242k），输出 20k
+15 轮对话，$2.02"><rect x="48.5" y="340" width="7.7" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +12.0 分，持续 2.7 分
+输入 214k token（其中缓存读取 165k），输出 17k
+11 轮对话，$1.66"><rect x="48.7" y="230" width="6.8" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +12.1 分，持续 3.5 分
+输入 317k token（其中缓存读取 251k），输出 23k
+14 轮对话，$2.24"><rect x="49.0" y="208" width="9.0" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +12.1 分，持续 2.4 分
+输入 210k token（其中缓存读取 175k），输出 15k
+9 轮对话，$1.32"><rect x="49.1" y="318" width="6.0" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +12.3 分，持续 0.5 分
+输入 61k token（其中缓存读取 51k），输出 2k
+6 轮对话，$0.26"><rect x="49.7" y="285" width="1.6" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +12.8 分，持续 0.9 分
+输入 86k token（其中缓存读取 66k），输出 5k
+6 轮对话，$0.56"><rect x="51.2" y="285" width="1.6" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +13.0 分，持续 1.5 分
+输入 101k token（其中缓存读取 73k），输出 10k
+5 轮对话，$0.97"><rect x="51.8" y="219" width="3.5" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +13.0 分，持续 0.5 分
+输入 48k token（其中缓存读取 38k），输出 2k
+4 轮对话，$0.29"><rect x="51.8" y="263" width="1.6" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +13.6 分，持续 0.8 分
+输入 50k token（其中缓存读取 39k），输出 4k
+6 轮对话，$0.41"><rect x="53.4" y="252" width="1.6" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +13.6 分，持续 2.7 分
+输入 405k token（其中缓存读取 338k），输出 16k
+18 轮对话，$1.98"><rect x="53.5" y="263" width="6.9" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +13.7 分，持续 1.6 分
+输入 217k token（其中缓存读取 181k），输出 10k
+10 轮对话，$1.11"><rect x="53.8" y="285" width="3.7" height="9" rx="2"/></g><g class="blk k-facts" data-tip="写事实（一个模型会话）
+开始于 +15.4 分，持续 2.5 分
+输入 212k token（其中缓存读取 178k），输出 15k
+11 轮对话，$1.31"><rect x="58.8" y="219" width="6.2" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +16.6 分，持续 3.9 分
+输入 156k token（其中缓存读取 118k），输出 23k
+11 轮对话，$1.72"><rect x="62.1" y="208" width="10.2" height="9" rx="2"/></g><g class="blk k-facts" data-tip="评审事实（一个模型会话）
+开始于 +18.0 分，持续 5.9 分
+输入 230k token（其中缓存读取 169k），输出 35k
+12 轮对话，$2.66"><rect x="66.1" y="219" width="16.0" height="9" rx="2"/></g><g class="blk k-local" data-tip="测原版基线：16 个检查，重复运行并做叶节点敲除
+开始于 +23.9 分，持续 3.4 分（不调用模型）"><rect x="83.3" y="208" width="8.8" height="9" rx="2"/></g><g class="blk k-ctl" data-tip="控制器决定下一批调用
+开始于 +27.3 分，持续 0.8 分
+输入 77k token（其中缓存读取 40k），输出 4k
+2 轮对话，$0.58"><rect x="93.1" y="208" width="1.6" height="9" rx="2"/></g><g class="blk k-design" data-tip="设计测试（一个模型会话）
+开始于 +28.1 分，持续 29.3 分
+输入 757k token（其中缓存读取 672k），输出 14k
+? 轮对话，$0.00"><rect x="95.5" y="208" width="83.8" height="9" rx="2"/></g><g class="blk k-design" data-tip="设计测试（一个模型会话）
+开始于 +28.1 分，持续 11.7 分
+输入 1.2M token（其中缓存读取 1.1M），输出 73k
+23 轮对话，$5.55"><rect x="95.5" y="219" width="32.8" height="9" rx="2"/></g><g class="blk k-design" data-tip="设计测试（一个模型会话）
+开始于 +28.1 分，持续 10.6 分
+输入 2.4M token（其中缓存读取 2.2M），输出 73k
+21 轮对话，$7.07"><rect x="95.5" y="230" width="29.8" height="9" rx="2"/></g><g class="blk k-design" data-tip="设计测试（一个模型会话）
+开始于 +28.1 分，持续 8.9 分
+输入 1.3M token（其中缓存读取 1.1M），输出 59k
+15 轮对话，$5.18"><rect x="95.5" y="241" width="24.8" height="9" rx="2"/></g><g class="blk k-design" data-tip="设计测试（一个模型会话）
+开始于 +28.1 分，持续 13.1 分
+输入 1.3M token（其中缓存读取 1.2M），输出 80k
+21 轮对话，$5.80"><rect x="95.5" y="252" width="37.0" height="9" rx="2"/></g><g class="blk k-design" data-tip="设计测试（一个模型会话）
+开始于 +28.1 分，持续 10.8 分
+输入 1.9M token（其中缓存读取 1.7M），输出 67k
+18 轮对话，$6.00"><rect x="95.5" y="263" width="30.3" height="9" rx="2"/></g><g class="blk k-design" data-tip="设计测试（一个模型会话）
+开始于 +28.1 分，持续 10.3 分
+输入 712k token（其中缓存读取 609k），输出 62k
+11 轮对话，$4.67"><rect x="95.5" y="274" width="28.8" height="9" rx="2"/></g><g class="blk k-design" data-tip="设计测试（一个模型会话）
+开始于 +28.1 分，持续 5.6 分
+输入 782k token（其中缓存读取 694k），输出 33k
+18 轮对话，$3.17"><rect x="95.5" y="285" width="15.2" height="9" rx="2"/></g><g class="blk k-design" data-tip="设计测试（一个模型会话）
+开始于 +28.1 分，持续 12.6 分
+输入 1.6M token（其中缓存读取 1.5M），输出 83k
+29 轮对话，$6.26"><rect x="95.5" y="296" width="35.7" height="9" rx="2"/></g><g class="blk k-design" data-tip="设计测试（一个模型会话）
+开始于 +28.1 分，持续 10.1 分
+输入 1.3M token（其中缓存读取 1.2M），输出 65k
+19 轮对话，$5.32"><rect x="95.5" y="307" width="28.3" height="9" rx="2"/></g><g class="blk k-design" data-tip="设计测试（一个模型会话）
+开始于 +28.1 分，持续 9.8 分
+输入 1.5M token（其中缓存读取 1.4M），输出 62k
+21 轮对话，$5.08"><rect x="95.5" y="318" width="27.4" height="9" rx="2"/></g><g class="blk k-design" data-tip="设计测试（一个模型会话）
+开始于 +28.1 分，持续 9.3 分
+输入 819k token（其中缓存读取 715k），输出 60k
+14 轮对话，$4.63"><rect x="95.5" y="329" width="26.0" height="9" rx="2"/></g><g class="blk k-design" data-tip="设计测试（一个模型会话）
+开始于 +28.1 分，持续 7.6 分
+输入 953k token（其中缓存读取 852k），输出 48k
+17 轮对话，$4.06"><rect x="95.5" y="340" width="21.2" height="9" rx="2"/></g><g class="blk k-design" data-tip="设计测试（一个模型会话）
+开始于 +28.1 分，持续 15.0 分
+输入 1.6M token（其中缓存读取 1.4M），输出 94k
+21 轮对话，$6.77"><rect x="95.5" y="351" width="42.4" height="9" rx="2"/></g><g class="blk k-design" data-tip="设计测试（一个模型会话）
+开始于 +28.1 分，持续 14.7 分
+输入 1.5M token（其中缓存读取 1.3M），输出 81k
+19 轮对话，$6.14"><rect x="95.5" y="362" width="41.7" height="9" rx="2"/></g><g class="blk k-design" data-tip="设计测试（一个模型会话）
+开始于 +57.4 分，持续 8.7 分
+输入 926k token（其中缓存读取 818k），输出 52k
+18 轮对话，$4.36"><rect x="180.4" y="208" width="24.3" height="9" rx="2"/></g><g class="blk k-design" data-tip="设计测试（一个模型会话）
+开始于 +72.6 分，持续 8.0 分
+输入 1.4M token（其中缓存读取 1.3M），输出 51k
+19 轮对话，$4.90"><rect x="224.6" y="208" width="22.3" height="9" rx="2"/></g><g class="blk k-design" data-tip="设计测试（一个模型会话）
+开始于 +72.6 分，持续 6.3 分
+输入 726k token（其中缓存读取 631k），输出 37k
+14 轮对话，$3.47"><rect x="224.6" y="219" width="17.2" height="9" rx="2"/></g><g class="blk k-design" data-tip="评审测试（一个模型会话）
+开始于 +81.4 分，持续 5.2 分
+输入 443k token（其中缓存读取 364k），输出 32k
+17 轮对话，$2.88"><rect x="250.0" y="208" width="14.1" height="9" rx="2"/></g><g class="blk k-design" data-tip="评审测试（一个模型会话）
+开始于 +81.4 分，持续 13.7 分
+输入 1.4M token（其中缓存读取 1.2M），输出 83k
+21 轮对话，$6.90"><rect x="250.0" y="219" width="38.8" height="9" rx="2"/></g><g class="blk k-design" data-tip="评审测试（一个模型会话）
+开始于 +81.4 分，持续 12.6 分
+输入 2.4M token（其中缓存读取 2.2M），输出 76k
+27 轮对话，$6.90"><rect x="250.0" y="230" width="35.6" height="9" rx="2"/></g><g class="blk k-design" data-tip="评审测试（一个模型会话）
+开始于 +81.4 分，持续 11.1 分
+输入 1.5M token（其中缓存读取 1.3M），输出 67k
+24 轮对话，$6.26"><rect x="250.0" y="241" width="31.2" height="9" rx="2"/></g><g class="blk k-design" data-tip="评审测试（一个模型会话）
+开始于 +81.4 分，持续 9.9 分
+输入 1.4M token（其中缓存读取 1.3M），输出 61k
+21 轮对话，$5.63"><rect x="250.0" y="252" width="27.8" height="9" rx="2"/></g><g class="blk k-design" data-tip="评审测试（一个模型会话）
+开始于 +81.4 分，持续 9.0 分
+输入 1.7M token（其中缓存读取 1.5M），输出 57k
+23 轮对话，$5.61"><rect x="250.0" y="263" width="25.1" height="9" rx="2"/></g><g class="blk k-design" data-tip="评审测试（一个模型会话）
+开始于 +81.4 分，持续 11.3 分
+输入 1.3M token（其中缓存读取 1.1M），输出 71k
+22 轮对话，$6.29"><rect x="250.0" y="274" width="31.8" height="9" rx="2"/></g><g class="blk k-design" data-tip="评审测试（一个模型会话）
+开始于 +81.4 分，持续 7.5 分
+输入 1.4M token（其中缓存读取 1.3M），输出 44k
+28 轮对话，$4.63"><rect x="250.0" y="285" width="20.8" height="9" rx="2"/></g><g class="blk k-design" data-tip="评审测试（一个模型会话）
+开始于 +81.4 分，持续 6.8 分
+输入 1.5M token（其中缓存读取 1.4M），输出 40k
+27 轮对话，$4.79"><rect x="250.0" y="296" width="18.7" height="9" rx="2"/></g><g class="blk k-design" data-tip="评审测试（一个模型会话）
+开始于 +81.4 分，持续 12.1 分
+输入 2.0M token（其中缓存读取 1.8M），输出 75k
+27 轮对话，$7.17"><rect x="250.0" y="307" width="34.2" height="9" rx="2"/></g><g class="blk k-design" data-tip="评审测试（一个模型会话）
+开始于 +81.4 分，持续 10.2 分
+输入 1.4M token（其中缓存读取 1.3M），输出 62k
+21 轮对话，$5.71"><rect x="250.0" y="318" width="28.7" height="9" rx="2"/></g><g class="blk k-design" data-tip="设计测试（一个模型会话）
+开始于 +95.1 分，持续 6.4 分
+输入 1.1M token（其中缓存读取 990k），输出 41k
+18 轮对话，$4.05"><rect x="289.9" y="208" width="17.6" height="9" rx="2"/></g><g class="blk k-design" data-tip="设计测试（一个模型会话）
+开始于 +95.1 分，持续 16.6 分
+输入 2.8M token（其中缓存读取 2.6M），输出 110k
+24 轮对话，$9.54"><rect x="289.9" y="219" width="47.0" height="9" rx="2"/></g><g class="blk k-design" data-tip="设计测试（一个模型会话）
+开始于 +95.1 分，持续 16.5 分
+输入 2.4M token（其中缓存读取 2.2M），输出 100k
+30 轮对话，$7.77"><rect x="289.9" y="230" width="47.0" height="9" rx="2"/></g><g class="blk k-design" data-tip="设计测试（一个模型会话）
+开始于 +95.1 分，持续 6.1 分
+输入 614k token（其中缓存读取 533k），输出 39k
+14 轮对话，$3.23"><rect x="289.9" y="241" width="16.6" height="9" rx="2"/></g><g class="blk k-design" data-tip="设计测试（一个模型会话）
+开始于 +95.1 分，持续 8.4 分
+输入 1.0M token（其中缓存读取 924k），输出 59k
+14 轮对话，$4.87"><rect x="289.9" y="252" width="23.2" height="9" rx="2"/></g><g class="blk k-design" data-tip="设计测试（一个模型会话）
+开始于 +95.1 分，持续 5.6 分
+输入 414k token（其中缓存读取 342k），输出 37k
+12 轮对话，$3.00"><rect x="289.9" y="263" width="15.2" height="9" rx="2"/></g><g class="blk k-design" data-tip="设计测试（一个模型会话）
+开始于 +95.1 分，持续 10.1 分
+输入 1.7M token（其中缓存读取 1.6M），输出 56k
+24 轮对话，$4.92"><rect x="289.9" y="274" width="28.3" height="9" rx="2"/></g><g class="blk k-design" data-tip="设计测试（一个模型会话）
+开始于 +95.1 分，持续 7.1 分
+输入 931k token（其中缓存读取 837k），输出 46k
+16 轮对话，$3.85"><rect x="289.9" y="285" width="19.5" height="9" rx="2"/></g><g class="blk k-design" data-tip="设计测试（一个模型会话）
+开始于 +95.1 分，持续 5.4 分
+输入 474k token（其中缓存读取 402k），输出 33k
+11 轮对话，$2.81"><rect x="289.9" y="296" width="14.5" height="9" rx="2"/></g><g class="blk k-design" data-tip="评审测试（一个模型会话）
+开始于 +113.5 分，持续 10.2 分
+输入 3.3M token（其中缓存读取 3.1M），输出 64k
+35 轮对话，$7.35"><rect x="343.1" y="208" width="28.6" height="9" rx="2"/></g><g class="blk k-design" data-tip="评审测试（一个模型会话）
+开始于 +113.5 分，持续 3.2 分
+输入 229k token（其中缓存读取 171k），输出 20k
+14 轮对话，$1.95"><rect x="343.1" y="219" width="8.3" height="9" rx="2"/></g><g class="blk k-design" data-tip="评审测试（一个模型会话）
+开始于 +113.5 分，持续 12.2 分
+输入 3.1M token（其中缓存读取 2.9M），输出 77k
+33 轮对话，$7.88"><rect x="343.1" y="230" width="34.4" height="9" rx="2"/></g><g class="blk k-local" data-tip="带着新设计的测试再测一次原版基线：103 个检查，重复运行并做叶节点敲除
+开始于 +132.8 分，持续 21.0 分（不调用模型）"><rect x="399.2" y="208" width="60.0" height="9" rx="2"/></g><g class="blk k-ctl" data-tip="控制器决定下一批调用
+开始于 +153.9 分，持续 1.2 分
+输入 81k token（其中缓存读取 41k），输出 6k
+2 轮对话，$0.72"><rect x="460.3" y="208" width="2.4" height="9" rx="2"/></g><g class="blk k-design" data-tip="设计测试（一个模型会话）
+开始于 +155.1 分，持续 10.6 分
+输入 2.4M token（其中缓存读取 2.2M），输出 66k
+24 轮对话，$6.39"><rect x="463.8" y="208" width="29.8" height="9" rx="2"/></g><g class="blk k-design" data-tip="设计测试（一个模型会话）
+开始于 +166.3 分，持续 8.1 分
+输入 1.9M token（其中缓存读取 1.7M），输出 50k
+25 轮对话，$4.81"><rect x="496.2" y="208" width="22.6" height="9" rx="2"/></g><g class="blk k-design" data-tip="评审测试（一个模型会话）
+开始于 +174.7 分，持续 5.0 分
+输入 519k token（其中缓存读取 431k），输出 30k
+13 轮对话，$2.96"><rect x="520.6" y="208" width="13.4" height="9" rx="2"/></g><g class="blk k-local" data-tip="带着新设计的测试再测一次原版基线：108 个检查，重复运行并做叶节点敲除
+开始于 +179.8 分，持续 24.8 分（不调用模型）"><rect x="535.3" y="208" width="70.8" height="9" rx="2"/></g><g class="blk k-ctl" data-tip="控制器决定下一批调用
+开始于 +204.6 分，持续 0.4 分
+输入 77k token（其中缓存读取 40k），输出 2k
+2 轮对话，$0.50"><rect x="607.2" y="208" width="1.6" height="9" rx="2"/></g><g class="blk k-local" data-tip="封存契约：之后测试和基线不再改
+开始于 +205.0 分，持续 0.4 分（不调用模型）"><rect x="608.4" y="208" width="1.6" height="9" rx="2"/></g><g class="blk k-ctl" data-tip="控制器决定下一批调用
+开始于 +205.4 分，持续 5.0 分
+输入 825k token（其中缓存读取 726k），输出 29k
+13 轮对话，$2.52"><rect x="609.8" y="208" width="13.4" height="9" rx="2"/></g><g class="blk k-code" data-tip="作者写地基 scope-1 的首版（2.06 万原版 token）：7 个能力，其余 3 个 scope 都建立在它之上，所以单独先写
+开始于 +210.4 分，持续 20.2 分
+输入 11.4M token（其中缓存读取 11.1M），输出 125k
+63 轮对话，$13.69"><rect x="624.3" y="208" width="57.5" height="9" rx="2"/></g><g class="blk k-ctl" data-tip="控制器决定下一批调用
+开始于 +230.7 分，持续 1.6 分
+输入 178k token（其中缓存读取 114k），输出 11k
+3 轮对话，$1.20"><rect x="683.1" y="208" width="3.6" height="9" rx="2"/></g><g class="blk k-fix" data-tip="保存被拒后只改 1 个函数：ExceptionDictTransformer.__call__ 有 64% 与原版重复（单函数上限 60%）
+开始于 +232.4 分，持续 5.6 分
+输入 811k token（其中缓存读取 741k），输出 33k
+17 轮对话，$2.84"><rect x="687.9" y="208" width="15.2" height="9" rx="2"/></g><g class="blk k-code" data-tip="并行组：作者写 scope-2（0.98 万原版 token）：输出 sink、testing、threadlocal、twisted、docs 配置
+开始于 +239.2 分，持续 23.3 分
+输入 10.0M token（其中缓存读取 9.7M），输出 143k
+52 轮对话，$14.10"><rect x="707.7" y="208" width="66.5" height="9" rx="2"/></g><g class="blk k-code" data-tip="并行组：作者写 scope-4（1.0 万原版 token）：stdlib 集成
+开始于 +239.2 分，持续 17.0 分
+输入 5.5M token（其中缓存读取 5.3M），输出 107k
+43 轮对话，$10.15"><rect x="707.7" y="219" width="48.2" height="9" rx="2"/></g><g class="blk k-code" data-tip="并行组：作者写 scope-3（1.22 万原版 token）：包入口、配置、控制台渲染器、打包
+开始于 +239.2 分，持续 17.9 分
+输入 4.9M token（其中缓存读取 4.7M），输出 115k
+40 轮对话，$10.42"><rect x="707.7" y="230" width="50.8" height="9" rx="2"/></g><g class="blk k-ctl" data-tip="控制器决定下一批调用
+开始于 +262.7 分，持续 3.2 分
+输入 344k token（其中缓存读取 267k），输出 19k
+5 轮对话，$1.73"><rect x="775.9" y="208" width="8.3" height="9" rx="2"/></g><g class="blk k-local" data-tip="全量行为对比：有检查失败
+开始于 +265.9 分，持续 1.4 分（不调用模型）"><rect x="785.2" y="208" width="3.2" height="9" rx="2"/></g><g class="blk k-local" data-tip="安装检查：通过
+开始于 +267.4 分，持续 0.2 分（不调用模型）"><rect x="789.4" y="208" width="1.6" height="9" rx="2"/></g><g class="blk k-fix" data-tip="合并后，控制器让 scope-3 的作者重写控制台渲染器里与原版重复的函数（那次调用有 44% 的行与原版重复）
+开始于 +267.6 分，持续 22.4 分
+输入 7.5M token（其中缓存读取 7.3M），输出 130k
+48 轮对话，$11.98"><rect x="790.2" y="208" width="63.9" height="9" rx="2"/></g><g class="blk k-local" data-tip="全量行为对比：有检查失败
+开始于 +290.2 分，持续 1.5 分（不调用模型）"><rect x="855.5" y="208" width="3.2" height="9" rx="2"/></g><g class="blk k-ctl" data-tip="控制器决定下一批调用
+开始于 +291.7 分，持续 4.0 分
+输入 1.1M token（其中缓存读取 984k），输出 23k
+15 轮对话，$2.45"><rect x="859.8" y="208" width="10.7" height="9" rx="2"/></g><g class="blk k-fix" data-tip="定向修复 docs/conf.py（check-20），借出了原版文件。保存被拒：这个文件 60% 与原版重复
+开始于 +295.8 分，持续 2.3 分
+输入 503k token（其中缓存读取 450k），输出 12k
+12 轮对话，$1.55"><rect x="871.7" y="208" width="5.6" height="9" rx="2"/></g><g class="blk k-ctl" data-tip="控制器决定下一批调用
+开始于 +298.2 分，持续 2.3 分
+输入 376k token（其中缓存读取 293k），输出 14k
+6 轮对话，$1.57"><rect x="878.7" y="208" width="5.5" height="9" rx="2"/></g><g class="blk k-fix" data-tip="不给原版，让作者把 docs/conf.py 换成自己的写法
+开始于 +300.5 分，持续 6.5 分
+输入 1.0M token（其中缓存读取 940k），输出 37k
+19 轮对话，$3.38"><rect x="885.4" y="208" width="17.8" height="9" rx="2"/></g><g class="blk k-local" data-tip="定向行为对比：所查的检查通过
+开始于 +307.1 分，持续 0.8 分（不调用模型）"><rect x="904.5" y="208" width="1.6" height="9" rx="2"/></g><g class="blk k-local" data-tip="全量行为对比：全部通过
+开始于 +307.9 分，持续 1.5 分（不调用模型）"><rect x="906.8" y="208" width="3.2" height="9" rx="2"/></g><g class="blk k-local" data-tip="安装检查：通过
+开始于 +309.3 分，持续 0.3 分（不调用模型）"><rect x="911.0" y="208" width="1.6" height="9" rx="2"/></g><g class="blk k-local" data-tip="交付并在新代码上回放原版测试
+开始于 +309.6 分，持续 0.6 分（不调用模型）"><rect x="911.9" y="208" width="1.6" height="9" rx="2"/></g></svg>
+    </div>
+    <figcaption>把鼠标移到色块上（或点一下）可以看这个会话做了什么、持续多久、用了多少 token。色块之间的空白是在等同一批里最慢的那个会话，或者在等本机步骤。</figcaption>
+  </figure>
+  <ul class="plain">
+    <li><strong>两次作业的大半时间都在冻结。</strong>off 的冻结 152.1 分钟，on 的 205.4 分钟。</li>
+    <li><strong>写测试事实，on 叠得更高、结束得更早。</strong>并行模式把这类会话的并发上限从 8 放宽到 16，这一步从 34.3 分钟降到 22.5 分钟。</li>
+    <li><strong>设计测试没有因此变快。</strong>这一步是一批一批做的，每一批的会话数本来就不多，一批要多久取决于其中最慢的那个会话。on 的第一批用了 38 分钟（off 是 25 分钟），其中一个会话跑了 29 分钟。测基线两边用时也差不多。</li>
+    <li><strong>on 的冻结多出一段。</strong>控制器在封存前为一个叶节点又设计了一轮测试，之后还得再测一次基线，一共多花约 50 分钟。off 的控制器在同样的局面下直接封存了。</li>
+    <li><strong>写代码阶段的形状不同。</strong>off 是一条线，on 在中间有一段三层叠放，就是并行组。</li>
+  </ul>
+</section>
+
+<section>
+  <h2>放大：从第一次作者调用到交付</h2>
+  <p class="sub">把两次作业对齐到各自第一次作者调用开始的时刻。S1–S4 是 scope 的编号；两次作业的划分不同：off 是 2 个 scope 依次写，on 是 1 个地基加 3 个并行部分。</p>
+  <figure class="card tl tips">
+    <div class="legend" role="group" aria-label="图例">
+      <span class="lg"><span class="sw k-code"></span>写首版代码</span>
+      <span class="lg"><span class="sw k-fix"></span>重写与修复</span>
+      <span class="lg"><span class="sw k-ctl"></span>控制器决策</span>
+      <span class="lg"><span class="sw k-local"></span>本机步骤</span>
+    </div>
+    <p class="swipe">图比较宽，可以左右滑动。</p>
+    <div class="scroll">
+<svg class="tl-svg zoom" viewBox="0 0 921 344" role="img" aria-label="从第一次作者调用到交付：串行运行逐个写 scope，并行运行先写地基再同时写三个 scope"><line class="grid" x1="14.0" y1="30" x2="14.0" y2="308"/><text class="t-axis" x="14.0" y="322" text-anchor="middle">0</text><line class="grid" x1="87.0" y1="30" x2="87.0" y2="308"/><text class="t-axis" x="87.0" y="322" text-anchor="middle">10</text><line class="grid" x1="160.0" y1="30" x2="160.0" y2="308"/><text class="t-axis" x="160.0" y="322" text-anchor="middle">20</text><line class="grid" x1="233.0" y1="30" x2="233.0" y2="308"/><text class="t-axis" x="233.0" y="322" text-anchor="middle">30</text><line class="grid" x1="306.0" y1="30" x2="306.0" y2="308"/><text class="t-axis" x="306.0" y="322" text-anchor="middle">40</text><line class="grid" x1="379.0" y1="30" x2="379.0" y2="308"/><text class="t-axis" x="379.0" y="322" text-anchor="middle">50</text><line class="grid" x1="452.0" y1="30" x2="452.0" y2="308"/><text class="t-axis" x="452.0" y="322" text-anchor="middle">60</text><line class="grid" x1="525.0" y1="30" x2="525.0" y2="308"/><text class="t-axis" x="525.0" y="322" text-anchor="middle">70</text><line class="grid" x1="598.0" y1="30" x2="598.0" y2="308"/><text class="t-axis" x="598.0" y="322" text-anchor="middle">80</text><line class="grid" x1="671.0" y1="30" x2="671.0" y2="308"/><text class="t-axis" x="671.0" y="322" text-anchor="middle">90</text><line class="grid" x1="744.0" y1="30" x2="744.0" y2="308"/><text class="t-axis" x="744.0" y="322" text-anchor="middle">100</text><line class="grid" x1="817.0" y1="30" x2="817.0" y2="308"/><text class="t-axis" x="817.0" y="322" text-anchor="middle">110</text><text class="t-axis" x="916.5" y="338" text-anchor="end">第一次作者调用开始后的分钟数</text><text class="t-row" x="14" y="17">parallel off（串行）</text><g class="blk big k-code" data-tip="作者写 scope-1 的首版（3.7 万原版 token）：类型协议、绑定日志器、输出日志器、contextvars、日志级别、调用点辅助、traceback、处理器、控制台渲染器、配置、线程本地上下文
+开始于 +156.4 分，持续 26.8 分
+输入 12.6M token（其中缓存读取 12.2M），输出 176k
+52 轮对话，$17.95"><rect x="14.0" y="46" width="194.2" height="22" rx="4"/><text x="111.1" y="61" text-anchor="middle">S1 首版 26.8 分</text></g><g class="blk big k-code" data-tip="作者写 scope-2 的首版（1.55 万原版 token）：stdlib 集成、twisted、testing、包入口和打包。它建立在 scope-1 之上，所以排在后面
+开始于 +183.3 分，持续 16.3 分
+输入 8.4M token（其中缓存读取 8.2M），输出 103k
+59 轮对话，$11.39"><rect x="210.2" y="46" width="117.2" height="22" rx="4"/><text x="268.8" y="61" text-anchor="middle">S2 首版 16.3 分</text></g><g class="blk big k-ctl" data-tip="控制器决定下一批调用
+开始于 +199.7 分，持续 5.3 分
+输入 502k token（其中缓存读取 414k），输出 35k
+7 轮对话，$2.59"><rect x="329.8" y="46" width="37.0" height="22" rx="4"/></g><g class="blk big k-fix" data-tip="保存被拒后重写 scope-1：全部草稿有 45% 的行与原版重复（上限 40%），要求换成自己的实现
+开始于 +205.0 分，持续 30.2 分
+输入 16.7M token（其中缓存读取 16.3M），输出 156k
+87 轮对话，$16.02"><rect x="368.5" y="46" width="218.6" height="22" rx="4"/><text x="477.8" y="61" text-anchor="middle">S1 重写 30.2 分</text></g><g class="blk big k-fix" data-tip="保存被拒后重写 scope-2
+开始于 +235.2 分，持续 18.4 分
+输入 6.9M token（其中缓存读取 6.6M），输出 118k
+46 轮对话，$11.94"><rect x="589.2" y="46" width="132.6" height="22" rx="4"/><text x="655.5" y="61" text-anchor="middle">S2 重写 18.4 分</text></g><g class="blk big k-local" data-tip="全量行为对比：有检查失败
+开始于 +253.7 分，持续 2.0 分（不调用模型）"><rect x="724.2" y="46" width="13.1" height="22" rx="4"/></g><g class="blk big k-local" data-tip="安装检查：通过
+开始于 +255.7 分，持续 0.2 分（不调用模型）"><rect x="738.8" y="46" width="2.0" height="22" rx="4"/></g><g class="blk big k-ctl" data-tip="控制器决定下一批调用
+开始于 +256.0 分，持续 3.2 分
+输入 790k token（其中缓存读取 694k），输出 20k
+12 轮对话，$2.07"><rect x="740.8" y="46" width="22.1" height="22" rx="4"/></g><g class="blk big k-fix" data-tip="定向修复：候选 2 只有 check-41（控制台渲染器）失败。按规则这次调用可以读该能力的 2 个原版文件
+开始于 +259.3 分，持续 4.6 分
+输入 694k token（其中缓存读取 629k），输出 27k
+17 轮对话，$2.46"><rect x="764.7" y="46" width="31.9" height="22" rx="4"/><text x="780.6" y="61" text-anchor="middle">修复</text></g><g class="blk big k-local" data-tip="定向行为对比：所查的检查通过
+开始于 +264.0 分，持续 0.6 分（不调用模型）"><rect x="798.9" y="46" width="3.2" height="22" rx="4"/></g><g class="blk big k-local" data-tip="全量行为对比：全部通过
+开始于 +264.6 分，持续 2.0 分（不调用模型）"><rect x="803.6" y="46" width="12.8" height="22" rx="4"/></g><g class="blk big k-local" data-tip="安装检查：通过
+开始于 +266.6 分，持续 0.2 分（不调用模型）"><rect x="818.0" y="46" width="2.0" height="22" rx="4"/></g><g class="blk big k-local" data-tip="交付并在新代码上回放原版测试
+开始于 +266.9 分，持续 0.6 分（不调用模型）"><rect x="820.2" y="46" width="2.9" height="22" rx="4"/></g><line class="tick" x1="818.0" y1="73" x2="818.0" y2="80"/><text class="t-mark" x="821.0" y="88">对比：全部通过</text><line class="tick" x1="738.8" y1="73" x2="738.8" y2="94"/><text class="t-mark" x="741.8" y="102">对比：1 个检查失败</text><line class="tick" x1="329.6" y1="73" x2="329.6" y2="80"/><text class="t-mark" x="332.6" y="88">✕ 保存被拒：45% / 1353 行与原版重复</text><line class="guide" x1="724.1" y1="34" x2="724.1" y2="71"/><text class="t-guide" x="720.1" y="41" text-anchor="end">第一个完整候选 +97.3 分</text><line class="guide" x1="824.5" y1="34" x2="824.5" y2="71"/><text class="t-guide" x="829.5" y="41">交付 +111.0 分</text><text class="t-row" x="14" y="142">parallel on（并行）</text><g class="blk big k-code" data-tip="作者写地基 scope-1 的首版（2.06 万原版 token）：7 个能力，其余 3 个 scope 都建立在它之上，所以单独先写
+开始于 +210.4 分，持续 20.2 分
+输入 11.4M token（其中缓存读取 11.1M），输出 125k
+63 轮对话，$13.69"><rect x="14.0" y="171" width="145.9" height="22" rx="4"/><text x="86.9" y="186" text-anchor="middle">地基 S1 首版 20.2 分</text></g><g class="blk big k-ctl" data-tip="控制器决定下一批调用
+开始于 +230.7 分，持续 1.6 分
+输入 178k token（其中缓存读取 114k），输出 11k
+3 轮对话，$1.20"><rect x="162.2" y="171" width="10.2" height="22" rx="4"/></g><g class="blk big k-fix" data-tip="保存被拒后只改 1 个函数：ExceptionDictTransformer.__call__ 有 64% 与原版重复（单函数上限 60%）
+开始于 +232.4 分，持续 5.6 分
+输入 811k token（其中缓存读取 741k），输出 33k
+17 轮对话，$2.84"><rect x="174.1" y="171" width="39.3" height="22" rx="4"/></g><g class="blk big k-code" data-tip="并行组：作者写 scope-2（0.98 万原版 token）：输出 sink、testing、threadlocal、twisted、docs 配置
+开始于 +239.2 分，持续 23.3 分
+输入 10.0M token（其中缓存读取 9.7M），输出 143k
+52 轮对话，$14.10"><rect x="223.9" y="171" width="168.5" height="22" rx="4"/><text x="308.1" y="186" text-anchor="middle">S2 首版 23.3 分</text></g><g class="blk big k-code" data-tip="并行组：作者写 scope-4（1.0 万原版 token）：stdlib 集成
+开始于 +239.2 分，持续 17.0 分
+输入 5.5M token（其中缓存读取 5.3M），输出 107k
+43 轮对话，$10.15"><rect x="223.9" y="196" width="122.4" height="22" rx="4"/><text x="285.1" y="211" text-anchor="middle">S4 首版 17.0 分</text></g><g class="blk big k-code" data-tip="并行组：作者写 scope-3（1.22 万原版 token）：包入口、配置、控制台渲染器、打包
+开始于 +239.2 分，持续 17.9 分
+输入 4.9M token（其中缓存读取 4.7M），输出 115k
+40 轮对话，$10.42"><rect x="223.9" y="221" width="128.9" height="22" rx="4"/><text x="288.3" y="236" text-anchor="middle">S3 首版 17.9 分</text></g><g class="blk big k-ctl" data-tip="控制器决定下一批调用
+开始于 +262.7 分，持续 3.2 分
+输入 344k token（其中缓存读取 267k），输出 19k
+5 轮对话，$1.73"><rect x="395.6" y="171" width="21.8" height="22" rx="4"/></g><g class="blk big k-local" data-tip="全量行为对比：有检查失败
+开始于 +265.9 分，持续 1.4 分（不调用模型）"><rect x="419.0" y="171" width="9.0" height="22" rx="4"/></g><g class="blk big k-local" data-tip="安装检查：通过
+开始于 +267.4 分，持续 0.2 分（不调用模型）"><rect x="429.5" y="171" width="2.0" height="22" rx="4"/></g><g class="blk big k-fix" data-tip="合并后，控制器让 scope-3 的作者重写控制台渲染器里与原版重复的函数（那次调用有 44% 的行与原版重复）
+开始于 +267.6 分，持续 22.4 分
+输入 7.5M token（其中缓存读取 7.3M），输出 130k
+48 轮对话，$11.98"><rect x="431.6" y="171" width="162.0" height="22" rx="4"/><text x="512.6" y="186" text-anchor="middle">S3 重写重复函数 22.4 分</text></g><g class="blk big k-local" data-tip="全量行为对比：有检查失败
+开始于 +290.2 分，持续 1.5 分（不调用模型）"><rect x="596.0" y="171" width="9.1" height="22" rx="4"/></g><g class="blk big k-ctl" data-tip="控制器决定下一批调用
+开始于 +291.7 分，持续 4.0 分
+输入 1.1M token（其中缓存读取 984k），输出 23k
+15 轮对话，$2.45"><rect x="606.9" y="171" width="28.1" height="22" rx="4"/></g><g class="blk big k-fix" data-tip="定向修复 docs/conf.py（check-20），借出了原版文件。保存被拒：这个文件 60% 与原版重复
+开始于 +295.8 分，持续 2.3 分
+输入 503k token（其中缓存读取 450k），输出 12k
+12 轮对话，$1.55"><rect x="636.8" y="171" width="15.2" height="22" rx="4"/></g><g class="blk big k-ctl" data-tip="控制器决定下一批调用
+开始于 +298.2 分，持续 2.3 分
+输入 376k token（其中缓存读取 293k），输出 14k
+6 轮对话，$1.57"><rect x="654.6" y="171" width="14.9" height="22" rx="4"/></g><g class="blk big k-fix" data-tip="不给原版，让作者把 docs/conf.py 换成自己的写法
+开始于 +300.5 分，持续 6.5 分
+输入 1.0M token（其中缓存读取 940k），输出 37k
+19 轮对话，$3.38"><rect x="671.3" y="171" width="45.8" height="22" rx="4"/></g><g class="blk big k-local" data-tip="定向行为对比：所查的检查通过
+开始于 +307.1 分，持续 0.8 分（不调用模型）"><rect x="719.5" y="171" width="4.0" height="22" rx="4"/></g><g class="blk big k-local" data-tip="全量行为对比：全部通过
+开始于 +307.9 分，持续 1.5 分（不调用模型）"><rect x="725.1" y="171" width="9.2" height="22" rx="4"/></g><g class="blk big k-local" data-tip="安装检查：通过
+开始于 +309.3 分，持续 0.3 分（不调用模型）"><rect x="735.8" y="171" width="2.0" height="22" rx="4"/></g><g class="blk big k-local" data-tip="交付并在新代码上回放原版测试
+开始于 +309.6 分，持续 0.6 分（不调用模型）"><rect x="738.1" y="171" width="2.8" height="22" rx="4"/></g><line class="tick" x1="735.8" y1="248" x2="735.8" y2="255"/><text class="t-mark" x="738.8" y="263">对比：全部通过</text><line class="tick" x1="654.2" y1="248" x2="654.2" y2="269"/><text class="t-mark" x="657.2" y="277">✕ 保存被拒：60% / 53 行与原版重复</text><line class="tick" x1="606.6" y1="248" x2="606.6" y2="283"/><text class="t-mark" x="609.6" y="291">对比：1 个检查失败</text><line class="tick" x1="429.5" y1="248" x2="429.5" y2="255"/><text class="t-mark" x="432.5" y="263">对比：1 个检查失败</text><line class="tick" x1="162.0" y1="248" x2="162.0" y2="255"/><text class="t-mark" x="165.0" y="263">✕ 保存被拒：33% / 448 行与原版重复</text><line class="guide" x1="395.4" y1="159" x2="395.4" y2="246"/><text class="t-guide" x="391.4" y="166" text-anchor="end">第一个完整候选 +52.2 分</text><line class="guide" x1="742.4" y1="159" x2="742.4" y2="246"/><text class="t-guide" x="747.4" y="166">交付 +99.8 分</text></svg>
+    </div>
+    <figcaption>色块下方的小字是这一刻发生的事。✕ 表示保存被原创性检查驳回：全部草稿与原版重复超过 40%，或单个函数超过 60%，就不生成候选。</figcaption>
+  </figure>
+  <ul class="plain">
+    <li><strong>写首版代码，两边用时差不多。</strong>off 的两个 scope 依次写完是 +43.2 分钟。on 的地基 20.2 分钟，并行组 24.6 分钟（S2、S4、S3 三个会话分别 23.3、17.0、17.9 分钟，同时进行，合并 1.3 分钟、无冲突），合计 44.9 分钟。</li>
+    <li><strong>off 的首版草稿被整体驳回。</strong>保存时发现 45% 的行与原版重复，两个 scope 又各重写了一遍（49 分钟），所以第一个能保存的完整候选到 +97.3 分钟才出现。on 的地基只有 1 个函数超限，6 分钟改完，完整候选在 +52.2 分钟出现。这 45 分钟的差距来自原创性检查，不是并行。</li>
+    <li><strong>修复阶段 on 更慢。</strong>off 只差 1 个检查，一次 5 分钟的修复就过了。on 也只差 1 个检查，但先重写了一批与原版重复的函数（22 分钟），又修了两次文档配置，中间还被驳回一次。</li>
+    <li><strong>控制器的开销变多了。</strong>off 6 轮共 15.0 分钟，on 9 轮共 19.4 分钟。</li>
+  </ul>
+</section>
+
+<section>
+  <h2>每一部分花了多少时间和 token</h2>
+  <p class="sub">每一行是作业里的一类工作，上面一条是 off，下面一条是 on。墙钟时间是这类工作占用作业的时间；token 是这类工作里所有模型会话的合计。输入 token 里绝大部分是缓存读取：会话每一轮都要重读自己的上下文。</p>
+  <figure class="card">
+    <div class="legend" role="group" aria-label="图例">
+      <span class="lg"><span class="sw r-off"></span>parallel off</span>
+      <span class="lg"><span class="sw r-on"></span>parallel on</span>
+    </div>
+    <p class="swipe">图比较宽，可以左右滑动。</p>
+    <div class="scroll">
+<div class="pb" role="table" aria-label="每一部分的墙钟时间、输入 token 和输出 token，parallel off 和 on 并排"><div class="pb-row pb-head" role="row"><span role="columnheader">部分</span><span role="columnheader">墙钟时间（分钟）</span><span role="columnheader">输入 token（含缓存读取）</span><span role="columnheader">输出 token</span></div><div class="pb-row" role="row"><span class="pb-name" role="rowheader">写测试事实</span><span class="pb-cell" role="cell"><span class="pb-line"><span class="pb-bar r-off" style="--v:0.2652" title="parallel off（串行）：34.3"></span><span class="pb-val">34.3</span></span><span class="pb-line"><span class="pb-bar r-on" style="--v:0.1736" title="parallel on（并行）：22.5"></span><span class="pb-val">22.5</span></span></span><span class="pb-cell" role="cell"><span class="pb-line"><span class="pb-bar r-off" style="--v:0.2945" title="parallel off（串行）：18.3M"></span><span class="pb-val">18.3M</span></span><span class="pb-line"><span class="pb-bar r-on" style="--v:0.2616" title="parallel on（并行）：16.2M"></span><span class="pb-val">16.2M</span></span></span><span class="pb-cell" role="cell"><span class="pb-line"><span class="pb-bar r-off" style="--v:0.5896" title="parallel off（串行）：1528k"></span><span class="pb-val">1528k</span></span><span class="pb-line"><span class="pb-bar r-on" style="--v:0.5337" title="parallel on（并行）：1383k"></span><span class="pb-val">1383k</span></span></span></div><div class="pb-row" role="row"><span class="pb-name" role="rowheader">设计测试（含评审）</span><span class="pb-cell" role="cell"><span class="pb-line"><span class="pb-bar r-off" style="--v:0.6945" title="parallel off（串行）：89.9"></span><span class="pb-val">89.9</span></span><span class="pb-line"><span class="pb-bar r-on" style="--v:1.0000" title="parallel on（并行）：129.5"></span><span class="pb-val">129.5</span></span></span><span class="pb-cell" role="cell"><span class="pb-line"><span class="pb-bar r-off" style="--v:0.8435" title="parallel off（串行）：52.4M"></span><span class="pb-val">52.4M</span></span><span class="pb-line"><span class="pb-bar r-on" style="--v:1.0000" title="parallel on（并行）：62.1M"></span><span class="pb-val">62.1M</span></span></span><span class="pb-cell" role="cell"><span class="pb-line"><span class="pb-bar r-off" style="--v:0.8429" title="parallel off（串行）：2184k"></span><span class="pb-val">2184k</span></span><span class="pb-line"><span class="pb-bar r-on" style="--v:1.0000" title="parallel on（并行）：2591k"></span><span class="pb-val">2591k</span></span></span></div><div class="pb-row" role="row"><span class="pb-name" role="rowheader">测基线（各次合计）</span><span class="pb-cell" role="cell"><span class="pb-line"><span class="pb-bar r-off" style="--v:0.1903" title="parallel off（串行）：24.7"></span><span class="pb-val">24.7</span></span><span class="pb-line"><span class="pb-bar r-on" style="--v:0.3796" title="parallel on（并行）：49.2"></span><span class="pb-val">49.2</span></span></span><span class="pb-cell" role="cell"><span class="pb-line"><span class="pb-bar r-off" style="--v:0.0000" title="parallel off（串行）：0"></span><span class="pb-val">—</span></span><span class="pb-line"><span class="pb-bar r-on" style="--v:0.0000" title="parallel on（并行）：0"></span><span class="pb-val">—</span></span></span><span class="pb-cell" role="cell"><span class="pb-line"><span class="pb-bar r-off" style="--v:0.0000" title="parallel off（串行）：0"></span><span class="pb-val">—</span></span><span class="pb-line"><span class="pb-bar r-on" style="--v:0.0000" title="parallel on（并行）：0"></span><span class="pb-val">—</span></span></span></div><div class="pb-row" role="row"><span class="pb-name" role="rowheader">写首版代码</span><span class="pb-cell" role="cell"><span class="pb-line"><span class="pb-bar r-off" style="--v:0.3337" title="parallel off（串行）：43.2"></span><span class="pb-val">43.2</span></span><span class="pb-line"><span class="pb-bar r-on" style="--v:0.3465" title="parallel on（并行）：44.9"></span><span class="pb-val">44.9</span></span></span><span class="pb-cell" role="cell"><span class="pb-line"><span class="pb-bar r-off" style="--v:0.3388" title="parallel off（串行）：21.0M"></span><span class="pb-val">21.0M</span></span><span class="pb-line"><span class="pb-bar r-on" style="--v:0.5140" title="parallel on（并行）：31.9M"></span><span class="pb-val">31.9M</span></span></span><span class="pb-cell" role="cell"><span class="pb-line"><span class="pb-bar r-off" style="--v:0.1075" title="parallel off（串行）：279k"></span><span class="pb-val">279k</span></span><span class="pb-line"><span class="pb-bar r-on" style="--v:0.1893" title="parallel on（并行）：491k"></span><span class="pb-val">491k</span></span></span></div><div class="pb-row" role="row"><span class="pb-name" role="rowheader">重写与修复</span><span class="pb-cell" role="cell"><span class="pb-line"><span class="pb-bar r-off" style="--v:0.4117" title="parallel off（串行）：53.3"></span><span class="pb-val">53.3</span></span><span class="pb-line"><span class="pb-bar r-on" style="--v:0.2861" title="parallel on（并行）：37.1"></span><span class="pb-val">37.1</span></span></span><span class="pb-cell" role="cell"><span class="pb-line"><span class="pb-bar r-off" style="--v:0.3905" title="parallel off（串行）：24.2M"></span><span class="pb-val">24.2M</span></span><span class="pb-line"><span class="pb-bar r-on" style="--v:0.1591" title="parallel on（并行）：9.9M"></span><span class="pb-val">9.9M</span></span></span><span class="pb-cell" role="cell"><span class="pb-line"><span class="pb-bar r-off" style="--v:0.1161" title="parallel off（串行）：301k"></span><span class="pb-val">301k</span></span><span class="pb-line"><span class="pb-bar r-on" style="--v:0.0814" title="parallel on（并行）：211k"></span><span class="pb-val">211k</span></span></span></div><div class="pb-row" role="row"><span class="pb-name" role="rowheader">对比、安装检查、保存</span><span class="pb-cell" role="cell"><span class="pb-line"><span class="pb-bar r-off" style="--v:0.0410" title="parallel off（串行）：5.3"></span><span class="pb-val">5.3</span></span><span class="pb-line"><span class="pb-bar r-on" style="--v:0.0457" title="parallel on（并行）：5.9"></span><span class="pb-val">5.9</span></span></span><span class="pb-cell" role="cell"><span class="pb-line"><span class="pb-bar r-off" style="--v:0.0000" title="parallel off（串行）：0"></span><span class="pb-val">—</span></span><span class="pb-line"><span class="pb-bar r-on" style="--v:0.0000" title="parallel on（并行）：0"></span><span class="pb-val">—</span></span></span><span class="pb-cell" role="cell"><span class="pb-line"><span class="pb-bar r-off" style="--v:0.0000" title="parallel off（串行）：0"></span><span class="pb-val">—</span></span><span class="pb-line"><span class="pb-bar r-on" style="--v:0.0000" title="parallel on（并行）：0"></span><span class="pb-val">—</span></span></span></div><div class="pb-row" role="row"><span class="pb-name" role="rowheader">控制器决策</span><span class="pb-cell" role="cell"><span class="pb-line"><span class="pb-bar r-off" style="--v:0.1161" title="parallel off（串行）：15.0"></span><span class="pb-val">15.0</span></span><span class="pb-line"><span class="pb-bar r-on" style="--v:0.1499" title="parallel on（并行）：19.4"></span><span class="pb-val">19.4</span></span></span><span class="pb-cell" role="cell"><span class="pb-line"><span class="pb-bar r-off" style="--v:0.0346" title="parallel off（串行）：2.2M"></span><span class="pb-val">2.2M</span></span><span class="pb-line"><span class="pb-bar r-on" style="--v:0.0503" title="parallel on（并行）：3.1M"></span><span class="pb-val">3.1M</span></span></span><span class="pb-cell" role="cell"><span class="pb-line"><span class="pb-bar r-off" style="--v:0.0363" title="parallel off（串行）：94k"></span><span class="pb-val">94k</span></span><span class="pb-line"><span class="pb-bar r-on" style="--v:0.0430" title="parallel on（并行）：111k"></span><span class="pb-val">111k</span></span></span></div><div class="pb-row" role="row"><span class="pb-name" role="rowheader">其他（准备、封存、交付、间隙）</span><span class="pb-cell" role="cell"><span class="pb-line"><span class="pb-bar r-off" style="--v:0.0128" title="parallel off（串行）：1.7"></span><span class="pb-val">1.7</span></span><span class="pb-line"><span class="pb-bar r-on" style="--v:0.0139" title="parallel on（并行）：1.8"></span><span class="pb-val">1.8</span></span></span><span class="pb-cell" role="cell"><span class="pb-line"><span class="pb-bar r-off" style="--v:0.0006" title="parallel off（串行）：35k"></span><span class="pb-val">35k</span></span><span class="pb-line"><span class="pb-bar r-on" style="--v:0.0006" title="parallel on（并行）：35k"></span><span class="pb-val">35k</span></span></span><span class="pb-cell" role="cell"><span class="pb-line"><span class="pb-bar r-off" style="--v:0.0004" title="parallel off（串行）：1k"></span><span class="pb-val">1k</span></span><span class="pb-line"><span class="pb-bar r-on" style="--v:0.0004" title="parallel on（并行）：969"></span><span class="pb-val">969</span></span></span></div></div>
+    </div>
+    <figcaption>三列各用自己的刻度，条形只在同一列里比较长短。</figcaption>
+    <details>
+      <summary>用表格看全部数字（含会话数、缓存读取和费用）</summary>
+      <div class="scroll"><table class="num parts"><thead><tr><th rowspan="2">部分</th><th colspan="2">墙钟（分钟）</th><th colspan="2">模型会话</th><th colspan="2">输入 token</th><th colspan="2">其中缓存读取</th><th colspan="2">输出 token</th><th colspan="2">费用（$）</th></tr><tr><th>off</th><th>on</th><th>off</th><th>on</th><th>off</th><th>on</th><th>off</th><th>on</th><th>off</th><th>on</th><th>off</th><th>on</th></tr></thead><tbody><tr><th scope="row">写测试事实</th><td>34.3</td><td>22.5</td><td>78</td><td>74</td><td>18.3M</td><td>16.2M</td><td>14.6M</td><td>12.9M</td><td>1528k</td><td>1383k</td><td>135</td><td>122</td></tr><tr><th scope="row">设计测试（含评审）</th><td>89.9</td><td>129.5</td><td>38</td><td>44</td><td>52.4M</td><td>62.1M</td><td>47.5M</td><td>56.3M</td><td>2184k</td><td>2591k</td><td>192</td><td>227</td></tr><tr><th scope="row">测基线（各次合计）</th><td>24.7</td><td>49.2</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr><tr><th scope="row">写首版代码</th><td>43.2</td><td>44.9</td><td>2</td><td>4</td><td>21.0M</td><td>31.9M</td><td>20.3M</td><td>30.8M</td><td>279k</td><td>491k</td><td>29</td><td>48</td></tr><tr><th scope="row">重写与修复</th><td>53.3</td><td>37.1</td><td>3</td><td>4</td><td>24.2M</td><td>9.9M</td><td>23.6M</td><td>9.4M</td><td>301k</td><td>211k</td><td>30</td><td>20</td></tr><tr><th scope="row">对比、安装检查、保存</th><td>5.3</td><td>5.9</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr><tr><th scope="row">控制器决策</th><td>15.0</td><td>19.4</td><td>6</td><td>9</td><td>2.2M</td><td>3.1M</td><td>1.8M</td><td>2.5M</td><td>94k</td><td>111k</td><td>9</td><td>12</td></tr><tr><th scope="row">其他（准备、封存、交付、间隙）</th><td>1.7</td><td>1.8</td><td>3</td><td>3</td><td>35k</td><td>35k</td><td>31k</td><td>28k</td><td>1k</td><td>969</td><td>0</td><td>0</td></tr><tr><th scope="row">作业合计</th><td class="t">267.5</td><td class="t">310.2</td><td class="t">130</td><td class="t">138</td><td class="t">118.1M</td><td class="t">123.3M</td><td class="t">107.8M</td><td class="t">111.9M</td><td class="t">4387k</td><td class="t">4789k</td><td class="t">396</td><td class="t">429</td></tr></tbody></table></div>
+    </details>
+  </figure>
+  <ul class="plain">
+    <li><strong>token 的大头在冻结。</strong>设计测试一项就占了两次作业输入 token 的四成到五成，费用上冻结占八成多。写代码（首版加重写修复）的费用是 $60 和 $68。</li>
+    <li><strong>并行让写首版更贵。</strong>首版的 token 是 21.3M 对 32.4M（+52%）：4 个作者各自要读一遍契约，后 3 个还要读地基的代码。</li>
+    <li><strong>算上重写和修复，两边接近。</strong>作者会话的 token 合计 45.9M → 42.5M（-7%），因为 off 把两个 scope 都重写了一遍，把首版省下的又花了回去。</li>
+    <li><strong>阶段 01 不在图里。</strong>宿主做能力清单的阶段 01 只在 off 做了一次（35 分钟，$34，输入约 67.4M token），on 直接复用它的结果，所以两次作业的清单完全相同。</li>
+  </ul>
+</section>
+
+<section>
+  <h2>按功能并行带来收益了吗</h2>
+  <p class="sub">分五层回答：冻结里的并发、并行组本身、写首版这一步、写代码到交付、整个作业。</p>
+  <div class="two">
+    <div class="card">
+      <h3>冻结里放宽并发：只有一步变快</h3>
+      <p>写测试事实从 34.3 分钟降到 22.5 分钟（-35%），这是这一对运行里并行模式唯一确定省下的时间。设计测试和测基线没有变快：前者受最慢的会话限制，后者两边用时相同。</p>
+    </div>
+    <div class="card">
+      <h3>并行组本身：有效</h3>
+      <p>三个互不依赖的 scope 同时写，墙钟从 58.1 分钟压到 23.3 分钟（2.5 倍）。合并没有冲突，也没有哪个作者因为看不到别人的代码而返工。机制是通的。</p>
+    </div>
+    <div class="card">
+      <h3>写首版这一步：没有变快，而且更贵</h3>
+      <p>墙钟 43.2 分钟对 44.9 分钟。并行省下的时间，被「拆成更多会话」多出来的工作量抵消了：会话累计 43.1 → 78.3 分钟，token 21.3M → 32.4M，费用 $29 → $48。</p>
+    </div>
+    <div class="card">
+      <h3>写代码到交付：on 快 11 分钟，但原因不在并行</h3>
+      <p>off 的首版被原创性检查整体驳回，重写用了 49 分钟；on 只返工了 1 个函数。之后的修复 off 用 5 分钟，on 用了 31 分钟。这两项都取决于模型这一次写出了什么，和是否并行没有可见的关系。</p>
+    </div>
+    <div class="card">
+      <h3>整个作业：on 慢 43 分钟，原因也不在并行</h3>
+      <p>冻结占作业的 57%–66%。on 的控制器在封存前多设计了一轮测试，冻结多了 53.3 分钟，远大于写测试事实省下的 11.9 分钟。写首版代码在 on 的作业里只占 14%。</p>
+    </div>
+  </div>
+  <figure class="card tl tips">
+    <h3>为什么拆细了没有变快：会话时长几乎不随 scope 大小变化</h3>
+    <div class="legend" role="group" aria-label="图例">
+      <span class="lg"><span class="sw r-off"></span>parallel off 的首版会话</span>
+      <span class="lg"><span class="sw r-on"></span>parallel on 的首版会话</span>
+    </div>
+    <svg class="tl-svg scat" viewBox="0 0 520 300" role="img" aria-label="六个首版会话：scope 从 1 万到 3.7 万 token，会话时长都在 16 到 27 分钟之间"><line class="grid" x1="46" y1="260.0" x2="500" y2="260.0"/><text class="t-axis" x="40" y="264.0" text-anchor="end">0</text><line class="grid" x1="46" y1="178.7" x2="500" y2="178.7"/><text class="t-axis" x="40" y="182.7" text-anchor="end">10</text><line class="grid" x1="46" y1="97.3" x2="500" y2="97.3"/><text class="t-axis" x="40" y="101.3" text-anchor="end">20</text><line class="grid" x1="46" y1="16.0" x2="500" y2="16.0"/><text class="t-axis" x="40" y="20.0" text-anchor="end">30</text><text class="t-axis" x="46.0" y="276" text-anchor="middle">0</text><text class="t-axis" x="159.5" y="276" text-anchor="middle">1 万</text><text class="t-axis" x="273.0" y="276" text-anchor="middle">2 万</text><text class="t-axis" x="386.5" y="276" text-anchor="middle">3 万</text><text class="t-axis" x="500.0" y="276" text-anchor="middle">4 万</text><text class="t-axis" x="500" y="294" text-anchor="end">scope 的原版 token 数</text><text class="t-axis" x="4" y="10">会话时长（分钟）</text><g class="blk dot r-off" data-tip="parallel off 的 S1 首版
+scope 37,010 原版 token，会话 26.8 分钟
+会话用了 12.8M token"><circle cx="466.1" cy="42.0" r="12" class="hit"/><circle cx="466.1" cy="42.0" r="5.5"/></g><text class="t-dot" x="458.1" y="32.0" text-anchor="end">off S1 26.8 分</text><g class="blk dot r-off" data-tip="parallel off 的 S2 首版
+scope 15,524 原版 token，会话 16.3 分钟
+会话用了 8.5M token"><circle cx="222.2" cy="127.8" r="12" class="hit"/><circle cx="222.2" cy="127.8" r="5.5"/></g><text class="t-dot" x="231.2" y="141.8" text-anchor="start">off S2 16.3 分</text><g class="blk dot r-on" data-tip="parallel on 的 地基 S1 首版
+scope 20,551 原版 token，会话 20.2 分钟
+会话用了 11.5M token"><circle cx="279.3" cy="95.8" r="12" class="hit"/><circle cx="279.3" cy="95.8" r="5.5"/></g><text class="t-dot" x="288.3" y="99.8" text-anchor="start">on S1 20.2 分</text><g class="blk dot r-on" data-tip="parallel on 的 S2 首版
+scope 9,816 原版 token，会话 23.3 分钟
+会话用了 10.2M token"><circle cx="157.4" cy="70.6" r="12" class="hit"/><circle cx="157.4" cy="70.6" r="5.5"/></g><text class="t-dot" x="153.4" y="60.6" text-anchor="middle">on S2 23.3 分</text><g class="blk dot r-on" data-tip="parallel on 的 S4 首版
+scope 9,981 原版 token，会话 17.0 分钟
+会话用了 5.6M token"><circle cx="159.3" cy="122.0" r="12" class="hit"/><circle cx="159.3" cy="122.0" r="5.5"/></g><text class="t-dot" x="150.3" y="136.0" text-anchor="end">on S4 17.0 分</text><g class="blk dot r-on" data-tip="parallel on 的 S3 首版
+scope 12,186 原版 token，会话 17.9 分钟
+会话用了 5.1M token"><circle cx="184.3" cy="114.8" r="12" class="hit"/><circle cx="184.3" cy="114.8" r="5.5"/></g><text class="t-dot" x="193.3" y="118.8" text-anchor="start">on S3 17.9 分</text></svg>
+    <figcaption>六个首版会话。scope 从 1 万到 3.7 万 token，相差近 4 倍，会话时长都在 16–27 分钟之间：每个作者都要先读契约和已有代码、搭好包的骨架、跑自检，这部分开销不随 scope 变小而变小。所以 off 用 2 个会话写完的东西，on 用了 4 个会话，总工作量多了八成。</figcaption>
+  </figure>
+  <h3>由此推出：什么时候并行才会有收益</h3>
+  <ul class="plain">
+    <li><strong>这次的选中范围太小。</strong>5.25 万 token 只比一个 scope 的上限（4.5 万）多一点，串行 2 个会话就能写完。并行要先写地基再写一层，至少也是两个会话的墙钟时间，所以打平。</li>
+    <li><strong>选中范围是上限的好几倍时才值得。</strong>按这次每个首版会话约 20 分钟推算：串行要写 N 个 scope 就是约 N × 20 分钟，并行是地基加一层，约 40 分钟。N 到 4 以上差距才明显。这是推算，不是实测。</li>
+    <li><strong>代价是 token。</strong>并行换来的只能是墙钟时间。会话越多，重复读上下文的开销越大，这次首版的 token 多了一半（+52%）。</li>
+  </ul>
+  <figure class="card tl tips">
+    <h3>作业的时间花在哪一类工作上</h3>
+    <div class="legend" role="group" aria-label="图例">
+      <span class="lg"><span class="sw k-facts"></span>写测试事实</span>
+      <span class="lg"><span class="sw k-design"></span>设计测试</span>
+      <span class="lg"><span class="sw k-base"></span>测基线</span>
+      <span class="lg"><span class="sw k-code"></span>写首版代码</span>
+      <span class="lg"><span class="sw k-fix"></span>重写与修复</span>
+      <span class="lg"><span class="sw k-ctl"></span>控制器</span>
+      <span class="lg"><span class="sw k-rest"></span>其他</span>
+    </div>
+    <p class="swipe">图比较宽，可以左右滑动。</p>
+    <div class="scroll">
+<svg class="tl-svg share" viewBox="0 0 988 162" role="img" aria-label="两次作业的时间按类别汇总：冻结占一半以上，写首版代码只占一小段"><line class="grid" x1="14.0" y1="22" x2="14.0" y2="126"/><text class="t-axis" x="14.0" y="140" text-anchor="middle">0</text><line class="grid" x1="101.0" y1="22" x2="101.0" y2="126"/><text class="t-axis" x="101.0" y="140" text-anchor="middle">30</text><line class="grid" x1="188.0" y1="22" x2="188.0" y2="126"/><text class="t-axis" x="188.0" y="140" text-anchor="middle">60</text><line class="grid" x1="275.0" y1="22" x2="275.0" y2="126"/><text class="t-axis" x="275.0" y="140" text-anchor="middle">90</text><line class="grid" x1="362.0" y1="22" x2="362.0" y2="126"/><text class="t-axis" x="362.0" y="140" text-anchor="middle">120</text><line class="grid" x1="449.0" y1="22" x2="449.0" y2="126"/><text class="t-axis" x="449.0" y="140" text-anchor="middle">150</text><line class="grid" x1="536.0" y1="22" x2="536.0" y2="126"/><text class="t-axis" x="536.0" y="140" text-anchor="middle">180</text><line class="grid" x1="623.0" y1="22" x2="623.0" y2="126"/><text class="t-axis" x="623.0" y="140" text-anchor="middle">210</text><line class="grid" x1="710.0" y1="22" x2="710.0" y2="126"/><text class="t-axis" x="710.0" y="140" text-anchor="middle">240</text><line class="grid" x1="797.0" y1="22" x2="797.0" y2="126"/><text class="t-axis" x="797.0" y="140" text-anchor="middle">270</text><line class="grid" x1="884.0" y1="22" x2="884.0" y2="126"/><text class="t-axis" x="884.0" y="140" text-anchor="middle">300</text><text class="t-axis" x="983.6" y="156" text-anchor="end">分钟（按类别汇总，不是时间顺序）</text><text class="t-row" x="14" y="17">parallel off（串行）</text><g class="blk big k-facts" data-tip="写测试事实：34.3 分钟，占作业的 13%"><rect x="15.0" y="26" width="97.6" height="28" rx="4"/><text x="21.0" y="44">34.3</text></g><g class="blk big k-design" data-tip="设计测试：89.9 分钟，占作业的 34%"><rect x="114.6" y="26" width="258.8" height="28" rx="4"/><text x="120.6" y="44">89.9</text></g><g class="blk big k-base" data-tip="测基线：24.7 分钟，占作业的 9%"><rect x="375.5" y="26" width="69.5" height="28" rx="4"/><text x="381.5" y="44">24.7</text></g><g class="blk big k-code" data-tip="写首版代码：43.2 分钟，占作业的 16%"><rect x="446.9" y="26" width="123.3" height="28" rx="4"/><text x="452.9" y="44">43.2</text></g><g class="blk big k-fix" data-tip="重写与修复：53.3 分钟，占作业的 20%"><rect x="572.3" y="26" width="152.6" height="28" rx="4"/><text x="578.3" y="44">53.3</text></g><g class="blk big k-ctl" data-tip="控制器：15.0 分钟，占作业的 6%"><rect x="726.9" y="26" width="41.6" height="28" rx="4"/><text x="732.9" y="44">15.0</text></g><g class="blk big k-rest" data-tip="其他：7.0 分钟，占作业的 3%"><rect x="770.5" y="26" width="18.2" height="28" rx="4"/></g><text class="t-total" x="795.7" y="44">267.5 分</text><text class="t-row" x="14" y="83">parallel on（并行）</text><g class="blk big k-facts" data-tip="写测试事实：22.5 分钟，占作业的 7%"><rect x="15.0" y="92" width="63.2" height="28" rx="4"/><text x="21.0" y="110">22.5</text></g><g class="blk big k-design" data-tip="设计测试：129.5 分钟，占作业的 42%"><rect x="80.2" y="92" width="373.6" height="28" rx="4"/><text x="86.2" y="110">129.5</text></g><g class="blk big k-base" data-tip="测基线：49.2 分钟，占作业的 16%"><rect x="455.8" y="92" width="140.6" height="28" rx="4"/><text x="461.8" y="110">49.2</text></g><g class="blk big k-code" data-tip="写首版代码：44.9 分钟，占作业的 14%"><rect x="598.3" y="92" width="128.1" height="28" rx="4"/><text x="604.3" y="110">44.9</text></g><g class="blk big k-fix" data-tip="重写与修复：37.1 分钟，占作业的 12%"><rect x="728.5" y="92" width="105.5" height="28" rx="4"/><text x="734.5" y="110">37.1</text></g><g class="blk big k-ctl" data-tip="控制器：19.4 分钟，占作业的 6%"><rect x="835.9" y="92" width="54.3" height="28" rx="4"/><text x="841.9" y="110">19.4</text></g><g class="blk big k-rest" data-tip="其他：7.7 分钟，占作业的 2%"><rect x="892.3" y="92" width="20.4" height="28" rx="4"/></g><text class="t-total" x="919.6" y="110">310.2 分</text></svg>
+    </div>
+    <figcaption>蓝色、橙色和深灰是冻结。并行模式在冻结里只让蓝色那段变短了；在写代码里它作用于绿色那段，墙钟没有变短。</figcaption>
+  </figure>
+  <h3>交付出来的东西差不多</h3>
+  <div class="scroll"><table class="q">
+    <thead><tr><th>项目</th><th>parallel off</th><th>parallel on</th></tr></thead>
+    <tbody><tr><th scope="row">冻结的检查（全量对比）</th><td>107 / 107 通过</td><td>108 / 108 通过</td></tr><tr><th scope="row">安装检查</th><td>2 / 2 通过</td><td>2 / 2 通过</td></tr><tr><th scope="row">作者调用次数（尝试）</th><td>5 个会话</td><td>8 个会话</td></tr><tr><th scope="row">交付的源码</th><td>23,531 token，2,893 行</td><td>23,034 token，2,633 行</td></tr><tr><th scope="row">与原版重复的行</th><td>38%（上限 40%）</td><td>32%（上限 40%）</td></tr><tr><th scope="row">原版测试回放：保留下来的 310 个</th><td>通过 310 个</td><td>通过 310 个</td></tr><tr><th scope="row">原版测试回放：依赖内部实现的 142 个</th><td>通过 43 个（原版 139）</td><td>通过 39 个（原版 139）</td></tr><tr><th scope="row">没能进入验收标准的原测试函数</th><td>5 个</td><td>8 个</td></tr></tbody>
+  </table></div>
+  <p class="sub">两次都是「带缺口的完成」：原版测试里有几个测试函数没能进入验收标准，所以不声称完全保持行为。依赖内部实现的原版测试大多在新代码上通不过，这在重写里是预期之内的，只作报告。</p>
+  <h3>要得到可靠的结论还缺什么</h3>
+  <ul class="plain">
+    <li><strong>重复。</strong>每种配置至少再跑两三次，才能把并行的效果和控制器判断、原创性检查带来的波动分开。</li>
+    <li><strong>把两件事分开比。</strong>冻结里的并发放宽和写代码的并行是两个独立的改动。让两次运行共用同一份封存好的契约、只比封存之后的部分，冻结的波动就不会混进来。</li>
+    <li><strong>更大的选中范围。</strong>在串行需要 4 个以上 scope 的项目上再比一次，才是并行模式本来要解决的情形。</li>
+  </ul>
+</section>
+</section>
+
+<section>
+  <h2>逐步记录</h2>
+  <p class="sub">两次作业的每一步，按开始时间排列。浅色底的行是控制器的一轮决定，它后面的几行是这一轮安排的调用。token 是这一步里模型会话的合计，本机步骤不调用模型。</p>
+  <details class="card" open>
+    <summary>parallel off 的全部步骤（作业 267.5 分钟）</summary>
+    <div class="scroll"><table class="num steps"><thead><tr><th>开始（分）</th><th>步骤</th><th>内容</th><th>耗时（分）</th><th>会话</th><th>输入 token</th><th>输出 token</th></tr></thead><tbody><tr class="ctl"><td>+0.5</td><th scope="row">控制器第 1 轮</th><td class="what">开始冻结：建工作区，让主线走完前两步（写测试事实、测基线），看过基线覆盖再决定设计什么。</td><td>0.5</td><td>1</td><td>63k</td><td>3k</td></tr><tr><td>+1.0</td><th scope="row">准备</th><td class="what">建立原版和候选两个隔离的工作区</td><td>0.1</td><td>—</td><td>—</td><td>—</td></tr><tr><td>+1.1</td><th scope="row">写测试事实</th><td class="what">为 15 个检查写出 537 条事实，丢弃 30 条：写的会话和评审的会话各一批，同时最多 8 个</td><td>34.3</td><td>78</td><td>18.3M</td><td>1528k</td></tr><tr><td>+35.5</td><th scope="row">测基线</th><td class="what">在原版上跑 16 个检查，重复运行并逐个叶节点做敲除，确认每个叶节点都有真正测到它的测试</td><td>3.6</td><td>—</td><td>—</td><td>—</td></tr><tr class="ctl"><td>+39.1</td><th scope="row">控制器第 2 轮</th><td class="what">基线可用，但 4 个叶节点没有有效测试、142 个原测试待迁移。一次设计调用覆盖全部目标，只需再测一次基线。</td><td>1.2</td><td>1</td><td>105k</td><td>6k</td></tr><tr><td>+40.3</td><th scope="row">设计测试</th><td class="what">接受 75 个设计测试（14 个叶节点）和 16 个场景文件（317 个用例），驳回 18 个测试提案。耗时含之后的再测基线</td><td>111.0</td><td>38</td><td>52.4M</td><td>2184k</td></tr><tr class="ctl"><td>+151.3</td><th scope="row">控制器第 3 轮</th><td class="what">所有叶节点都有有效测试，封存契约。</td><td>0.4</td><td>1</td><td>73k</td><td>2k</td></tr><tr><td>+151.7</td><th scope="row">封存契约</th><td class="what">137 个文件归验证方持有，之后测试和基线不再改</td><td>0.4</td><td>—</td><td>—</td><td>—</td></tr><tr class="ctl"><td>+152.1</td><th scope="row">控制器第 4 轮</th><td class="what">契约已封存。两个 scope 依次写（scope-2 建立在 scope-1 之上），保存为首个候选，再做全量对比和安装检查。</td><td>4.3</td><td>1</td><td>618k</td><td>29k</td></tr><tr><td>+156.4</td><th scope="row">写首版代码</th><td class="what">作者写 scope-1 的首版（3.7 万原版 token）：类型协议、绑定日志器、输出日志器、contextvars、日志级别、调用点辅助、traceback、处理器、控制台渲染器、配置、线程本地上下文</td><td>26.9</td><td>1</td><td>12.6M</td><td>176k</td></tr><tr><td>+183.3</td><th scope="row">写首版代码</th><td class="what">作者写 scope-2 的首版（1.55 万原版 token）：stdlib 集成、twisted、testing、包入口和打包。它建立在 scope-1 之上，所以排在后面</td><td>16.3</td><td>1</td><td>8.4M</td><td>103k</td></tr><tr><td>+199.6</td><th scope="row">保存候选</th><td class="what">保存被拒：45% / 1353 行与原版重复，未生成候选</td><td>&lt;0.1</td><td>—</td><td>—</td><td>—</td></tr><tr class="ctl"><td>+199.7</td><th scope="row">控制器第 5 轮</th><td class="what">首次保存被拒（45% 与原版重复）。每个 scope 各叫一次作者重写，然后保存、对比。</td><td>5.3</td><td>1</td><td>502k</td><td>35k</td></tr><tr><td>+205.0</td><th scope="row">重写 / 修复</th><td class="what">保存被拒后重写 scope-1：全部草稿有 45% 的行与原版重复（上限 40%），要求换成自己的实现</td><td>30.2</td><td>1</td><td>16.7M</td><td>156k</td></tr><tr><td>+235.2</td><th scope="row">重写 / 修复</th><td class="what">保存被拒后重写 scope-2</td><td>18.4</td><td>1</td><td>6.9M</td><td>118k</td></tr><tr><td>+253.7</td><th scope="row">保存候选</th><td class="what">保存为候选 2</td><td>0.1</td><td>—</td><td>—</td><td>—</td></tr><tr><td>+253.7</td><th scope="row">全量对比</th><td class="what">1 个检查失败（控制台渲染器）</td><td>2.0</td><td>—</td><td>—</td><td>—</td></tr><tr><td>+255.7</td><th scope="row">安装检查</th><td class="what">在全新的隔离环境里构建并检查：通过</td><td>0.2</td><td>—</td><td>—</td><td>—</td></tr><tr class="ctl"><td>+256.0</td><th scope="row">控制器第 6 轮</th><td class="what">候选 2 只有 check-41 失败（控制台渲染器里一处 AttributeError）。一次定向修复，再对比、交付。</td><td>3.2</td><td>1</td><td>790k</td><td>20k</td></tr><tr><td>+259.2</td><th scope="row">重写 / 修复</th><td class="what">定向修复：候选 2 只有 check-41（控制台渲染器）失败。按规则这次调用可以读该能力的 2 个原版文件</td><td>4.6</td><td>1</td><td>694k</td><td>27k</td></tr><tr><td>+263.9</td><th scope="row">保存候选</th><td class="what">保存为候选 3</td><td>0.1</td><td>—</td><td>—</td><td>—</td></tr><tr><td>+264.0</td><th scope="row">定向对比</th><td class="what">只跑上次失败的检查：通过</td><td>0.6</td><td>—</td><td>—</td><td>—</td></tr><tr><td>+264.6</td><th scope="row">全量对比</th><td class="what">所有冻结的检查通过</td><td>2.0</td><td>—</td><td>—</td><td>—</td></tr><tr><td>+266.6</td><th scope="row">安装检查</th><td class="what">在全新的隔离环境里构建并检查：通过</td><td>0.2</td><td>—</td><td>—</td><td>—</td></tr><tr><td>+266.8</td><th scope="row">选定候选</th><td class="what">选定通过对比和安装检查的候选</td><td>&lt;0.1</td><td>—</td><td>—</td><td>—</td></tr><tr><td>+266.9</td><th scope="row">交付</th><td class="what">交付（带缺口的完成），并在新代码上回放原版测试</td><td>0.6</td><td>—</td><td>—</td><td>—</td></tr></tbody></table></div>
+  </details>
+  <details class="card" open>
+    <summary>parallel on 的全部步骤（作业 310.2 分钟）</summary>
+    <div class="scroll"><table class="num steps"><thead><tr><th>开始（分）</th><th>步骤</th><th>内容</th><th>耗时（分）</th><th>会话</th><th>输入 token</th><th>输出 token</th></tr></thead><tbody><tr class="ctl"><td>+0.5</td><th scope="row">控制器第 1 轮</th><td class="what">开始冻结：建工作区，让主线走完前两步（写测试事实、测基线）。</td><td>0.9</td><td>1</td><td>71k</td><td>5k</td></tr><tr><td>+1.3</td><th scope="row">准备</th><td class="what">建立原版和候选两个隔离的工作区</td><td>0.1</td><td>—</td><td>—</td><td>—</td></tr><tr><td>+1.4</td><th scope="row">写测试事实</th><td class="what">为 15 个检查写出 532 条事实，丢弃 22 条：写的会话和评审的会话各一批，同时最多 16 个</td><td>22.5</td><td>74</td><td>16.2M</td><td>1383k</td></tr><tr><td>+23.9</td><th scope="row">测基线</th><td class="what">在原版上跑 16 个检查，重复运行并逐个叶节点做敲除，确认每个叶节点都有真正测到它的测试</td><td>3.4</td><td>—</td><td>—</td><td>—</td></tr><tr class="ctl"><td>+27.3</td><th scope="row">控制器第 2 轮</th><td class="what">基线可用，但 4 个叶节点没有有效测试、142 个原测试待迁移。一次设计调用覆盖全部目标。</td><td>0.8</td><td>1</td><td>77k</td><td>4k</td></tr><tr><td>+28.1</td><th scope="row">设计测试</th><td class="what">接受 71 个设计测试（14 个叶节点）和 16 个场景文件（345 个用例），驳回 27 个测试提案。耗时含之后的再测基线</td><td>125.8</td><td>41</td><td>57.3M</td><td>2446k</td></tr><tr class="ctl"><td>+153.9</td><th scope="row">控制器第 3 轮</th><td class="what">所有叶节点已有有效测试，但控制台渲染器的 8 个原测试迁移被拒、仍未验证。这个缺口封存后就定死了，所以先为它再设计一次。</td><td>1.2</td><td>1</td><td>81k</td><td>6k</td></tr><tr><td>+155.1</td><th scope="row">设计测试</th><td class="what">接受 3 个设计测试（1 个叶节点）和 2 个场景文件（21 个用例），驳回 4 个测试提案。耗时含之后的再测基线</td><td>49.5</td><td>3</td><td>4.8M</td><td>145k</td></tr><tr class="ctl"><td>+204.6</td><th scope="row">控制器第 4 轮</th><td class="what">重试又接受了 3 个测试，但 8 个原测试一个都没迁移成功。再试一次约 50 分钟，不值得，带着这个缺口封存。</td><td>0.4</td><td>1</td><td>77k</td><td>2k</td></tr><tr><td>+205.0</td><th scope="row">封存契约</th><td class="what">138 个文件归验证方持有，之后测试和基线不再改</td><td>0.4</td><td>—</td><td>—</td><td>—</td></tr><tr class="ctl"><td>+205.4</td><th scope="row">控制器第 5 轮</th><td class="what">契约已封存。分层写：先写地基 scope-1，保存后把 scope 3、2、4 交给三个作者同时写再合并。</td><td>5.0</td><td>1</td><td>825k</td><td>29k</td></tr><tr><td>+210.4</td><th scope="row">写首版代码</th><td class="what">作者写地基 scope-1 的首版（2.06 万原版 token）：7 个能力，其余 3 个 scope 都建立在它之上，所以单独先写</td><td>20.3</td><td>1</td><td>11.4M</td><td>125k</td></tr><tr><td>+230.7</td><th scope="row">保存候选</th><td class="what">保存被拒：33% / 448 行与原版重复，未生成候选</td><td>&lt;0.1</td><td>—</td><td>—</td><td>—</td></tr><tr class="ctl"><td>+230.7</td><th scope="row">控制器第 6 轮</th><td class="what">地基的保存只因 1 个函数超限被拒。让作者只改这个函数，保存后启动并行组。</td><td>1.6</td><td>1</td><td>178k</td><td>11k</td></tr><tr><td>+232.3</td><th scope="row">重写 / 修复</th><td class="what">保存被拒后只改 1 个函数：ExceptionDictTransformer.__call__ 有 64% 与原版重复（单函数上限 60%）</td><td>5.7</td><td>1</td><td>811k</td><td>33k</td></tr><tr><td>+238.0</td><th scope="row">保存候选</th><td class="what">保存为候选 2</td><td>0.1</td><td>—</td><td>—</td><td>—</td></tr><tr><td>+238.1</td><th scope="row">并行组</th><td class="what">3 个作者同时写 scope 2、3、4，各在自己的工作区；合并为 候选 6，无冲突、无重跑</td><td>24.6</td><td>3</td><td>20.5M</td><td>366k</td></tr><tr class="ctl"><td>+262.7</td><th scope="row">控制器第 7 轮</th><td class="what">合并无冲突。先对候选 6 做全量对比和安装检查；scope-3 那次调用有 44% 的行与原版重复，叫它的作者重写这些函数。</td><td>3.2</td><td>1</td><td>344k</td><td>19k</td></tr><tr><td>+265.9</td><th scope="row">全量对比</th><td class="what">1 个检查失败（文档配置）</td><td>1.4</td><td>—</td><td>—</td><td>—</td></tr><tr><td>+267.4</td><th scope="row">安装检查</th><td class="what">在全新的隔离环境里构建并检查：通过</td><td>0.2</td><td>—</td><td>—</td><td>—</td></tr><tr><td>+267.6</td><th scope="row">重写 / 修复</th><td class="what">合并后，控制器让 scope-3 的作者重写控制台渲染器里与原版重复的函数（那次调用有 44% 的行与原版重复）</td><td>22.5</td><td>1</td><td>7.5M</td><td>130k</td></tr><tr><td>+290.1</td><th scope="row">保存候选</th><td class="what">保存为候选 7</td><td>0.1</td><td>—</td><td>—</td><td>—</td></tr><tr><td>+290.2</td><th scope="row">全量对比</th><td class="what">1 个检查失败（文档配置）</td><td>1.5</td><td>—</td><td>—</td><td>—</td></tr><tr class="ctl"><td>+291.7</td><th scope="row">控制器第 8 轮</th><td class="what">候选 6 和 7 都只有 check-20（docs/conf.py）失败，事实记录被截断、给不出确切取值。标记这个检查，借出原版文件做一次定向修复。</td><td>4.0</td><td>1</td><td>1.1M</td><td>23k</td></tr><tr><td>+295.7</td><th scope="row">标记检查</th><td class="what">把 check-20 标为事实记录不完整</td><td>&lt;0.1</td><td>—</td><td>—</td><td>—</td></tr><tr><td>+295.7</td><th scope="row">重写 / 修复</th><td class="what">定向修复 docs/conf.py（check-20），借出了原版文件。保存被拒：这个文件 60% 与原版重复</td><td>2.4</td><td>1</td><td>503k</td><td>12k</td></tr><tr><td>+298.1</td><th scope="row">保存候选</th><td class="what">保存被拒：60% / 53 行与原版重复，未生成候选</td><td>&lt;0.1</td><td>—</td><td>—</td><td>—</td></tr><tr class="ctl"><td>+298.2</td><th scope="row">控制器第 9 轮</th><td class="what">这次修复因 60% 与原版重复被拒。按规则把文件退回作者一次，不给原版，换成自己的写法；然后保存、对比、交付。</td><td>2.3</td><td>1</td><td>376k</td><td>14k</td></tr><tr><td>+300.4</td><th scope="row">重写 / 修复</th><td class="what">不给原版，让作者把 docs/conf.py 换成自己的写法</td><td>6.6</td><td>1</td><td>1.0M</td><td>37k</td></tr><tr><td>+307.0</td><th scope="row">保存候选</th><td class="what">保存为候选 9</td><td>0.1</td><td>—</td><td>—</td><td>—</td></tr><tr><td>+307.1</td><th scope="row">定向对比</th><td class="what">只跑上次失败的检查：通过</td><td>0.8</td><td>—</td><td>—</td><td>—</td></tr><tr><td>+307.9</td><th scope="row">全量对比</th><td class="what">所有冻结的检查通过</td><td>1.5</td><td>—</td><td>—</td><td>—</td></tr><tr><td>+309.3</td><th scope="row">安装检查</th><td class="what">在全新的隔离环境里构建并检查：通过</td><td>0.3</td><td>—</td><td>—</td><td>—</td></tr><tr><td>+309.6</td><th scope="row">选定候选</th><td class="what">选定通过对比和安装检查的候选</td><td>&lt;0.1</td><td>—</td><td>—</td><td>—</td></tr><tr><td>+309.6</td><th scope="row">交付</th><td class="what">交付（带缺口的完成），并在新代码上回放原版测试</td><td>0.6</td><td>—</td><td>—</td><td>—</td></tr></tbody></table></div>
+  </details>
+  <details class="card">
+    <summary>控制器每一轮的理由（原文，parallel off）</summary>
+    <ol class="reasons"><li><strong>第 1 轮（+1.0 分）</strong>　调用：<code>create_workspace</code><br><span class="orig" lang="en">Start the freeze: create the worktrees and read the readiness audit, leaf test policy and freeze steps. Then let the mainline take its next two freeze steps (environment preparation if the owner configured recipes, otherwise test facts and the baseline capture) so I can read the baseline&#x27;s leaf coverage before the seal and decide how to design leaf tests.</span></li><li><strong>第 2 轮（+40.3 分）</strong>　调用：<code>design_leaf_tests</code><br><span class="orig" lang="en">The baseline is usable and its capture took only 215 s, but one design call for every target still costs the fewest recaptures. This call designs for all 4 leaves without a valid test and the 142 original tests to migrate across 12 leaves. I am not sealing in the same batch: after the seal no tool designs any more, so I want to read per_leaf first and retry any leaf still without a valid test (freeze_seconds_left 19257 leaves room) before caps become permanent.</span></li><li><strong>第 3 轮（+151.7 分）</strong>　调用：<code>seal_contract</code><br><span class="orig" lang="en">The single design call left every selected leaf with a valid test (missing_leaves 0, leaf_coverage ready) and the context shows no design_left, so another design call would have nothing to target; the 5 original tests still unverified (4 console-renderer, 1 stdlib) were already given to a designer. Seal now, with no waiver needed. I am not delegating past the seal: scopes, the contract and the knowledge records only appear once it is sealed, and I want to read them and the caps before I write the first author call&#x27;s instructions.</span></li><li><strong>第 4 轮（+156.4 分）</strong>　调用：<code>run_agent, run_agent, save_candidate, compare_behavior, check_installation, select_candidate, deliver</code><br><span class="orig" lang="en">The contract is sealed with every leaf covered, so the rewrite starts. The graph is two scopes: I implement scope-1 then scope-2 (which builds on it and owns the package namespace and packaging), each with its own instructions, save both as the first candidate, then collect its full evidence (full comparison and installation check). Select and deliver are conditional on a passed full comparison, and best_reachable holds the delivery back if installation fails or a closable gap remains, so any failure comes back to me for a repair round.</span></li><li><strong>第 5 轮（+205.0 分）</strong>　调用：<code>run_agent, run_agent, save_candidate, compare_behavior, check_installation, select_candidate, deliver</code><br><span class="orig" lang="en">The first save was refused as reproducing the original (45% of compared lines against a 40% limit, recreate_defaults at 85%), so nothing can be saved or verified until the author rewrites. I ask once per scope, naming the measured functions and asking for own code from the knowledge with the least structure (no renaming or reformatting), scope-1 first because scope-2 builds on it. Then save and collect the candidate&#x27;s full evidence; select and deliver stay conditional on a passed full comparison, and best_reachable holds delivery back if installation fails.</span></li><li><strong>第 6 轮（+259.2 分）</strong>　调用：<code>run_agent, save_candidate, compare_behavior, compare_behavior, check_installation, select_candidate, deliver</code><br><span class="orig" lang="en">candidate-2 fails only check-41: one case raises AttributeError in the author&#x27;s own code at src/structlog/dev.py:299, tied to the fact about ConsoleRenderer built with columns plus all seven ignored arguments; the other 106 checks and installation pass. One focused repair call on the console renderer with the issue id, the confirmed observation, my labelled hypotheses and the expected behavior from the records; then save, screen check-41, compare in full, check installation, and select and deliver (best_reachable) only if everything passed, so any new failure comes back to me.</span></li></ol>
+  </details>
+  <details class="card">
+    <summary>控制器每一轮的理由（原文，parallel on）</summary>
+    <ol class="reasons"><li><strong>第 1 轮（+1.3 分）</strong>　调用：<code>create_workspace</code><br><span class="orig" lang="en">Nothing is frozen yet, so start the freeze with create_workspace and let the mainline take its next two freeze steps (preparation recipes or test facts and the baseline capture). Stopping there keeps the job short of the seal, so I can read the readiness audit, the leaf test policy and which leaves lack a valid test before choosing what to design for and when to seal.</span></li><li><strong>第 2 轮（+28.1 分）</strong>　调用：<code>design_leaf_tests</code><br><span class="orig" lang="en">The baseline is usable, but 4 selected leaves have no valid test and 142 original tests across 12 leaves are still to migrate. One design call for every target costs a single re-capture of the baseline, so I design for all of them at once. I do not seal in the same batch: a leaf still without a valid test becomes a permanent cap after the seal, so I want to read per_leaf and left first and decide whether to design again for the leaves that got nothing (there is about 5.5 h of freeze time) or to seal.</span></li><li><strong>第 3 轮（+155.1 分）</strong>　调用：<code>design_leaf_tests, seal_contract</code><br><span class="orig" lang="en">Every selected leaf now has a valid test and nothing is left to design for, but 8 original console-renderer tests stayed unverified after their migrations were rejected. That gap becomes permanent at the seal and would cap the delivery at completed_with_gaps, so I make one more design call for that leaf alone while about 3.4 h of freeze time remain. If it has no target (not_run) or is blocked, the seal follows in the same batch. If designers do run, I read the new baseline before sealing. No follow: after the seal I want to read the scopes and clusters before the first author calls.</span></li><li><strong>第 4 轮（+205.0 分）</strong>　调用：<code>seal_contract, seal_contract</code><br><span class="orig" lang="en">The retry for the console renderer accepted 3 more tests but migrated none of its 8 original tests, the same result as the first design call, so a third 50-minute attempt is unlikely to close that gap and would eat into the 8.4 h left for writing and verifying. Every selected leaf has a valid test and nothing is left to design for, so I seal now; if the seal is refused over leftover design targets, the second call seals with a waiver. No follow: I want to read the scopes, clusters and caps before writing the first author instructions.</span></li><li><strong>第 5 轮（+210.4 分）</strong>　调用：<code>run_agent, save_candidate, run_parallel_agents</code><br><span class="orig" lang="en">The contract is sealed and no code exists yet, so I start the rewrite layer by layer as the parallel mainline would, but with my own instructions: the foundation scope first, with what the three later scopes need from it (fixed module names, a minimal __init__, shared helpers, objects that must be identical under several names), then its save, then one split group for scopes 3, 2 and 4 with the conventions parallel authors cannot agree on by themselves (the output loggers&#x27; module, who owns __init__.py and the packaging, reaching configuration at run time, no stand-ins left behind). No follow: I want to read the split&#x27;s conflicts, reruns and unsaved requests before the call that puts the package together and before verifying.</span></li><li><strong>第 6 轮（+232.3 分）</strong>　调用：<code>run_agent, save_candidate, run_parallel_agents</code><br><span class="orig" lang="en">The foundation&#x27;s save was refused only because one function, ExceptionDictTransformer.__call__ in tracebacks.py, repeats the original beyond the per-function limit (64% of 14 lines; the drafts as a whole are at 33%, under the 40% limit). So I call the scope-1 author once more for that one method, asking for its own code from the tracebacks knowledge records and nothing else changed, then save again and, once a foundation candidate exists, run the second layer (scopes 3, 2 and 4) as the split group I prepared last round. No follow: I want to read the split&#x27;s conflicts, reruns and unsaved requests before putting the package together and verifying.</span></li><li><strong>第 7 轮（+265.9 分）</strong>　调用：<code>compare_behavior, check_installation, run_agent, save_candidate, compare_behavior, check_installation, select_candidate, deliver</code><br><span class="orig" lang="en">The split merged without conflicts or reruns, so I first take the evidence of candidate-6 as it is (full comparison, installation): it is cheap and gives a baseline and a possible fallback. The scope-3 call measured 44% of its lines as the original&#x27;s, above the owner&#x27;s 40% limit, with ConsoleRenderer.__init__, __call__ and columns listed, so I ask that author once for its own code there, before any repair call could read the original, and to check its package namespace against the real merged modules in place of the mainline&#x27;s blind put-together call. Then save, compare in full, check installation and, only if everything passes, select and deliver best_reachable; any failure leaves the later calls untriggered for my next round.</span></li><li><strong>第 8 轮（+295.7 分）</strong>　调用：<code>flag_check, run_agent, save_candidate, compare_behavior, compare_behavior, check_installation, select_candidate, deliver</code><br><span class="orig" lang="en">One check fails, check-20 on docs/conf.py, the same on candidates 6 and 7; all others pass. Its failing case is tied to fact .20 (every public setting with its value), whose record is cut off, and no record gives the exact mermaid_init_js, man_pages, texinfo_documents or linkcheck patterns, so I flag the check for the owner and make one repair call for that capability alone with the issue id: it follows the failed comparison of the current candidate, so the author gets the failed cases and, where the owner lends it, the original file for the values. Then save, screen the four docs checks, compare in full, check installation, select and deliver best_reachable, each only after the step before passed; I skip the mainline&#x27;s put-together call because the merged package already passes every other check.</span></li><li><strong>第 9 轮（+300.4 分）</strong>　调用：<code>run_agent, save_candidate, compare_behavior, compare_behavior, check_installation, select_candidate, deliver</code><br><span class="orig" lang="en">The repair of docs/conf.py, made with the original lent, was refused at the save for reproducing the original (60% of 53 compared lines, limit 40%). The owner&#x27;s rule sends such a file back once, so I call its author once more, without the original, to write the file as its own program while every value a run leaves stays exactly as the draft gives it (recorded before, compared after), with no renaming, reformatting or disguise. Then save, screen the four docs checks, compare in full, check installation, select and deliver best_reachable, each only after the step before passed; any failure or refusal leaves the rest untriggered for my next round.</span></li></ol>
+  </details>
+</section>
+
+<section>
+  <h2>名词和口径</h2>
+  <dl class="terms">
+    <dt>scope</dt><dd>一组文件互不重叠的能力，最多 4.5 万原版 token，交给一个作者会话写。并行模式下划成一个地基加几个互不依赖的部分。</dd>
+    <dt>冻结</dt><dd>写测试事实、测原版基线、设计测试、封存契约。封存后测试和基线不再改，之后才开始写代码。</dd>
+    <dt>原创性检查</dt><dd>保存候选时把新代码和原版逐行比较。重复超过 40%，或单个函数超过 60%，就拒绝保存。</dd>
+    <dt>墙钟时间</dt><dd>实际流逝的时间。几个会话同时进行时，墙钟时间小于它们各自时长的总和。</dd>
+    <dt>输入 token</dt><dd>会话每一轮发给模型的全部内容，含缓存读取。输出 token 含模型的思考。</dd>
+  </dl>
+  <ul class="plain">
+    <li>数据来自两次作业自己的记录：每个模型会话的起止时间和用量，每个步骤的起止时间。各部分的墙钟时间相加等于作业总时长。</li>
+    <li>两次作业的清单、选中范围、基准提交、运行器、时限和 nanolize 版本相同。不同的只有并行模式：最多 4 个作者同时写，并且放宽三处并发（冻结里的模型会话 8 → 16，敲除检查 4 → 8，同时运行的检查 1 → 8）。</li>
+    <li>两次作业有一段重叠：off 写代码的时候，on 正在冻结，两边同时调用模型。off 的写代码阶段可能因此略慢。</li>
+    <li>off 的最后一次修复和 on 的一次文档修复，按规则借给作者看了对应能力的原版文件。</li>
+    <li>页面里没有写出运行所在的机器、路径和账号。</li>
+  </ul>
+</section>
+
+<footer>nanolize parallel on / off 实测对比 · structlog 26.1.0 · 2026-11-19</footer>
+</div>
+<div id="tip" role="status" hidden></div>
+<script>
+(function () {
+  var fig = document.querySelector('.tl');
+  var tip = document.getElementById('tip');
+  var buttons = Array.prototype.slice.call(document.querySelectorAll('button.lg'));
+  buttons.forEach(function (button) {
+    button.addEventListener('click', function () {
+      var on = button.getAttribute('aria-pressed') === 'true';
+      buttons.forEach(function (other) { other.setAttribute('aria-pressed', 'false'); });
+      if (on) { fig.removeAttribute('data-focus'); return; }
+      button.setAttribute('aria-pressed', 'true');
+      fig.setAttribute('data-focus', button.getAttribute('data-kind'));
+    });
+  });
+  function hide() { tip.hidden = true; }
+  function show(event) {
+    var block = event.target.closest ? event.target.closest('.blk') : null;
+    if (!block) { hide(); return; }
+    tip.textContent = block.getAttribute('data-tip');
+    tip.hidden = false;
+    var box = tip.getBoundingClientRect();
+    var left = Math.min(event.clientX + 12, window.innerWidth - box.width - 8);
+    var top = event.clientY + 16;
+    if (top + box.height > window.innerHeight - 8) { top = event.clientY - box.height - 10; }
+    tip.style.left = Math.max(8, left) + 'px';
+    tip.style.top = Math.max(8, top) + 'px';
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('.tips'), function (box) {
+    box.addEventListener('pointermove', show);
+    box.addEventListener('pointerdown', show);
+    box.addEventListener('pointerleave', hide);
+  });
+  window.addEventListener('scroll', hide, { passive: true });
+})();
+</script>
+</body>
+</html>
