@@ -197,7 +197,7 @@
 <text class="t-phase" x="691.0" y="64" text-anchor="middle">首版实现</text>
 <path class="bracket" d="M778 71 V68 H944 V71"/>
 <text class="t-phase" x="861.0" y="64" text-anchor="middle">验证与修复</text>
-<g class="blk k-step" data-tip="准备：建 workspace，抓一次原版 baseline"><rect x="97" y="74" width="32" height="18" rx="4"/><text x="113.0" y="87" text-anchor="middle">准备</text></g>
+<g class="blk k-step" data-tip="准备：建 workspace，第一次抓原版 baseline（已有测试的 leaf 在这一步做 knockout，图里没有单独画）"><rect x="97" y="74" width="32" height="18" rx="4"/><text x="113.0" y="87" text-anchor="middle">准备</text></g>
 <g class="blk k-test" data-tip="设计者 session：给 leaf 1 写测试"><rect x="131" y="74" width="32" height="18" rx="4"/><text x="147.0" y="87" text-anchor="middle">L1</text></g>
 <g class="blk k-test" data-tip="设计者 session：给 leaf 2 写测试"><rect x="165" y="74" width="32" height="18" rx="4"/><text x="181.0" y="87" text-anchor="middle">L2</text></g>
 <g class="blk k-test" data-tip="设计者 session：给 leaf 3 写测试"><rect x="199" y="74" width="32" height="18" rx="4"/><text x="215.0" y="87" text-anchor="middle">L3</text></g>
@@ -205,12 +205,12 @@
 <g class="blk k-test" data-tip="设计者 session：给 leaf 5 写测试"><rect x="267" y="74" width="32" height="18" rx="4"/><text x="283.0" y="87" text-anchor="middle">L5</text></g>
 <g class="blk k-test" data-tip="设计者 session：给 leaf 6 写测试"><rect x="301" y="74" width="32" height="18" rx="4"/><text x="317.0" y="87" text-anchor="middle">L6</text></g>
 <g class="blk k-test" data-tip="评审 session：检查设计出来的测试文件（一个评审者最多读 8 个文件）"><rect x="335" y="74" width="32" height="18" rx="4"/><text x="351.0" y="87" text-anchor="middle">评审</text></g>
-<g class="blk k-ko" data-tip="knockout：在原版副本里禁用 leaf 1 的代码，重跑 check，确认测试真的在测它"><rect x="369" y="74" width="32" height="18" rx="4"/><text x="385.0" y="87" text-anchor="middle">K1</text></g>
-<g class="blk k-ko" data-tip="knockout：在原版副本里禁用 leaf 2 的代码，重跑 check，确认测试真的在测它"><rect x="403" y="74" width="32" height="18" rx="4"/><text x="419.0" y="87" text-anchor="middle">K2</text></g>
-<g class="blk k-ko" data-tip="knockout：在原版副本里禁用 leaf 3 的代码，重跑 check，确认测试真的在测它"><rect x="437" y="74" width="32" height="18" rx="4"/><text x="453.0" y="87" text-anchor="middle">K3</text></g>
-<g class="blk k-ko" data-tip="knockout：在原版副本里禁用 leaf 4 的代码，重跑 check，确认测试真的在测它"><rect x="471" y="74" width="32" height="18" rx="4"/><text x="487.0" y="87" text-anchor="middle">K4</text></g>
-<g class="blk k-ko" data-tip="knockout：在原版副本里禁用 leaf 5 的代码，重跑 check，确认测试真的在测它"><rect x="505" y="74" width="32" height="18" rx="4"/><text x="521.0" y="87" text-anchor="middle">K5</text></g>
-<g class="blk k-ko" data-tip="knockout：在原版副本里禁用 leaf 6 的代码，重跑 check，确认测试真的在测它"><rect x="539" y="74" width="32" height="18" rx="4"/><text x="555.0" y="87" text-anchor="middle">K6</text></g>
+<g class="blk k-ko" data-tip="knockout：第二次抓 baseline 时，在原版副本里禁用 leaf 1 的代码，重跑 check，确认新写的测试真的在测它"><rect x="369" y="74" width="32" height="18" rx="4"/><text x="385.0" y="87" text-anchor="middle">K1</text></g>
+<g class="blk k-ko" data-tip="knockout：第二次抓 baseline 时，在原版副本里禁用 leaf 2 的代码，重跑 check，确认新写的测试真的在测它"><rect x="403" y="74" width="32" height="18" rx="4"/><text x="419.0" y="87" text-anchor="middle">K2</text></g>
+<g class="blk k-ko" data-tip="knockout：第二次抓 baseline 时，在原版副本里禁用 leaf 3 的代码，重跑 check，确认新写的测试真的在测它"><rect x="437" y="74" width="32" height="18" rx="4"/><text x="453.0" y="87" text-anchor="middle">K3</text></g>
+<g class="blk k-ko" data-tip="knockout：第二次抓 baseline 时，在原版副本里禁用 leaf 4 的代码，重跑 check，确认新写的测试真的在测它"><rect x="471" y="74" width="32" height="18" rx="4"/><text x="487.0" y="87" text-anchor="middle">K4</text></g>
+<g class="blk k-ko" data-tip="knockout：第二次抓 baseline 时，在原版副本里禁用 leaf 5 的代码，重跑 check，确认新写的测试真的在测它"><rect x="505" y="74" width="32" height="18" rx="4"/><text x="521.0" y="87" text-anchor="middle">K5</text></g>
+<g class="blk k-ko" data-tip="knockout：第二次抓 baseline 时，在原版副本里禁用 leaf 6 的代码，重跑 check，确认新写的测试真的在测它"><rect x="539" y="74" width="32" height="18" rx="4"/><text x="555.0" y="87" text-anchor="middle">K6</text></g>
 <g class="blk k-step" data-tip="封存合同：之后测试和 baseline 不再改"><rect x="573" y="74" width="32" height="18" rx="4"/><text x="589.0" y="87" text-anchor="middle">封存</text></g>
 <g class="blk k-code" data-tip="author session：写 scope 1 的代码"><rect x="607" y="74" width="32" height="18" rx="4"/><text x="623.0" y="87" text-anchor="middle">S1</text></g>
 <g class="blk k-code" data-tip="author session：写 scope 2 的代码"><rect x="641" y="74" width="32" height="18" rx="4"/><text x="657.0" y="87" text-anchor="middle">S2</text></g>
@@ -230,7 +230,7 @@
 <text class="t-phase" x="351.0" y="156" text-anchor="middle">首版实现</text>
 <path class="bracket" d="M404 163 V160 H570 V163"/>
 <text class="t-phase" x="487.0" y="156" text-anchor="middle">验证与修复</text>
-<g class="blk k-step" data-tip="准备：建 workspace，抓一次原版 baseline"><rect x="97" y="166" width="32" height="18" rx="4"/><text x="113.0" y="179" text-anchor="middle">准备</text></g>
+<g class="blk k-step" data-tip="准备：建 workspace，第一次抓原版 baseline（已有测试的 leaf 在这一步做 knockout，图里没有单独画）"><rect x="97" y="166" width="32" height="18" rx="4"/><text x="113.0" y="179" text-anchor="middle">准备</text></g>
 <g class="blk k-test" data-tip="设计者 session：给 leaf 1 写测试"><rect x="131" y="166" width="32" height="18" rx="4"/><text x="147.0" y="179" text-anchor="middle">L1</text></g>
 <g class="blk k-test" data-tip="设计者 session：给 leaf 2 写测试"><rect x="131" y="186" width="32" height="18" rx="4"/><text x="147.0" y="199" text-anchor="middle">L2</text></g>
 <g class="blk k-test" data-tip="设计者 session：给 leaf 3 写测试"><rect x="131" y="206" width="32" height="18" rx="4"/><text x="147.0" y="219" text-anchor="middle">L3</text></g>
@@ -238,12 +238,12 @@
 <g class="blk k-test" data-tip="设计者 session：给 leaf 5 写测试"><rect x="131" y="246" width="32" height="18" rx="4"/><text x="147.0" y="259" text-anchor="middle">L5</text></g>
 <g class="blk k-test" data-tip="设计者 session：给 leaf 6 写测试"><rect x="131" y="266" width="32" height="18" rx="4"/><text x="147.0" y="279" text-anchor="middle">L6</text></g>
 <g class="blk k-test" data-tip="评审 session：检查设计出来的测试文件（一个评审者最多读 8 个文件）"><rect x="165" y="166" width="32" height="18" rx="4"/><text x="181.0" y="179" text-anchor="middle">评审</text></g>
-<g class="blk k-ko" data-tip="knockout：在原版副本里禁用 leaf 1 的代码，重跑 check，确认测试真的在测它"><rect x="199" y="166" width="32" height="18" rx="4"/><text x="215.0" y="179" text-anchor="middle">K1</text></g>
-<g class="blk k-ko" data-tip="knockout：在原版副本里禁用 leaf 2 的代码，重跑 check，确认测试真的在测它"><rect x="199" y="186" width="32" height="18" rx="4"/><text x="215.0" y="199" text-anchor="middle">K2</text></g>
-<g class="blk k-ko" data-tip="knockout：在原版副本里禁用 leaf 3 的代码，重跑 check，确认测试真的在测它"><rect x="199" y="206" width="32" height="18" rx="4"/><text x="215.0" y="219" text-anchor="middle">K3</text></g>
-<g class="blk k-ko" data-tip="knockout：在原版副本里禁用 leaf 4 的代码，重跑 check，确认测试真的在测它"><rect x="199" y="226" width="32" height="18" rx="4"/><text x="215.0" y="239" text-anchor="middle">K4</text></g>
-<g class="blk k-ko" data-tip="knockout：在原版副本里禁用 leaf 5 的代码，重跑 check，确认测试真的在测它"><rect x="233" y="166" width="32" height="18" rx="4"/><text x="249.0" y="179" text-anchor="middle">K5</text></g>
-<g class="blk k-ko" data-tip="knockout：在原版副本里禁用 leaf 6 的代码，重跑 check，确认测试真的在测它"><rect x="233" y="186" width="32" height="18" rx="4"/><text x="249.0" y="199" text-anchor="middle">K6</text></g>
+<g class="blk k-ko" data-tip="knockout：第二次抓 baseline 时，在原版副本里禁用 leaf 1 的代码，重跑 check，确认新写的测试真的在测它"><rect x="199" y="166" width="32" height="18" rx="4"/><text x="215.0" y="179" text-anchor="middle">K1</text></g>
+<g class="blk k-ko" data-tip="knockout：第二次抓 baseline 时，在原版副本里禁用 leaf 2 的代码，重跑 check，确认新写的测试真的在测它"><rect x="199" y="186" width="32" height="18" rx="4"/><text x="215.0" y="199" text-anchor="middle">K2</text></g>
+<g class="blk k-ko" data-tip="knockout：第二次抓 baseline 时，在原版副本里禁用 leaf 3 的代码，重跑 check，确认新写的测试真的在测它"><rect x="199" y="206" width="32" height="18" rx="4"/><text x="215.0" y="219" text-anchor="middle">K3</text></g>
+<g class="blk k-ko" data-tip="knockout：第二次抓 baseline 时，在原版副本里禁用 leaf 4 的代码，重跑 check，确认新写的测试真的在测它"><rect x="199" y="226" width="32" height="18" rx="4"/><text x="215.0" y="239" text-anchor="middle">K4</text></g>
+<g class="blk k-ko" data-tip="knockout：第二次抓 baseline 时，在原版副本里禁用 leaf 5 的代码，重跑 check，确认新写的测试真的在测它"><rect x="233" y="166" width="32" height="18" rx="4"/><text x="249.0" y="179" text-anchor="middle">K5</text></g>
+<g class="blk k-ko" data-tip="knockout：第二次抓 baseline 时，在原版副本里禁用 leaf 6 的代码，重跑 check，确认新写的测试真的在测它"><rect x="233" y="186" width="32" height="18" rx="4"/><text x="249.0" y="199" text-anchor="middle">K6</text></g>
 <g class="blk k-step" data-tip="封存合同：之后测试和 baseline 不再改"><rect x="267" y="166" width="32" height="18" rx="4"/><text x="283.0" y="179" text-anchor="middle">封存</text></g>
 <g class="blk k-code" data-tip="author session：写 scope 1 的代码"><rect x="301" y="166" width="32" height="18" rx="4"/><text x="317.0" y="179" text-anchor="middle">S1</text></g>
 <g class="blk k-code" data-tip="author session：写 scope 2 的代码"><rect x="335" y="166" width="32" height="18" rx="4"/><text x="351.0" y="179" text-anchor="middle">S2</text></g>
@@ -261,7 +261,7 @@
 <text class="t-phase" x="198.0" y="348" text-anchor="middle">freeze</text>
 <path class="bracket" d="M336 355 V352 H502 V355"/>
 <text class="t-phase" x="419.0" y="348" text-anchor="middle">验证与修复</text>
-<g class="blk k-step" data-tip="准备：建 workspace，抓一次原版 baseline"><rect x="97" y="358" width="32" height="18" rx="4"/><text x="113.0" y="371" text-anchor="middle">准备</text></g>
+<g class="blk k-step" data-tip="准备：建 workspace，第一次抓原版 baseline（已有测试的 leaf 在这一步做 knockout，图里没有单独画）"><rect x="97" y="358" width="32" height="18" rx="4"/><text x="113.0" y="371" text-anchor="middle">准备</text></g>
 <g class="blk k-test" data-tip="设计者 session：给 leaf 1 写测试"><rect x="131" y="358" width="32" height="18" rx="4"/><text x="147.0" y="371" text-anchor="middle">L1</text></g>
 <g class="blk k-test" data-tip="设计者 session：给 leaf 2 写测试"><rect x="131" y="378" width="32" height="18" rx="4"/><text x="147.0" y="391" text-anchor="middle">L2</text></g>
 <g class="blk k-test" data-tip="设计者 session：给 leaf 3 写测试"><rect x="131" y="398" width="32" height="18" rx="4"/><text x="147.0" y="411" text-anchor="middle">L3</text></g>
@@ -269,12 +269,12 @@
 <g class="blk k-test" data-tip="设计者 session：给 leaf 5 写测试"><rect x="131" y="438" width="32" height="18" rx="4"/><text x="147.0" y="451" text-anchor="middle">L5</text></g>
 <g class="blk k-test" data-tip="设计者 session：给 leaf 6 写测试"><rect x="131" y="458" width="32" height="18" rx="4"/><text x="147.0" y="471" text-anchor="middle">L6</text></g>
 <g class="blk k-test" data-tip="评审 session：检查设计出来的测试文件（一个评审者最多读 8 个文件）"><rect x="165" y="358" width="32" height="18" rx="4"/><text x="181.0" y="371" text-anchor="middle">评审</text></g>
-<g class="blk k-ko" data-tip="knockout：在原版副本里禁用 leaf 1 的代码，重跑 check，确认测试真的在测它"><rect x="199" y="358" width="32" height="18" rx="4"/><text x="215.0" y="371" text-anchor="middle">K1</text></g>
-<g class="blk k-ko" data-tip="knockout：在原版副本里禁用 leaf 2 的代码，重跑 check，确认测试真的在测它"><rect x="199" y="378" width="32" height="18" rx="4"/><text x="215.0" y="391" text-anchor="middle">K2</text></g>
-<g class="blk k-ko" data-tip="knockout：在原版副本里禁用 leaf 3 的代码，重跑 check，确认测试真的在测它"><rect x="199" y="398" width="32" height="18" rx="4"/><text x="215.0" y="411" text-anchor="middle">K3</text></g>
-<g class="blk k-ko" data-tip="knockout：在原版副本里禁用 leaf 4 的代码，重跑 check，确认测试真的在测它"><rect x="199" y="418" width="32" height="18" rx="4"/><text x="215.0" y="431" text-anchor="middle">K4</text></g>
-<g class="blk k-ko" data-tip="knockout：在原版副本里禁用 leaf 5 的代码，重跑 check，确认测试真的在测它"><rect x="233" y="358" width="32" height="18" rx="4"/><text x="249.0" y="371" text-anchor="middle">K5</text></g>
-<g class="blk k-ko" data-tip="knockout：在原版副本里禁用 leaf 6 的代码，重跑 check，确认测试真的在测它"><rect x="233" y="378" width="32" height="18" rx="4"/><text x="249.0" y="391" text-anchor="middle">K6</text></g>
+<g class="blk k-ko" data-tip="knockout：第二次抓 baseline 时，在原版副本里禁用 leaf 1 的代码，重跑 check，确认新写的测试真的在测它"><rect x="199" y="358" width="32" height="18" rx="4"/><text x="215.0" y="371" text-anchor="middle">K1</text></g>
+<g class="blk k-ko" data-tip="knockout：第二次抓 baseline 时，在原版副本里禁用 leaf 2 的代码，重跑 check，确认新写的测试真的在测它"><rect x="199" y="378" width="32" height="18" rx="4"/><text x="215.0" y="391" text-anchor="middle">K2</text></g>
+<g class="blk k-ko" data-tip="knockout：第二次抓 baseline 时，在原版副本里禁用 leaf 3 的代码，重跑 check，确认新写的测试真的在测它"><rect x="199" y="398" width="32" height="18" rx="4"/><text x="215.0" y="411" text-anchor="middle">K3</text></g>
+<g class="blk k-ko" data-tip="knockout：第二次抓 baseline 时，在原版副本里禁用 leaf 4 的代码，重跑 check，确认新写的测试真的在测它"><rect x="199" y="418" width="32" height="18" rx="4"/><text x="215.0" y="431" text-anchor="middle">K4</text></g>
+<g class="blk k-ko" data-tip="knockout：第二次抓 baseline 时，在原版副本里禁用 leaf 5 的代码，重跑 check，确认新写的测试真的在测它"><rect x="233" y="358" width="32" height="18" rx="4"/><text x="249.0" y="371" text-anchor="middle">K5</text></g>
+<g class="blk k-ko" data-tip="knockout：第二次抓 baseline 时，在原版副本里禁用 leaf 6 的代码，重跑 check，确认新写的测试真的在测它"><rect x="233" y="378" width="32" height="18" rx="4"/><text x="249.0" y="391" text-anchor="middle">K6</text></g>
 <g class="blk k-step" data-tip="封存合同：之后测试和 baseline 不再改"><rect x="267" y="358" width="32" height="18" rx="4"/><text x="283.0" y="371" text-anchor="middle">封存</text></g>
 <g class="blk k-step" data-tip="导入草稿：把 draft job 写好的首版存成本作业的第一个候选"><rect x="301" y="358" width="32" height="18" rx="4"/><text x="317.0" y="371" text-anchor="middle">导入</text></g>
 <g class="blk k-step" data-tip="第一次全量比较：候选代码在所有 check 上对比原版 baseline。之后 controller 才开始参与"><rect x="335" y="358" width="32" height="18" rx="4"/><text x="351.0" y="371" text-anchor="middle">比较</text></g>
@@ -299,7 +299,7 @@
 <text class="t-phase" x="181.0" y="632" text-anchor="middle">freeze</text>
 <path class="bracket" d="M302 639 V636 H400 V639"/>
 <text class="t-phase" x="351.0" y="632" text-anchor="middle">验证与修复</text>
-<g class="blk k-step" data-tip="准备：建 workspace，抓一次原版 baseline"><rect x="97" y="642" width="32" height="18" rx="4"/><text x="113.0" y="655" text-anchor="middle">准备</text></g>
+<g class="blk k-step" data-tip="准备：建 workspace，第一次抓原版 baseline（已有测试的 leaf 在这一步做 knockout，图里没有单独画）"><rect x="97" y="642" width="32" height="18" rx="4"/><text x="113.0" y="655" text-anchor="middle">准备</text></g>
 <g class="blk k-test" data-tip="设计者 session：给 leaf 1 写测试"><rect x="131" y="642" width="32" height="18" rx="4"/><text x="147.0" y="655" text-anchor="middle">L1</text></g>
 <g class="blk k-test" data-tip="设计者 session：给 leaf 2 写测试"><rect x="131" y="662" width="32" height="18" rx="4"/><text x="147.0" y="675" text-anchor="middle">L2</text></g>
 <g class="blk k-test" data-tip="设计者 session：给 leaf 3 写测试"><rect x="131" y="682" width="32" height="18" rx="4"/><text x="147.0" y="695" text-anchor="middle">L3</text></g>
@@ -307,12 +307,12 @@
 <g class="blk k-test" data-tip="设计者 session：给 leaf 5 写测试"><rect x="131" y="722" width="32" height="18" rx="4"/><text x="147.0" y="735" text-anchor="middle">L5</text></g>
 <g class="blk k-test" data-tip="设计者 session：给 leaf 6 写测试"><rect x="131" y="742" width="32" height="18" rx="4"/><text x="147.0" y="755" text-anchor="middle">L6</text></g>
 <g class="blk k-test" data-tip="评审 session：检查设计出来的测试文件（一个评审者最多读 8 个文件）"><rect x="165" y="642" width="32" height="18" rx="4"/><text x="181.0" y="655" text-anchor="middle">评审</text></g>
-<g class="blk k-ko" data-tip="knockout：在原版副本里禁用 leaf 1 的代码，重跑 check，确认测试真的在测它"><rect x="199" y="642" width="32" height="18" rx="4"/><text x="215.0" y="655" text-anchor="middle">K1</text></g>
-<g class="blk k-ko" data-tip="knockout：在原版副本里禁用 leaf 2 的代码，重跑 check，确认测试真的在测它"><rect x="199" y="662" width="32" height="18" rx="4"/><text x="215.0" y="675" text-anchor="middle">K2</text></g>
-<g class="blk k-ko" data-tip="knockout：在原版副本里禁用 leaf 3 的代码，重跑 check，确认测试真的在测它"><rect x="199" y="682" width="32" height="18" rx="4"/><text x="215.0" y="695" text-anchor="middle">K3</text></g>
-<g class="blk k-ko" data-tip="knockout：在原版副本里禁用 leaf 4 的代码，重跑 check，确认测试真的在测它"><rect x="199" y="702" width="32" height="18" rx="4"/><text x="215.0" y="715" text-anchor="middle">K4</text></g>
-<g class="blk k-ko" data-tip="knockout：在原版副本里禁用 leaf 5 的代码，重跑 check，确认测试真的在测它"><rect x="199" y="722" width="32" height="18" rx="4"/><text x="215.0" y="735" text-anchor="middle">K5</text></g>
-<g class="blk k-ko" data-tip="knockout：在原版副本里禁用 leaf 6 的代码，重跑 check，确认测试真的在测它"><rect x="199" y="742" width="32" height="18" rx="4"/><text x="215.0" y="755" text-anchor="middle">K6</text></g>
+<g class="blk k-ko" data-tip="knockout：第二次抓 baseline 时，在原版副本里禁用 leaf 1 的代码，重跑 check，确认新写的测试真的在测它"><rect x="199" y="642" width="32" height="18" rx="4"/><text x="215.0" y="655" text-anchor="middle">K1</text></g>
+<g class="blk k-ko" data-tip="knockout：第二次抓 baseline 时，在原版副本里禁用 leaf 2 的代码，重跑 check，确认新写的测试真的在测它"><rect x="199" y="662" width="32" height="18" rx="4"/><text x="215.0" y="675" text-anchor="middle">K2</text></g>
+<g class="blk k-ko" data-tip="knockout：第二次抓 baseline 时，在原版副本里禁用 leaf 3 的代码，重跑 check，确认新写的测试真的在测它"><rect x="199" y="682" width="32" height="18" rx="4"/><text x="215.0" y="695" text-anchor="middle">K3</text></g>
+<g class="blk k-ko" data-tip="knockout：第二次抓 baseline 时，在原版副本里禁用 leaf 4 的代码，重跑 check，确认新写的测试真的在测它"><rect x="199" y="702" width="32" height="18" rx="4"/><text x="215.0" y="715" text-anchor="middle">K4</text></g>
+<g class="blk k-ko" data-tip="knockout：第二次抓 baseline 时，在原版副本里禁用 leaf 5 的代码，重跑 check，确认新写的测试真的在测它"><rect x="199" y="722" width="32" height="18" rx="4"/><text x="215.0" y="735" text-anchor="middle">K5</text></g>
+<g class="blk k-ko" data-tip="knockout：第二次抓 baseline 时，在原版副本里禁用 leaf 6 的代码，重跑 check，确认新写的测试真的在测它"><rect x="199" y="742" width="32" height="18" rx="4"/><text x="215.0" y="755" text-anchor="middle">K6</text></g>
 <g class="blk k-step" data-tip="封存合同：之后测试和 baseline 不再改"><rect x="233" y="642" width="32" height="18" rx="4"/><text x="249.0" y="655" text-anchor="middle">封存</text></g>
 <g class="blk k-step" data-tip="导入草稿：把 draft job 写好的首版存成本作业的第一个候选"><rect x="267" y="642" width="32" height="18" rx="4"/><text x="283.0" y="655" text-anchor="middle">导入</text></g>
 <g class="blk k-step" data-tip="第一次全量比较：候选代码在所有 check 上对比原版 baseline。之后 controller 才开始参与"><rect x="301" y="642" width="32" height="18" rx="4"/><text x="317.0" y="655" text-anchor="middle">比较</text></g>
@@ -397,6 +397,8 @@
   <ul class="plain">
     <li>内容来自 main @ 33814711 的代码和文档，没有实际跑作业；表里的并发数是代码里的默认值。</li>
     <li>对比图是按规则画出来的示意，示例项目是虚构的。真实耗时还取决于每个 session 多久、模型和计算节点的排队，以及合并冲突后的重写。</li>
+    <li>对比图省略了一些步骤：第一次抓 baseline 时对已有测试做的 knockout（并在「准备」里）、测试设计的第二轮和每个测试文件在原版上的试跑、split 之后的合并和冲突重写，以及 owner 配置的交付检查、安装检查和 task 评估。</li>
+    <li>D 行的并行修复只在每个失败都落在单个 scope 里时发生；修复这一步是否交给主线，由 controller 决定。</li>
     <li>图里没有画 controller 自选的三种分组，因为用不用、怎么用由它每一轮自己决定。</li>
   </ul>
 </section>
