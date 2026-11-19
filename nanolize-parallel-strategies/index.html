@@ -164,7 +164,7 @@
 
 <section>
   <h2>同一个项目，四种跑法</h2>
-  <p class="sub">示例项目：6 个 leaf 需要测试，5 个 scope 分三层（1 / 3 / 1），第一次比较后有 3 个 scope 出问题。一格代表一份工作，上下叠在一起的格子同时进行。</p>
+  <p class="sub">示例项目：6 个 leaf 需要测试，5 个 scope 分三层（1 / 3 / 1），第一次比较后有 3 个 scope 出问题。假设 S2–S4 的代码建立在 S1 之上，S5 建立在 S2–S4 之上，所以 S1 要先写完，S5 最后写。一格代表一份工作，上下叠在一起的格子同时进行。</p>
   <figure class="card tl">
     <div class="legend" role="group" aria-label="图例，点击可只看一种工作">
       <span class="hint">点一下只看一种：</span>
@@ -212,11 +212,11 @@
 <g class="blk k-ko" data-tip="knockout：第二次抓 baseline 时，在原版副本里禁用 leaf 5 的代码，重跑 check，确认新写的测试真的在测它"><rect x="505" y="74" width="32" height="18" rx="4"/><text x="521.0" y="87" text-anchor="middle">K5</text></g>
 <g class="blk k-ko" data-tip="knockout：第二次抓 baseline 时，在原版副本里禁用 leaf 6 的代码，重跑 check，确认新写的测试真的在测它"><rect x="539" y="74" width="32" height="18" rx="4"/><text x="555.0" y="87" text-anchor="middle">K6</text></g>
 <g class="blk k-step" data-tip="封存合同：之后测试和 baseline 不再改"><rect x="573" y="74" width="32" height="18" rx="4"/><text x="589.0" y="87" text-anchor="middle">封存</text></g>
-<g class="blk k-code" data-tip="author session：写 scope 1 的代码"><rect x="607" y="74" width="32" height="18" rx="4"/><text x="623.0" y="87" text-anchor="middle">S1</text></g>
-<g class="blk k-code" data-tip="author session：写 scope 2 的代码"><rect x="641" y="74" width="32" height="18" rx="4"/><text x="657.0" y="87" text-anchor="middle">S2</text></g>
-<g class="blk k-code" data-tip="author session：写 scope 3 的代码"><rect x="675" y="74" width="32" height="18" rx="4"/><text x="691.0" y="87" text-anchor="middle">S3</text></g>
-<g class="blk k-code" data-tip="author session：写 scope 4 的代码"><rect x="709" y="74" width="32" height="18" rx="4"/><text x="725.0" y="87" text-anchor="middle">S4</text></g>
-<g class="blk k-code" data-tip="author session：写 scope 5 的代码"><rect x="743" y="74" width="32" height="18" rx="4"/><text x="759.0" y="87" text-anchor="middle">S5</text></g>
+<g class="blk k-code" data-tip="author session：写 scope 1 的代码（第 1 层：其他 scope 都建立在它之上，所以先写）"><rect x="607" y="74" width="32" height="18" rx="4"/><text x="623.0" y="87" text-anchor="middle">S1</text></g>
+<g class="blk k-code" data-tip="author session：写 scope 2 的代码（第 2 层：建立在 scope 1 之上，和同层的 scope 互不依赖，可以同时写）"><rect x="641" y="74" width="32" height="18" rx="4"/><text x="657.0" y="87" text-anchor="middle">S2</text></g>
+<g class="blk k-code" data-tip="author session：写 scope 3 的代码（第 2 层：建立在 scope 1 之上，和同层的 scope 互不依赖，可以同时写）"><rect x="675" y="74" width="32" height="18" rx="4"/><text x="691.0" y="87" text-anchor="middle">S3</text></g>
+<g class="blk k-code" data-tip="author session：写 scope 4 的代码（第 2 层：建立在 scope 1 之上，和同层的 scope 互不依赖，可以同时写）"><rect x="709" y="74" width="32" height="18" rx="4"/><text x="725.0" y="87" text-anchor="middle">S4</text></g>
+<g class="blk k-code" data-tip="author session：写 scope 5 的代码（第 3 层：建立在 scope 2–4 之上，所以最后写）"><rect x="743" y="74" width="32" height="18" rx="4"/><text x="759.0" y="87" text-anchor="middle">S5</text></g>
 <g class="blk k-step" data-tip="第一次全量比较：候选代码在所有 check 上对比原版 baseline。之后 controller 才开始参与"><rect x="777" y="74" width="32" height="18" rx="4"/><text x="793.0" y="87" text-anchor="middle">比较</text></g>
 <g class="blk k-fix" data-tip="一次 repair 调用：一个 author 修完 3 个 scope 里的失败"><rect x="811" y="74" width="100" height="18" rx="4"/><text x="861.0" y="87" text-anchor="middle">修复：1 次调用</text></g>
 <g class="blk k-step" data-tip="再做一次全量比较，确认修复有效"><rect x="913" y="74" width="32" height="18" rx="4"/><text x="929.0" y="87" text-anchor="middle">比较</text></g>
@@ -245,11 +245,11 @@
 <g class="blk k-ko" data-tip="knockout：第二次抓 baseline 时，在原版副本里禁用 leaf 5 的代码，重跑 check，确认新写的测试真的在测它"><rect x="233" y="166" width="32" height="18" rx="4"/><text x="249.0" y="179" text-anchor="middle">K5</text></g>
 <g class="blk k-ko" data-tip="knockout：第二次抓 baseline 时，在原版副本里禁用 leaf 6 的代码，重跑 check，确认新写的测试真的在测它"><rect x="233" y="186" width="32" height="18" rx="4"/><text x="249.0" y="199" text-anchor="middle">K6</text></g>
 <g class="blk k-step" data-tip="封存合同：之后测试和 baseline 不再改"><rect x="267" y="166" width="32" height="18" rx="4"/><text x="283.0" y="179" text-anchor="middle">封存</text></g>
-<g class="blk k-code" data-tip="author session：写 scope 1 的代码"><rect x="301" y="166" width="32" height="18" rx="4"/><text x="317.0" y="179" text-anchor="middle">S1</text></g>
-<g class="blk k-code" data-tip="author session：写 scope 2 的代码"><rect x="335" y="166" width="32" height="18" rx="4"/><text x="351.0" y="179" text-anchor="middle">S2</text></g>
-<g class="blk k-code" data-tip="author session：写 scope 3 的代码"><rect x="335" y="186" width="32" height="18" rx="4"/><text x="351.0" y="199" text-anchor="middle">S3</text></g>
-<g class="blk k-code" data-tip="author session：写 scope 4 的代码"><rect x="335" y="206" width="32" height="18" rx="4"/><text x="351.0" y="219" text-anchor="middle">S4</text></g>
-<g class="blk k-code" data-tip="author session：写 scope 5 的代码"><rect x="369" y="166" width="32" height="18" rx="4"/><text x="385.0" y="179" text-anchor="middle">S5</text></g>
+<g class="blk k-code" data-tip="author session：写 scope 1 的代码（第 1 层：其他 scope 都建立在它之上，所以先写）"><rect x="301" y="166" width="32" height="18" rx="4"/><text x="317.0" y="179" text-anchor="middle">S1</text></g>
+<g class="blk k-code" data-tip="author session：写 scope 2 的代码（第 2 层：建立在 scope 1 之上，和同层的 scope 互不依赖，可以同时写）"><rect x="335" y="166" width="32" height="18" rx="4"/><text x="351.0" y="179" text-anchor="middle">S2</text></g>
+<g class="blk k-code" data-tip="author session：写 scope 3 的代码（第 2 层：建立在 scope 1 之上，和同层的 scope 互不依赖，可以同时写）"><rect x="335" y="186" width="32" height="18" rx="4"/><text x="351.0" y="199" text-anchor="middle">S3</text></g>
+<g class="blk k-code" data-tip="author session：写 scope 4 的代码（第 2 层：建立在 scope 1 之上，和同层的 scope 互不依赖，可以同时写）"><rect x="335" y="206" width="32" height="18" rx="4"/><text x="351.0" y="219" text-anchor="middle">S4</text></g>
+<g class="blk k-code" data-tip="author session：写 scope 5 的代码（第 3 层：建立在 scope 2–4 之上，所以最后写）"><rect x="369" y="166" width="32" height="18" rx="4"/><text x="385.0" y="179" text-anchor="middle">S5</text></g>
 <g class="blk k-step" data-tip="第一次全量比较：候选代码在所有 check 上对比原版 baseline。之后 controller 才开始参与"><rect x="403" y="166" width="32" height="18" rx="4"/><text x="419.0" y="179" text-anchor="middle">比较</text></g>
 <g class="blk k-fix" data-tip="一次 repair 调用：一个 author 修完 3 个 scope 里的失败"><rect x="437" y="166" width="100" height="18" rx="4"/><text x="487.0" y="179" text-anchor="middle">修复：1 次调用</text></g>
 <g class="blk k-step" data-tip="再做一次全量比较，确认修复有效"><rect x="539" y="166" width="32" height="18" rx="4"/><text x="555.0" y="179" text-anchor="middle">比较</text></g>
@@ -285,11 +285,11 @@
 <path class="bracket" d="M98 507 V504 H230 V507"/>
 <text class="t-phase" x="164.0" y="500" text-anchor="middle">首版实现</text>
 <g class="blk k-step" data-tip="draft job 的准备：建 workspace、抓一次 baseline、封存（不设计测试，不做 knockout）"><rect x="97" y="510" width="32" height="18" rx="4"/><text x="113.0" y="523" text-anchor="middle">准备</text></g>
-<g class="blk k-code" data-tip="author session：写 scope 1 的代码"><rect x="131" y="510" width="32" height="18" rx="4"/><text x="147.0" y="523" text-anchor="middle">S1</text></g>
-<g class="blk k-code" data-tip="author session：写 scope 2 的代码"><rect x="165" y="510" width="32" height="18" rx="4"/><text x="181.0" y="523" text-anchor="middle">S2</text></g>
-<g class="blk k-code" data-tip="author session：写 scope 3 的代码"><rect x="165" y="530" width="32" height="18" rx="4"/><text x="181.0" y="543" text-anchor="middle">S3</text></g>
-<g class="blk k-code" data-tip="author session：写 scope 4 的代码"><rect x="165" y="550" width="32" height="18" rx="4"/><text x="181.0" y="563" text-anchor="middle">S4</text></g>
-<g class="blk k-code" data-tip="author session：写 scope 5 的代码"><rect x="199" y="510" width="32" height="18" rx="4"/><text x="215.0" y="523" text-anchor="middle">S5</text></g>
+<g class="blk k-code" data-tip="author session：写 scope 1 的代码（第 1 层：其他 scope 都建立在它之上，所以先写）"><rect x="131" y="510" width="32" height="18" rx="4"/><text x="147.0" y="523" text-anchor="middle">S1</text></g>
+<g class="blk k-code" data-tip="author session：写 scope 2 的代码（第 2 层：建立在 scope 1 之上，和同层的 scope 互不依赖，可以同时写）"><rect x="165" y="510" width="32" height="18" rx="4"/><text x="181.0" y="523" text-anchor="middle">S2</text></g>
+<g class="blk k-code" data-tip="author session：写 scope 3 的代码（第 2 层：建立在 scope 1 之上，和同层的 scope 互不依赖，可以同时写）"><rect x="165" y="530" width="32" height="18" rx="4"/><text x="181.0" y="543" text-anchor="middle">S3</text></g>
+<g class="blk k-code" data-tip="author session：写 scope 4 的代码（第 2 层：建立在 scope 1 之上，和同层的 scope 互不依赖，可以同时写）"><rect x="165" y="550" width="32" height="18" rx="4"/><text x="181.0" y="563" text-anchor="middle">S4</text></g>
+<g class="blk k-code" data-tip="author session：写 scope 5 的代码（第 3 层：建立在 scope 2–4 之上，所以最后写）"><rect x="199" y="510" width="32" height="18" rx="4"/><text x="215.0" y="523" text-anchor="middle">S5</text></g>
 <text class="t-total" x="546" y="371">13 格</text>
 <path class="link" d="M235 519.0 H317.0 V381" marker-end="url(#tl-arrow)"/>
 <text class="t-phase" x="241" y="535.0">草稿就绪，等 main job 封存后导入</text>
@@ -325,11 +325,11 @@
 <path class="bracket" d="M98 791 V788 H230 V791"/>
 <text class="t-phase" x="164.0" y="784" text-anchor="middle">首版实现</text>
 <g class="blk k-step" data-tip="draft job 的准备：建 workspace、抓一次 baseline、封存（不设计测试，不做 knockout）"><rect x="97" y="794" width="32" height="18" rx="4"/><text x="113.0" y="807" text-anchor="middle">准备</text></g>
-<g class="blk k-code" data-tip="author session：写 scope 1 的代码"><rect x="131" y="794" width="32" height="18" rx="4"/><text x="147.0" y="807" text-anchor="middle">S1</text></g>
-<g class="blk k-code" data-tip="author session：写 scope 2 的代码"><rect x="165" y="794" width="32" height="18" rx="4"/><text x="181.0" y="807" text-anchor="middle">S2</text></g>
-<g class="blk k-code" data-tip="author session：写 scope 3 的代码"><rect x="165" y="814" width="32" height="18" rx="4"/><text x="181.0" y="827" text-anchor="middle">S3</text></g>
-<g class="blk k-code" data-tip="author session：写 scope 4 的代码"><rect x="165" y="834" width="32" height="18" rx="4"/><text x="181.0" y="847" text-anchor="middle">S4</text></g>
-<g class="blk k-code" data-tip="author session：写 scope 5 的代码"><rect x="199" y="794" width="32" height="18" rx="4"/><text x="215.0" y="807" text-anchor="middle">S5</text></g>
+<g class="blk k-code" data-tip="author session：写 scope 1 的代码（第 1 层：其他 scope 都建立在它之上，所以先写）"><rect x="131" y="794" width="32" height="18" rx="4"/><text x="147.0" y="807" text-anchor="middle">S1</text></g>
+<g class="blk k-code" data-tip="author session：写 scope 2 的代码（第 2 层：建立在 scope 1 之上，和同层的 scope 互不依赖，可以同时写）"><rect x="165" y="794" width="32" height="18" rx="4"/><text x="181.0" y="807" text-anchor="middle">S2</text></g>
+<g class="blk k-code" data-tip="author session：写 scope 3 的代码（第 2 层：建立在 scope 1 之上，和同层的 scope 互不依赖，可以同时写）"><rect x="165" y="814" width="32" height="18" rx="4"/><text x="181.0" y="827" text-anchor="middle">S3</text></g>
+<g class="blk k-code" data-tip="author session：写 scope 4 的代码（第 2 层：建立在 scope 1 之上，和同层的 scope 互不依赖，可以同时写）"><rect x="165" y="834" width="32" height="18" rx="4"/><text x="181.0" y="847" text-anchor="middle">S4</text></g>
+<g class="blk k-code" data-tip="author session：写 scope 5 的代码（第 3 层：建立在 scope 2–4 之上，所以最后写）"><rect x="199" y="794" width="32" height="18" rx="4"/><text x="215.0" y="807" text-anchor="middle">S5</text></g>
 <text class="t-total" x="444" y="655">10 格</text>
 <path class="link" d="M235 803.0 H283.0 V665" marker-end="url(#tl-arrow)"/>
 <text class="t-phase" x="241" y="819.0">草稿就绪，等 main job 封存后导入</text>
