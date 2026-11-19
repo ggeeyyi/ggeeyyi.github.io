@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="referrer" content="no-referrer">
-<meta name="description" content="nanolize main 里所有的并行策略：作业之间、阶段内部、controller 自选，和一条全串行基线画在一起比较。对象：main @ 33814711（2026-11-19）。">
+<meta name="description" content="nanolize main 里所有的并行策略：作业之间、阶段内部、controller 自选，和一条全串行基线画在一起比较，另有功能图到 leaf 和 scope 的转换、controller 的五种典型编排。对象：main @ 33814711（2026-11-19）。">
 <title>nanolize 并行策略图</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%231c5cab'/%3E%3Cpath d='M4 11V5l8 6V5' fill='none' stroke='white' stroke-width='1.6'/%3E%3C/svg%3E">
 <style>
@@ -132,6 +132,37 @@
   .mech .b-auth { fill: var(--par-bg); stroke: var(--par-line); stroke-width: 1.2; }
   .mech .b-new { fill: var(--surface); stroke: var(--s-code); stroke-width: 2; }
   footer { font-size: 0.8438rem; color: var(--muted); border-top: 1px solid var(--line); padding-top: 1rem; }
+
+  .blk.dlg rect { stroke: var(--ink); stroke-width: 1.2; stroke-dasharray: 3 2; }
+  .tl-svg .t-res { font-size: 10.5px; fill: var(--muted); }
+  .sw.dlg { background: transparent; border: 1.3px dashed var(--ink); }
+  .trio { display: grid; gap: 0.9rem; grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr)); }
+  .map { display: block; width: 100%; height: auto; color: var(--ink); font-family: var(--font-body); }
+  .map-tree { min-width: 860px; }
+  .map-mid { min-width: 460px; }
+  .map text { fill: var(--ink); }
+  .map .m-main { font-size: 12.5px; font-weight: 500; }
+  .map .m-sub { font-size: 11px; fill: var(--muted); }
+  .map .m-head { font-size: 11.5px; font-weight: 500; fill: var(--muted); }
+  .map .edge { stroke: currentColor; stroke-width: 1.1; }
+  .map .tree-edge { stroke: var(--muted); stroke-width: 1; }
+  .map .n-cap { fill: var(--surface); stroke: currentColor; stroke-width: 1.1; stroke-dasharray: 4 3; }
+  .map .n-have { fill: var(--surface); stroke: currentColor; stroke-width: 1.1; }
+  .map .n-leaf { fill: var(--surface); stroke: var(--s-test); stroke-width: 2; }
+  .map .n-root { fill: var(--sunken); stroke: var(--line); }
+  .map .tag-l { fill: var(--s-test); }
+  .map .tag-l-t { font-size: 10.5px; font-weight: 500; fill: var(--on-series); }
+  .map .tag-t { fill: var(--sunken); stroke: var(--line); }
+  .map .tag-t-t { font-size: 10px; fill: var(--ink); }
+  .map .track { fill: var(--sunken); stroke: var(--line); }
+  .map .seg { fill: var(--s-code); }
+  .map .seg-t { font-size: 11px; font-weight: 500; fill: var(--on-series); }
+  .map .limit { stroke: var(--muted); stroke-dasharray: 3 3; }
+  .map .s-box { fill: var(--surface); stroke: var(--s-code); stroke-width: 2; }
+  .keys { display: flex; flex-wrap: wrap; gap: 0.3rem 1.1rem; font-size: 0.8438rem; color: var(--muted); }
+  .keys span { display: inline-flex; align-items: center; gap: 0.4rem; }
+  .keys i { width: 1.1rem; height: 0.75rem; border-radius: 3px; display: inline-block; border: 1.2px solid var(--ink); }
+  .keys i.k1 { border-style: dashed; } .keys i.k3 { border: 2px solid var(--s-test); }
 </style>
 </head>
 <body>
@@ -140,7 +171,7 @@
 <header class="page">
   <div class="eyebrow"><span>对象：main @ 33814711</span><span>2026-11-19</span><span>依据：代码和文档，未实测</span></div>
   <h1>nanolize main 的并行策略</h1>
-  <p class="lead">main 里的并行分三层：两个作业之间、一个阶段内部、以及 controller 在修复阶段自己选用的分组。下面用同一个示例项目，把它们和一条全串行的基线画在一起。</p>
+  <p class="lead">main 里的并行分三层：两个作业之间、一个阶段内部、以及 controller 在修复阶段自己选用的分组。下面用同一个示例项目，把它们和一条全串行的基线画在一起；再往下是这个示例里 leaf 和 scope 的来历，以及 controller 接手之后的五种典型走法。</p>
   <div class="layers">
     <div class="layer"><span class="n">第一层</span><h3>作业之间：pair</h3>
       <p>main job 做 freeze（写测试、封存），draft job 同时写首版代码。是否拆成两个作业在提交时按规则决定。</p></div>
@@ -165,7 +196,7 @@
 <section>
   <h2>同一个项目，四种跑法</h2>
   <p class="sub">示例项目：6 个 leaf 需要测试，5 个 scope 分三层（1 / 3 / 1），第一次比较后有 3 个 scope 出问题。假设 S2–S4 的代码建立在 S1 之上，S5 建立在 S2–S4 之上，所以 S1 要先写完，S5 最后写。一格代表一份工作，上下叠在一起的格子同时进行。</p>
-  <figure class="card tl">
+  <figure class="card tl tips">
     <div class="legend" role="group" aria-label="图例，点击可只看一种工作">
       <span class="hint">点一下只看一种：</span>
       <button type="button" class="lg" data-kind="test" aria-pressed="false"><span class="sw k-test"></span>写测试（L：每个 leaf 一格）</button>
@@ -357,6 +388,195 @@
   </ul>
 </section>
 
+
+<section>
+  <h2>示例里的 leaf 和 scope 是怎么来的</h2>
+  <p class="sub">两者都从同一张功能图直接算出来，各算各的：leaf 决定测试怎么分，scope 决定代码怎么分。没有 agent 参与，作业建好 workspace 时就已经确定。</p>
+  <figure class="card">
+    <h3>① 功能图：没有子节点的就是 leaf</h3>
+    <div class="keys"><span><i class="k3"></i>leaf，需要设计测试（L1–L6）</span><span><i></i>leaf，已有有效测试</span><span><i class="k1"></i>不是 leaf（有子节点）</span></div>
+    <p class="swipe">图比较宽，可以左右滑动。</p>
+    <div class="scroll"><svg class="map map-tree" viewBox="0 0 1040 214" role="img" aria-label="示例的功能图：根下面有核心、读取、计算、输出、命令行五个 capability，读取、计算、输出各有两个子节点。没有子节点的八个是 leaf，其中六个需要设计测试，标为 L1 到 L6。"><rect class="n-root" x="415" y="4" width="210" height="26" rx="6"/><text class="m-sub" x="520" y="21" text-anchor="middle">报表库（根，本身没有文件）</text><line class="tree-edge" x1="520" y1="30" x2="104" y2="60"/><rect class="n-have" x="12.0" y="60" width="184" height="46" rx="6"/><text class="m-main" x="104" y="79" text-anchor="middle">核心</text><text class="m-sub" x="104" y="95" text-anchor="middle">41k</text><rect class="tag-t" x="138.0" y="52" width="54" height="15" rx="4"/><text class="tag-t-t" x="165.0" y="63" text-anchor="middle">已有测试</text><line class="tree-edge" x1="520" y1="30" x2="312" y2="60"/><line class="tree-edge" x1="312" y1="106" x2="260" y2="156"/><rect class="n-leaf" x="211.0" y="156" width="98" height="46" rx="6"/><text class="m-main" x="260" y="175" text-anchor="middle">CSV 读取</text><text class="m-sub" x="260" y="191" text-anchor="middle">18k</text><rect class="tag-l" x="279.0" y="148" width="26" height="15" rx="4"/><text class="tag-l-t" x="292.0" y="159" text-anchor="middle">L1</text><line class="tree-edge" x1="312" y1="106" x2="364" y2="156"/><rect class="n-leaf" x="315.0" y="156" width="98" height="46" rx="6"/><text class="m-main" x="364" y="175" text-anchor="middle">JSON 读取</text><text class="m-sub" x="364" y="191" text-anchor="middle">16k</text><rect class="tag-l" x="383.0" y="148" width="26" height="15" rx="4"/><text class="tag-l-t" x="396.0" y="159" text-anchor="middle">L2</text><rect class="n-cap" x="220.0" y="60" width="184" height="46" rx="6"/><text class="m-main" x="312" y="79" text-anchor="middle">读取</text><text class="m-sub" x="312" y="95" text-anchor="middle">6k · 依赖核心</text><line class="tree-edge" x1="520" y1="30" x2="520" y2="60"/><line class="tree-edge" x1="520" y1="106" x2="468" y2="156"/><rect class="n-leaf" x="419.0" y="156" width="98" height="46" rx="6"/><text class="m-main" x="468" y="175" text-anchor="middle">过滤</text><text class="m-sub" x="468" y="191" text-anchor="middle">17k</text><rect class="tag-l" x="487.0" y="148" width="26" height="15" rx="4"/><text class="tag-l-t" x="500.0" y="159" text-anchor="middle">L3</text><line class="tree-edge" x1="520" y1="106" x2="572" y2="156"/><rect class="n-leaf" x="523.0" y="156" width="98" height="46" rx="6"/><text class="m-main" x="572" y="175" text-anchor="middle">聚合</text><text class="m-sub" x="572" y="191" text-anchor="middle">19k</text><rect class="tag-l" x="591.0" y="148" width="26" height="15" rx="4"/><text class="tag-l-t" x="604.0" y="159" text-anchor="middle">L4</text><rect class="n-cap" x="428.0" y="60" width="184" height="46" rx="6"/><text class="m-main" x="520" y="79" text-anchor="middle">计算</text><text class="m-sub" x="520" y="95" text-anchor="middle">6k · 依赖核心</text><line class="tree-edge" x1="520" y1="30" x2="728" y2="60"/><line class="tree-edge" x1="728" y1="106" x2="676" y2="156"/><rect class="n-leaf" x="627.0" y="156" width="98" height="46" rx="6"/><text class="m-main" x="676" y="175" text-anchor="middle">表格输出</text><text class="m-sub" x="676" y="191" text-anchor="middle">18k</text><rect class="tag-l" x="695.0" y="148" width="26" height="15" rx="4"/><text class="tag-l-t" x="708.0" y="159" text-anchor="middle">L5</text><line class="tree-edge" x1="728" y1="106" x2="780" y2="156"/><rect class="n-leaf" x="731.0" y="156" width="98" height="46" rx="6"/><text class="m-main" x="780" y="175" text-anchor="middle">图表输出</text><text class="m-sub" x="780" y="191" text-anchor="middle">19k</text><rect class="tag-l" x="799.0" y="148" width="26" height="15" rx="4"/><text class="tag-l-t" x="812.0" y="159" text-anchor="middle">L6</text><rect class="n-cap" x="636.0" y="60" width="184" height="46" rx="6"/><text class="m-main" x="728" y="79" text-anchor="middle">输出</text><text class="m-sub" x="728" y="95" text-anchor="middle">7k · 依赖核心</text><line class="tree-edge" x1="520" y1="30" x2="936" y2="60"/><rect class="n-have" x="844.0" y="60" width="184" height="46" rx="6"/><text class="m-main" x="936" y="79" text-anchor="middle">命令行</text><text class="m-sub" x="936" y="95" text-anchor="middle">12k · 依赖读取、计算、输出</text><rect class="tag-t" x="970.0" y="52" width="54" height="15" rx="4"/><text class="tag-t-t" x="997.0" y="63" text-anchor="middle">已有测试</text></svg></div>
+    <figcaption>示例是一个虚构的报表库，选中了 11 个带文件的 capability，其中 8 个没有子节点，是 leaf。baseline 判定其中 6 个没有有效测试，freeze 时要为它们各设计一份测试，就是 L1–L6；核心和命令行已有有效测试，不用再设计。节点第二行的数字是它拥有的原版代码量（token）。</figcaption>
+  </figure>
+  <div class="trio">
+    <figure class="card">
+      <h3>② 装箱：按顺序放进 scope，每个最多 45,000 token</h3>
+      <div class="scroll"><svg class="map map-mid" viewBox="0 0 520 292" role="img" aria-label="五个 scope 各是一个最多装 45k 的箱子：S1 装核心 41k，S2 装读取一家 40k，S3 装计算一家 42k，S4 装输出一家 44k，S5 装命令行 12k。"><line class="limit" x1="490" y1="18" x2="490" y2="272"/><text class="m-sub" x="490" y="12" text-anchor="end">上限 45k</text><text class="m-main" x="4" y="47">S1</text><rect class="track" x="40" y="30" width="450" height="24" rx="4"/><rect class="seg" x="41" y="30" width="408" height="24" rx="4"/><text class="seg-t" x="245.0" y="46" text-anchor="middle">核心 41k</text><text class="m-sub" x="40" y="68">合计 41k。再放「读取 6k」会到 47k，超过上限，另起一个 scope。</text><text class="m-main" x="4" y="101">S2</text><rect class="track" x="40" y="84" width="450" height="24" rx="4"/><rect class="seg" x="41" y="84" width="58" height="24" rx="4"/><text class="seg-t" x="70.0" y="100" text-anchor="middle">读取 6k</text><rect class="seg" x="101" y="84" width="178" height="24" rx="4"/><text class="seg-t" x="176.0" y="100" text-anchor="middle">CSV 读取 18k</text><rect class="tag-l" x="251" y="89" width="24" height="14" rx="4"/><text class="tag-l-t" x="263" y="100" text-anchor="middle">L1</text><rect class="seg" x="281" y="84" width="158" height="24" rx="4"/><text class="seg-t" x="346.0" y="100" text-anchor="middle">JSON 读取 16k</text><rect class="tag-l" x="411" y="89" width="24" height="14" rx="4"/><text class="tag-l-t" x="423" y="100" text-anchor="middle">L2</text><text class="m-sub" x="40" y="122">合计 40k。再放「计算 6k」会到 46k。</text><text class="m-main" x="4" y="155">S3</text><rect class="track" x="40" y="138" width="450" height="24" rx="4"/><rect class="seg" x="41" y="138" width="58" height="24" rx="4"/><text class="seg-t" x="70.0" y="154" text-anchor="middle">计算 6k</text><rect class="seg" x="101" y="138" width="168" height="24" rx="4"/><text class="seg-t" x="171.0" y="154" text-anchor="middle">过滤 17k</text><rect class="tag-l" x="241" y="143" width="24" height="14" rx="4"/><text class="tag-l-t" x="253" y="154" text-anchor="middle">L3</text><rect class="seg" x="271" y="138" width="188" height="24" rx="4"/><text class="seg-t" x="351.0" y="154" text-anchor="middle">聚合 19k</text><rect class="tag-l" x="431" y="143" width="24" height="14" rx="4"/><text class="tag-l-t" x="443" y="154" text-anchor="middle">L4</text><text class="m-sub" x="40" y="176">合计 42k。再放「输出 7k」会到 49k。</text><text class="m-main" x="4" y="209">S4</text><rect class="track" x="40" y="192" width="450" height="24" rx="4"/><rect class="seg" x="41" y="192" width="68" height="24" rx="4"/><text class="seg-t" x="75.0" y="208" text-anchor="middle">输出 7k</text><rect class="seg" x="111" y="192" width="178" height="24" rx="4"/><text class="seg-t" x="186.0" y="208" text-anchor="middle">表格输出 18k</text><rect class="tag-l" x="261" y="197" width="24" height="14" rx="4"/><text class="tag-l-t" x="273" y="208" text-anchor="middle">L5</text><rect class="seg" x="291" y="192" width="188" height="24" rx="4"/><text class="seg-t" x="371.0" y="208" text-anchor="middle">图表输出 19k</text><rect class="tag-l" x="451" y="197" width="24" height="14" rx="4"/><text class="tag-l-t" x="463" y="208" text-anchor="middle">L6</text><text class="m-sub" x="40" y="230">合计 44k。再放「命令行 12k」会到 56k。</text><text class="m-main" x="4" y="263">S5</text><rect class="track" x="40" y="246" width="450" height="24" rx="4"/><rect class="seg" x="41" y="246" width="118" height="24" rx="4"/><text class="seg-t" x="100.0" y="262" text-anchor="middle">命令行 12k</text><text class="m-sub" x="40" y="284">合计 12k。后面没有了。</text></svg></div>
+      <figcaption>按 plan 里 capability 的顺序依次放，被依赖的排在前面；放不下就另起一个 scope。共享同一个原版文件的 capability 会先并成一组，整组一起放，不会被拆到两个 scope 里。</figcaption>
+    </figure>
+    <figure class="card">
+      <h3>③ 分层：按依赖决定先后</h3>
+      <div class="scroll"><svg class="map map-mid" viewBox="0 0 480 272" role="img" aria-label="五个 scope 分三层：第一层 S1，第二层 S2、S3、S4 同时写，第三层 S5。"><defs><marker id="ly-arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L8 4 L0 8 z" fill="currentColor"/></marker></defs><text class="m-head" x="68" y="16" text-anchor="middle">第 1 层</text><text class="m-head" x="240" y="16" text-anchor="middle">第 2 层：同时写</text><text class="m-head" x="412" y="16" text-anchor="middle">第 3 层</text><line class="edge" x1="128" y1="149" x2="178" y2="65" marker-end="url(#ly-arrow)"/><line class="edge" x1="128" y1="149" x2="178" y2="149" marker-end="url(#ly-arrow)"/><line class="edge" x1="128" y1="149" x2="178" y2="233" marker-end="url(#ly-arrow)"/><line class="edge" x1="300" y1="65" x2="350" y2="149" marker-end="url(#ly-arrow)"/><line class="edge" x1="300" y1="149" x2="350" y2="149" marker-end="url(#ly-arrow)"/><line class="edge" x1="300" y1="233" x2="350" y2="149" marker-end="url(#ly-arrow)"/><rect class="s-box" x="8" y="124" width="120" height="50" rx="6"/><text class="m-main" x="68" y="145" text-anchor="middle">S1 · 41k</text><text class="m-sub" x="68" y="162" text-anchor="middle">核心</text><rect class="s-box" x="180" y="40" width="120" height="50" rx="6"/><text class="m-main" x="240" y="61" text-anchor="middle">S2 · 40k</text><text class="m-sub" x="240" y="78" text-anchor="middle">读取（L1、L2）</text><rect class="s-box" x="180" y="124" width="120" height="50" rx="6"/><text class="m-main" x="240" y="145" text-anchor="middle">S3 · 42k</text><text class="m-sub" x="240" y="162" text-anchor="middle">计算（L3、L4）</text><rect class="s-box" x="180" y="208" width="120" height="50" rx="6"/><text class="m-main" x="240" y="229" text-anchor="middle">S4 · 44k</text><text class="m-sub" x="240" y="246" text-anchor="middle">输出（L5、L6）</text><rect class="s-box" x="352" y="124" width="120" height="50" rx="6"/><text class="m-main" x="412" y="145" text-anchor="middle">S5 · 12k</text><text class="m-sub" x="412" y="162" text-anchor="middle">命令行</text></svg></div>
+      <figcaption>箭头从先写的指向后写的。读取、计算、输出都依赖核心，所以 S2–S4 排在 S1 后面；它们彼此不依赖，可以同时写。命令行依赖这三者，所以 S5 最后写。</figcaption>
+    </figure>
+  </div>
+  <p class="sub">leaf 和 scope 之间只有一层关系：这个 leaf 的代码落在哪个 scope 里。L1、L2 在 S2，L3、L4 在 S3，L5、L6 在 S4。写测试时按 leaf 分，写代码时按 scope 分。</p>
+</section>
+
+<section>
+  <h2>controller 接手之后：五个案例</h2>
+  <p class="sub">第一张图在第一次全量比较之后只画了「修一次就过」。实际上从这一刻起，每一步都由 controller 决定。下面每一行都从第一次全量比较开始：一格是一次工具调用，上方的括号标出 controller 的每一轮回答，格子下面的小字是这一步看到的结果。</p>
+  <figure class="card tips">
+    <div class="legend">
+      <span class="lg"><span class="sw k-fix"></span>author 调用（修复、审代码、各个版本）</span>
+      <span class="lg"><span class="sw k-step"></span>其他工具调用</span>
+      <span class="lg"><span class="sw dlg"></span>虚线框：委托给主线执行</span>
+    </div>
+    <p class="swipe">图比较宽，可以左右滑动。</p>
+    <div class="scroll">
+<svg class="tl-svg" viewBox="0 0 1040 510" role="img" aria-label="第一次全量比较之后的五种走法：全部委托给主线一次修好；三轮修复后通过；先查知识和审代码再修；两个版本并排后挑一个；修不动时退回失败最少的候选并带着失败交付。"><text x="0" y="20"><tspan class="t-row">案例 1　委托到底：一次修好</tspan><tspan class="t-note" dx="14">controller 只回答一次，把第一次修复和之后的步骤都交给主线</tspan></text>
+<path class="bracket" d="M6 47 V44 H186 V47"/>
+<text class="t-phase" x="96.0" y="40" text-anchor="middle">主线（controller 尚未参与）</text>
+<g class="blk k-step" data-tip="controller 被询问之前，主线已经按固定规则做完 freeze，写完并保存了首版代码"><rect x="5" y="50" width="136" height="18" rx="4"/><text x="73.0" y="63" text-anchor="middle">主线：freeze 和首版</text></g>
+<g class="blk k-step" data-tip="第一次全量比较。它返回结果之后，controller 第一次被询问"><rect x="143" y="50" width="44" height="18" rx="4"/><text x="165.0" y="63" text-anchor="middle">全量</text></g>
+<text class="t-res" x="165.0" y="80" text-anchor="middle">4 失败</text>
+<path class="bracket" d="M190 47 V44 H462 V47"/>
+<text class="t-phase" x="326.0" y="40" text-anchor="middle">第 1 轮：全部委托给主线</text>
+<g class="blk k-fix dlg" data-tip="run_agent（repair）：主线的修复调用，不带指令，author 自己读失败的 check"><rect x="189" y="50" width="44" height="18" rx="4"/><text x="211.0" y="63" text-anchor="middle">修复</text></g>
+<g class="blk k-step dlg" data-tip="save_candidate：把 author 写的草稿存成一个新的候选"><rect x="235" y="50" width="44" height="18" rx="4"/><text x="257.0" y="63" text-anchor="middle">保存</text></g>
+<g class="blk k-step dlg" data-tip="compare_behavior（指定几条 check）：只比上次失败的那几条 check，便宜，但不算验收"><rect x="281" y="50" width="44" height="18" rx="4"/><text x="303.0" y="63" text-anchor="middle">筛查</text></g>
+<text class="t-res" x="303.0" y="80" text-anchor="middle">无失败</text>
+<g class="blk k-step dlg" data-tip="compare_behavior（全部 check）：交付前必须有一次"><rect x="327" y="50" width="44" height="18" rx="4"/><text x="349.0" y="63" text-anchor="middle">全量</text></g>
+<text class="t-res" x="349.0" y="80" text-anchor="middle">通过</text>
+<g class="blk k-step dlg" data-tip="select_candidate：选定要交付的候选"><rect x="373" y="50" width="44" height="18" rx="4"/><text x="395.0" y="63" text-anchor="middle">选定</text></g>
+<g class="blk k-step dlg" data-tip="deliver：交付当前候选"><rect x="419" y="50" width="44" height="18" rx="4"/><text x="441.0" y="63" text-anchor="middle">交付</text></g>
+<text class="t-total" x="474" y="63">1 轮 · 1 次 author 调用</text>
+<text x="0" y="120"><tspan class="t-row">案例 2　多轮修复：每轮自己写指令</tspan><tspan class="t-note" dx="14">一次修不完，controller 每轮读结果、换指令</tspan></text>
+<path class="bracket" d="M6 147 V144 H186 V147"/>
+<text class="t-phase" x="96.0" y="140" text-anchor="middle">主线（controller 尚未参与）</text>
+<g class="blk k-step" data-tip="controller 被询问之前，主线已经按固定规则做完 freeze，写完并保存了首版代码"><rect x="5" y="150" width="136" height="18" rx="4"/><text x="73.0" y="163" text-anchor="middle">主线：freeze 和首版</text></g>
+<g class="blk k-step" data-tip="第一次全量比较。它返回结果之后，controller 第一次被询问"><rect x="143" y="150" width="44" height="18" rx="4"/><text x="165.0" y="163" text-anchor="middle">全量</text></g>
+<text class="t-res" x="165.0" y="180" text-anchor="middle">5 失败</text>
+<path class="bracket" d="M190 147 V144 H324 V147"/>
+<text class="t-phase" x="257.0" y="140" text-anchor="middle">第 1 轮</text>
+<g class="blk k-fix" data-tip="run_agent（repair）：controller 写了指令，指明哪个 capability、哪几个 issue"><rect x="189" y="150" width="44" height="18" rx="4"/><text x="211.0" y="163" text-anchor="middle">修复</text></g>
+<g class="blk k-step" data-tip="save_candidate：把 author 写的草稿存成一个新的候选"><rect x="235" y="150" width="44" height="18" rx="4"/><text x="257.0" y="163" text-anchor="middle">保存</text></g>
+<g class="blk k-step" data-tip="compare_behavior（指定几条 check）：只比上次失败的那几条 check，便宜，但不算验收"><rect x="281" y="150" width="44" height="18" rx="4"/><text x="303.0" y="163" text-anchor="middle">筛查</text></g>
+<text class="t-res" x="303.0" y="180" text-anchor="middle">2 失败</text>
+<path class="bracket" d="M328 147 V144 H462 V147"/>
+<text class="t-phase" x="395.0" y="140" text-anchor="middle">第 2 轮</text>
+<g class="blk k-fix" data-tip="run_agent（repair）：只针对剩下的两个 issue"><rect x="327" y="150" width="44" height="18" rx="4"/><text x="349.0" y="163" text-anchor="middle">修复</text></g>
+<g class="blk k-step" data-tip="save_candidate：把 author 写的草稿存成一个新的候选"><rect x="373" y="150" width="44" height="18" rx="4"/><text x="395.0" y="163" text-anchor="middle">保存</text></g>
+<g class="blk k-step" data-tip="compare_behavior（指定几条 check）：只比上次失败的那几条 check，便宜，但不算验收"><rect x="419" y="150" width="44" height="18" rx="4"/><text x="441.0" y="163" text-anchor="middle">筛查</text></g>
+<text class="t-res" x="441.0" y="180" text-anchor="middle">1 失败</text>
+<path class="bracket" d="M466 147 V144 H738 V147"/>
+<text class="t-phase" x="602.0" y="140" text-anchor="middle">第 3 轮</text>
+<g class="blk k-fix" data-tip="run_agent（repair）：同一个失败又出现，说明 author 卡住了：换成更具体的指令，并点名哪些已修好的不能再坏"><rect x="465" y="150" width="44" height="18" rx="4"/><text x="487.0" y="163" text-anchor="middle">修复</text></g>
+<g class="blk k-step" data-tip="save_candidate：把 author 写的草稿存成一个新的候选"><rect x="511" y="150" width="44" height="18" rx="4"/><text x="533.0" y="163" text-anchor="middle">保存</text></g>
+<g class="blk k-step" data-tip="compare_behavior（指定几条 check）：只比上次失败的那几条 check，便宜，但不算验收"><rect x="557" y="150" width="44" height="18" rx="4"/><text x="579.0" y="163" text-anchor="middle">筛查</text></g>
+<text class="t-res" x="579.0" y="180" text-anchor="middle">无失败</text>
+<g class="blk k-step" data-tip="compare_behavior（全部 check）：交付前必须有一次"><rect x="603" y="150" width="44" height="18" rx="4"/><text x="625.0" y="163" text-anchor="middle">全量</text></g>
+<text class="t-res" x="625.0" y="180" text-anchor="middle">通过</text>
+<g class="blk k-step" data-tip="select_candidate：选定要交付的候选"><rect x="649" y="150" width="44" height="18" rx="4"/><text x="671.0" y="163" text-anchor="middle">选定</text></g>
+<g class="blk k-step" data-tip="deliver：交付当前候选"><rect x="695" y="150" width="44" height="18" rx="4"/><text x="717.0" y="163" text-anchor="middle">交付</text></g>
+<text class="t-total" x="750" y="163">3 轮 · 3 次 author 调用</text>
+<text x="0" y="220"><tspan class="t-row">案例 3　先诊断再修</tspan><tspan class="t-note" dx="14">失败原因不清楚时，先离开主线看一看，再回来修</tspan></text>
+<path class="bracket" d="M6 247 V244 H186 V247"/>
+<text class="t-phase" x="96.0" y="240" text-anchor="middle">主线（controller 尚未参与）</text>
+<g class="blk k-step" data-tip="controller 被询问之前，主线已经按固定规则做完 freeze，写完并保存了首版代码"><rect x="5" y="250" width="136" height="18" rx="4"/><text x="73.0" y="263" text-anchor="middle">主线：freeze 和首版</text></g>
+<g class="blk k-step" data-tip="第一次全量比较。它返回结果之后，controller 第一次被询问"><rect x="143" y="250" width="44" height="18" rx="4"/><text x="165.0" y="263" text-anchor="middle">全量</text></g>
+<text class="t-res" x="165.0" y="280" text-anchor="middle">4 失败</text>
+<path class="bracket" d="M190 247 V244 H324 V247"/>
+<text class="t-phase" x="257.0" y="240" text-anchor="middle">第 1 轮</text>
+<g class="blk k-step" data-tip="get_knowledge：读出问题的 capability 的行为记录（只读）"><rect x="189" y="250" width="44" height="18" rx="4"/><text x="211.0" y="263" text-anchor="middle">查知识</text></g>
+<g class="blk k-step" data-tip="list_candidate_files：看候选里有哪些文件、各多少行（只读，看不到代码）"><rect x="235" y="250" width="44" height="18" rx="4"/><text x="257.0" y="263" text-anchor="middle">列文件</text></g>
+<g class="blk k-step" data-tip="compare_behavior（指定几条 check）：只比其中两条 check，确认失败集中在哪里"><rect x="281" y="250" width="44" height="18" rx="4"/><text x="303.0" y="263" text-anchor="middle">筛查</text></g>
+<text class="t-res" x="303.0" y="280" text-anchor="middle">2 失败</text>
+<path class="bracket" d="M328 247 V244 H370 V247"/>
+<text class="t-phase" x="349.0" y="240" text-anchor="middle">第 2 轮</text>
+<g class="blk k-fix" data-tip="run_agent（reviewer）：一个 author 只读不改，交回一份问题清单；算一次 author 调用"><rect x="327" y="250" width="44" height="18" rx="4"/><text x="349.0" y="263" text-anchor="middle">审代码</text></g>
+<text class="t-res" x="349.0" y="280" text-anchor="middle">2 处问题</text>
+<path class="bracket" d="M374 247 V244 H646 V247"/>
+<text class="t-phase" x="510.0" y="240" text-anchor="middle">第 3 轮</text>
+<g class="blk k-fix" data-tip="run_agent（repair）：指令里写明评审找到的两处问题"><rect x="373" y="250" width="44" height="18" rx="4"/><text x="395.0" y="263" text-anchor="middle">修复</text></g>
+<g class="blk k-step" data-tip="save_candidate：把 author 写的草稿存成一个新的候选"><rect x="419" y="250" width="44" height="18" rx="4"/><text x="441.0" y="263" text-anchor="middle">保存</text></g>
+<g class="blk k-step" data-tip="compare_behavior（指定几条 check）：只比上次失败的那几条 check，便宜，但不算验收"><rect x="465" y="250" width="44" height="18" rx="4"/><text x="487.0" y="263" text-anchor="middle">筛查</text></g>
+<text class="t-res" x="487.0" y="280" text-anchor="middle">无失败</text>
+<g class="blk k-step" data-tip="compare_behavior（全部 check）：交付前必须有一次"><rect x="511" y="250" width="44" height="18" rx="4"/><text x="533.0" y="263" text-anchor="middle">全量</text></g>
+<text class="t-res" x="533.0" y="280" text-anchor="middle">通过</text>
+<g class="blk k-step" data-tip="select_candidate：选定要交付的候选"><rect x="557" y="250" width="44" height="18" rx="4"/><text x="579.0" y="263" text-anchor="middle">选定</text></g>
+<g class="blk k-step" data-tip="deliver：交付当前候选"><rect x="603" y="250" width="44" height="18" rx="4"/><text x="625.0" y="263" text-anchor="middle">交付</text></g>
+<text class="t-total" x="658" y="263">3 轮 · 2 次 author 调用</text>
+<text x="0" y="320"><tspan class="t-row">案例 4　多版本并排，挑一个</tspan><tspan class="t-note" dx="14">两种做法都说得通时，让两个 author 各写一版（需 parallel 模式）</tspan></text>
+<path class="bracket" d="M6 347 V344 H186 V347"/>
+<text class="t-phase" x="96.0" y="340" text-anchor="middle">主线（controller 尚未参与）</text>
+<g class="blk k-step" data-tip="controller 被询问之前，主线已经按固定规则做完 freeze，写完并保存了首版代码"><rect x="5" y="350" width="136" height="18" rx="4"/><text x="73.0" y="363" text-anchor="middle">主线：freeze 和首版</text></g>
+<g class="blk k-step" data-tip="第一次全量比较。它返回结果之后，controller 第一次被询问"><rect x="143" y="350" width="44" height="18" rx="4"/><text x="165.0" y="363" text-anchor="middle">全量</text></g>
+<text class="t-res" x="165.0" y="380" text-anchor="middle">3 失败</text>
+<path class="bracket" d="M190 347 V344 H232 V347"/>
+<text class="t-phase" x="211.0" y="340" text-anchor="middle">第 1 轮</text>
+<g class="blk k-fix" data-tip="speculate 组里的 author 1：在现有代码上做最小改动"><rect x="189" y="350" width="44" height="18" rx="4"/><text x="211.0" y="363" text-anchor="middle">版本 1</text></g>
+<g class="blk k-fix" data-tip="speculate 组里的 author 2：把这个 capability 整块重写"><rect x="189" y="370" width="44" height="18" rx="4"/><text x="211.0" y="383" text-anchor="middle">版本 2</text></g>
+<path class="bracket" d="M236 347 V344 H508 V347"/>
+<text class="t-phase" x="372.0" y="340" text-anchor="middle">第 2 轮</text>
+<g class="blk k-step" data-tip="restore_candidate：把版本 1 恢复成当前候选；文件相同的候选沿用之前的比较结果"><rect x="235" y="350" width="44" height="18" rx="4"/><text x="257.0" y="363" text-anchor="middle">恢复</text></g>
+<g class="blk k-step" data-tip="compare_behavior（全部 check）：交付前必须有一次"><rect x="281" y="350" width="44" height="18" rx="4"/><text x="303.0" y="363" text-anchor="middle">全量</text></g>
+<text class="t-res" x="303.0" y="380" text-anchor="middle">1 失败</text>
+<g class="blk k-step" data-tip="restore_candidate：把版本 2 恢复成当前候选；文件相同的候选沿用之前的比较结果"><rect x="327" y="350" width="44" height="18" rx="4"/><text x="349.0" y="363" text-anchor="middle">恢复</text></g>
+<g class="blk k-step" data-tip="compare_behavior（全部 check）：交付前必须有一次"><rect x="373" y="350" width="44" height="18" rx="4"/><text x="395.0" y="363" text-anchor="middle">全量</text></g>
+<text class="t-res" x="395.0" y="380" text-anchor="middle">通过</text>
+<g class="blk k-step" data-tip="select_candidate：选定要交付的候选"><rect x="419" y="350" width="44" height="18" rx="4"/><text x="441.0" y="363" text-anchor="middle">选定</text></g>
+<g class="blk k-step" data-tip="deliver：交付当前候选"><rect x="465" y="350" width="44" height="18" rx="4"/><text x="487.0" y="363" text-anchor="middle">交付</text></g>
+<text class="t-total" x="520" y="363">2 轮 · 1 次 author 调用（2 个 session）</text>
+<text x="0" y="440"><tspan class="t-row">案例 5　修不动：退回最好的候选，带着失败交付</tspan><tspan class="t-note" dx="14">修复没有进展时停下来，交付失败最少的那个候选</tspan></text>
+<path class="bracket" d="M6 467 V464 H186 V467"/>
+<text class="t-phase" x="96.0" y="460" text-anchor="middle">主线（controller 尚未参与）</text>
+<g class="blk k-step" data-tip="controller 被询问之前，主线已经按固定规则做完 freeze，写完并保存了首版代码"><rect x="5" y="470" width="136" height="18" rx="4"/><text x="73.0" y="483" text-anchor="middle">主线：freeze 和首版</text></g>
+<g class="blk k-step" data-tip="第一次全量比较。它返回结果之后，controller 第一次被询问"><rect x="143" y="470" width="44" height="18" rx="4"/><text x="165.0" y="483" text-anchor="middle">全量</text></g>
+<text class="t-res" x="165.0" y="500" text-anchor="middle">6 失败</text>
+<path class="bracket" d="M190 467 V464 H324 V467"/>
+<text class="t-phase" x="257.0" y="460" text-anchor="middle">第 1 轮</text>
+<g class="blk k-fix" data-tip="run_agent（repair）：controller 写了指令"><rect x="189" y="470" width="44" height="18" rx="4"/><text x="211.0" y="483" text-anchor="middle">修复</text></g>
+<g class="blk k-step" data-tip="save_candidate：把 author 写的草稿存成一个新的候选"><rect x="235" y="470" width="44" height="18" rx="4"/><text x="257.0" y="483" text-anchor="middle">保存</text></g>
+<g class="blk k-step" data-tip="compare_behavior（指定几条 check）：只比上次失败的那几条 check，便宜，但不算验收"><rect x="281" y="470" width="44" height="18" rx="4"/><text x="303.0" y="483" text-anchor="middle">筛查</text></g>
+<text class="t-res" x="303.0" y="500" text-anchor="middle">3 失败</text>
+<path class="bracket" d="M328 467 V464 H462 V467"/>
+<text class="t-phase" x="395.0" y="460" text-anchor="middle">第 2 轮</text>
+<g class="blk k-fix" data-tip="run_agent（repair）：换一个角度的指令"><rect x="327" y="470" width="44" height="18" rx="4"/><text x="349.0" y="483" text-anchor="middle">修复</text></g>
+<g class="blk k-step" data-tip="save_candidate：把 author 写的草稿存成一个新的候选"><rect x="373" y="470" width="44" height="18" rx="4"/><text x="395.0" y="483" text-anchor="middle">保存</text></g>
+<g class="blk k-step" data-tip="compare_behavior（指定几条 check）：只比上次失败的那几条 check，便宜，但不算验收"><rect x="419" y="470" width="44" height="18" rx="4"/><text x="441.0" y="483" text-anchor="middle">筛查</text></g>
+<text class="t-res" x="441.0" y="500" text-anchor="middle">5 失败</text>
+<path class="bracket" d="M466 467 V464 H646 V467"/>
+<text class="t-phase" x="556.0" y="460" text-anchor="middle">第 3 轮</text>
+<g class="blk k-step" data-tip="restore_candidate：把第 1 轮存下的候选恢复成当前候选；文件相同的候选沿用之前的比较结果"><rect x="465" y="470" width="44" height="18" rx="4"/><text x="487.0" y="483" text-anchor="middle">恢复</text></g>
+<g class="blk k-fix" data-tip="run_agent（repair）：在更好的候选上换一种做法"><rect x="511" y="470" width="44" height="18" rx="4"/><text x="533.0" y="483" text-anchor="middle">修复</text></g>
+<g class="blk k-step" data-tip="save_candidate：把 author 写的草稿存成一个新的候选"><rect x="557" y="470" width="44" height="18" rx="4"/><text x="579.0" y="483" text-anchor="middle">保存</text></g>
+<g class="blk k-step" data-tip="compare_behavior（指定几条 check）：只比上次失败的那几条 check，便宜，但不算验收"><rect x="603" y="470" width="44" height="18" rx="4"/><text x="625.0" y="483" text-anchor="middle">筛查</text></g>
+<text class="t-res" x="625.0" y="500" text-anchor="middle">4 失败</text>
+<path class="bracket" d="M650 467 V464 H784 V467"/>
+<text class="t-phase" x="717.0" y="460" text-anchor="middle">第 4 轮</text>
+<g class="blk k-step" data-tip="restore_candidate：把失败最少的候选（第 1 轮的）恢复成当前候选；文件相同的候选沿用之前的比较结果"><rect x="649" y="470" width="44" height="18" rx="4"/><text x="671.0" y="483" text-anchor="middle">恢复</text></g>
+<g class="blk k-step" data-tip="compare_behavior（全部 check）：交付前必须有一次"><rect x="695" y="470" width="44" height="18" rx="4"/><text x="717.0" y="483" text-anchor="middle">全量</text></g>
+<text class="t-res" x="717.0" y="500" text-anchor="middle">3 失败</text>
+<g class="blk k-step" data-tip="deliver：不要求全部通过。状态是 delivered_with_failures，结果里列出每个没解决的失败"><rect x="741" y="470" width="44" height="18" rx="4"/><text x="763.0" y="483" text-anchor="middle">交付</text></g>
+<text class="t-total" x="796" y="483">4 轮 · 3 次 author 调用</text></svg>
+    </div>
+    <figcaption>示意图。失败数和轮数是为了说明而设的；一格是一次工具调用，宽度不代表耗时（一次修复通常比一次筛查长得多）。把鼠标移到格子上（或点一下）可以看这一步调的是哪个工具。</figcaption>
+    <details>
+      <summary>用表格看这五个案例</summary>
+      <div class="scroll"><table class="num">
+        <thead><tr><th>案例</th><th>controller 的做法</th><th>轮数</th><th>author 调用</th><th>结果</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">1　委托到底</th><td>一次回答，全部交给主线</td><td>1</td><td>1</td><td>交付</td></tr>
+          <tr><th scope="row">2　多轮修复</th><td>每轮自己写修复指令</td><td>3</td><td>3</td><td>交付</td></tr>
+          <tr><th scope="row">3　先诊断再修</th><td>先查知识、筛查、审代码</td><td>3</td><td>2</td><td>交付</td></tr>
+          <tr><th scope="row">4　多版本并排</th><td>两个版本各写一份，再挑一个</td><td>2</td><td>1（2 个 session）</td><td>交付</td></tr>
+          <tr><th scope="row">5　修不动</th><td>退回失败最少的候选</td><td>4</td><td>3</td><td>带 3 个失败交付</td></tr>
+        </tbody>
+      </table></div>
+    </details>
+  </figure>
+  <ul class="plain">
+    <li><strong>案例 1：委托。</strong>controller 可以一句话把后面的步骤都交给主线，包括第一次修复。主线走到需要决定的地方（比如第二次修复）才会停下来再问它。</li>
+    <li><strong>案例 2：多轮修复。</strong>每一轮 controller 都把「修复、保存、筛查、全量、选定、交付」写成一批带条件的调用；筛查没过，后面几步就不触发，留到下一轮。同一个失败反复出现时，它要换更具体的指令。</li>
+    <li><strong>案例 3：先看再修。</strong>查知识、列文件、筛查都不花 author 调用；审代码花一次，但不改代码。</li>
+    <li><strong>案例 4：多版本并排。</strong>两个版本同时写，整组只算一次 author 调用；挑哪个要 controller 自己逐个恢复、比较。不开 parallel 模式时，用独立 workspace 也能做同样的事，只是每个 workspace 各算一次调用。</li>
+    <li><strong>案例 5：停下来。</strong>交付不要求全部通过。controller 可以退回失败最少的候选，带着失败交付，结果里会列出每个没解决的失败。</li>
+  </ul>
+</section>
+
+
 <section>
   <h2>并行清单</h2>
   <p class="sub">每一行是一处并行。「默认」表示不需要任何开关；「parallel 模式」由 owner 在提交时打开，controller 不能自己开关，也不能改并发上限。</p>
@@ -399,7 +619,8 @@
     <li>对比图是按规则画出来的示意，示例项目是虚构的。真实耗时还取决于每个 session 多久、模型和计算节点的排队，以及合并冲突后的重写。</li>
     <li>对比图省略了一些步骤：第一次抓 baseline 时对已有测试做的 knockout（并在「准备」里）、测试设计的第二轮和每个测试文件在原版上的试跑、split 之后的合并和冲突重写，以及 owner 配置的交付检查、安装检查和 task 评估。</li>
     <li>D 行的并行修复只在每个失败都落在单个 scope 里时发生；修复这一步是否交给主线，由 controller 决定。</li>
-    <li>图里没有画 controller 自选的三种分组，因为用不用、怎么用由它每一轮自己决定。</li>
+    <li>第一张图没有画 controller 自选的分组，因为用不用、怎么用由它每一轮自己决定；五个案例里的案例 4 画了其中一种。</li>
+    <li>五个案例同样是按规则画的示意：每一步用的工具和先后顺序符合 main 的规则，失败数、轮数和项目本身是虚构的。</li>
   </ul>
 </section>
 
@@ -433,9 +654,11 @@
     tip.style.left = Math.max(8, left) + 'px';
     tip.style.top = Math.max(8, top) + 'px';
   }
-  fig.addEventListener('pointermove', show);
-  fig.addEventListener('pointerdown', show);
-  fig.addEventListener('pointerleave', hide);
+  Array.prototype.forEach.call(document.querySelectorAll('.tips'), function (box) {
+    box.addEventListener('pointermove', show);
+    box.addEventListener('pointerdown', show);
+    box.addEventListener('pointerleave', hide);
+  });
   window.addEventListener('scroll', hide, { passive: true });
 })();
 </script>
