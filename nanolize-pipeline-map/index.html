@@ -226,7 +226,7 @@
   <h1>nanolize 流程全图</h1>
   <p class="lead">nanolize 把一个仓库里选中的功能重新实现一遍，再用原版的行为验收。这页按时间顺序把一次运行从头走到尾：host agent 做准备并提交作业，程序冻结合同，author 写首版，controller 带着修到交付。每一步都标出它是谁决定的。例子是 2026-11-19 跑完的 detectron2 核心：两个作业同时跑，开了 parallel 模式。</p>
   <nav class="toc" aria-label="目录">
-    <a href="#roles">角色</a><a href="#timeline">整次运行的时间线</a><a href="#s1">① host 准备</a><a href="#s2">② 提交</a>
+    <a href="#roles">分层</a><a href="#timeline">整次运行的时间线</a><a href="#s1">① host 准备</a><a href="#s2">② 提交</a>
     <a href="#s3">③ 冻结 ∥ 写首版</a><a href="#s4">④ 对比、修复、交付</a><a href="#round">controller 的一轮</a>
     <a href="#who">谁说了算</a><a href="#tools">工具目录</a><a href="#deps">工具依赖</a>
   </nav>
@@ -243,16 +243,16 @@
 <section id="gist">
   <h2>先说结论</h2>
   <div class="cards wide">
-    <div class="card"><span class="n">1　谁能决定“下一步做什么”</span>
-      <p>作业内部只有两个：<b>程序</b>（代码里叫 mainline，一条固定顺序）和 <b>controller</b>。host 只在作业之外活动；author、test designer、test reviewer 只决定自己会话里写什么，不能启动任何工具或会话。</p></div>
+    <div class="card"><span class="n">1　三层：host → 控制层 → 执行层</span>
+      <p>host 在作业之外。作业内部的<b>控制层</b>有两半：程序里的 <b>mainline</b>（一条固定顺序）和模型 <b>controller</b>，只有它们能决定“下一步调哪个工具”。<b>执行层</b>是 author、test designer / reviewer 和 verifier：只决定自己产出的内容，启动不了任何工具或会话。</p></div>
     <div class="card"><span class="n">2　author 的并行归 controller，前提是 parallel=on</span>
       <p><b>parallel=on</b>（detectron2 这次）：合同一封存 controller 就被问，首版分几次写、哪些 scope 同时写、修复怎么拆，都由它定；owner 只给同时几个的上限。<b>parallel=off</b>（入口命令的默认值）：它要等第一次全量对比出了结果才第一次被问，首版由程序按层写，修复也只能一次一个 author。两种情况下冻结、导入草稿、第一次对比都是程序写死的。</p></div>
     <div class="card"><span class="n">3　并行在工具内部，不在工具之间</span>
       <p>一个作业同一时刻只跑一个会改变作业状态的工具。并行是一个工具调用内部同时开多个会话或多个 check。唯一的例外是 pair：两个作业各跑各的。</p></div>
   </div>
   <div class="legend"><span class="hint">全页统一的颜色</span>
-    <span class="lg"><span class="sw w-hard"></span>程序写死：代码里的固定顺序或规则</span>
-    <span class="lg"><span class="sw w-ctrl"></span>controller 决定：它这一轮点名要调的</span>
+    <span class="lg"><span class="sw w-hard"></span>程序写死：控制层的 mainline，固定顺序或规则</span>
+    <span class="lg"><span class="sw w-ctrl"></span>controller 决定：控制层的模型一半，它这一轮点名要调的</span>
     <span class="lg"><span class="sw w-agent"></span>其他 agent 决定：host、author、test designer、test reviewer 的判断</span>
     <span class="lg"><span class="sw w-owner"></span>owner 设置：入口命令里的开关和上限</span>
   </div>
@@ -260,28 +260,36 @@
 
 <section id="roles">
   <span class="part">第一部分　WORKFLOW</span>
-  <h2>角色：谁启动谁，谁看得到什么</h2>
-  <p class="body">图里左边是作业之外的人和 agent，中间虚线框是 nanolize 的代码，右边是代码启动的模型会话。注意两点：<b>verifier 是程序，不是模型角色</b>（代码里唯一评审测试的模型角色叫 test reviewer）；controller 和 author 之间不直接对话，都经过 worker。</p>
-  <div class="card"><figure><div class="scroll"><svg class="fig" viewBox="0 0 1100 400" role="img" style="min-width:860px" aria-label="角色关系：用户把命令交给 host agent，host 通过 MCP 把 manifest 和设置交给 nanolize 程序；程序里的作业 worker 启动 controller、author、test designer 和 test reviewer 的会话，verifier 是程序的一部分"><defs><pattern id="hatch-follow" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="7" height="7" style="fill:var(--w-hard)"/><rect width="3.5" height="7" style="fill:var(--w-ctrl)"/></pattern><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker><marker id="arr-m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:var(--muted)"/></marker></defs><rect x="290" y="14" width="360" height="372" rx="12" style="fill:none;stroke:var(--line)" stroke-width="1.5" stroke-dasharray="6 4"/><text x="306" y="34" style="font-size:11px;fill:var(--muted)">nanolize 程序（代码，不是模型）</text><rect x="20" y="44" width="200" height="60" rx="8" style="fill:var(--surface);stroke:currentColor" stroke-width="1.5"/><rect x="20" y="44" width="6" height="60" rx="3" style="fill:var(--surface)"/><text x="36" y="66" style="font-size:13px;font-weight:700">用户（owner）</text><text x="36" y="84" style="font-size:11px;fill:var(--muted)">输入命令和选项；可随时取消</text><rect x="20" y="176" width="200" height="96" rx="8" style="fill:var(--surface);stroke:var(--w-agent-ink)" stroke-width="1.5"/><rect x="20" y="176" width="6" height="96" rx="3" style="fill:var(--w-agent)"/><text x="36" y="198" style="font-size:13px;font-weight:700">host agent</text><text x="36" y="216" style="font-size:11px;fill:var(--muted)">用户自己的 Claude Code 会话</text><text x="36" y="232" style="font-size:11px;fill:var(--muted)">+ nanolize 插件的 skill</text><text x="36" y="248" style="font-size:11px;fill:var(--muted)">不受沙箱限制，能读整个仓库</text><rect x="308" y="50" width="324" height="56" rx="8" style="fill:var(--surface);stroke:var(--w-hard-ink)" stroke-width="1.5"/><rect x="308" y="50" width="6" height="56" rx="3" style="fill:var(--w-hard)"/><text x="324" y="72" style="font-size:13px;font-weight:700">review 服务</text><text x="324" y="90" style="font-size:11px;fill:var(--muted)">收 manifest 和设置；提交时创建作业</text><rect x="308" y="146" width="324" height="96" rx="8" style="fill:var(--surface);stroke:var(--w-hard-ink)" stroke-width="1.5"/><rect x="308" y="146" width="6" height="96" rx="3" style="fill:var(--w-hard)"/><text x="324" y="168" style="font-size:13px;font-weight:700">作业 worker · mainline</text><text x="324" y="186" style="font-size:11px;fill:var(--muted)">按固定顺序给出“下一步工具调用”</text><text x="324" y="202" style="font-size:11px;fill:var(--muted)">一次只跑一个会改状态的工具</text><text x="324" y="218" style="font-size:11px;fill:var(--muted)">controller 不回答时由它兜底</text><rect x="308" y="282" width="324" height="90" rx="8" style="fill:var(--surface);stroke:var(--w-hard-ink)" stroke-width="1.5"/><rect x="308" y="282" width="6" height="90" rx="3" style="fill:var(--w-hard)"/><text x="324" y="304" style="font-size:13px;font-weight:700">verifier</text><text x="324" y="322" style="font-size:11px;fill:var(--muted)">原版 baseline、跑 check、逐项对比</text><text x="324" y="338" style="font-size:11px;fill:var(--muted)">测试和期望输出只在这一侧</text><text x="324" y="354" style="font-size:11px;fill:var(--muted)">author 和 controller 都拿不到</text><rect x="838" y="30" width="254" height="92" rx="8" style="fill:var(--surface);stroke:var(--w-ctrl-ink)" stroke-width="1.5"/><rect x="838" y="30" width="6" height="92" rx="3" style="fill:var(--w-ctrl)"/><text x="854" y="52" style="font-size:13px;font-weight:700">controller</text><text x="854" y="70" style="font-size:11px;fill:var(--muted)">每轮一个新会话，只读</text><text x="854" y="86" style="font-size:11px;fill:var(--muted)">看不到源码和测试，只看合同、</text><text x="854" y="102" style="font-size:11px;fill:var(--muted)">知识、历史和失败摘要</text><rect x="838" y="154" width="254" height="92" rx="8" style="fill:var(--surface);stroke:var(--w-agent-ink)" stroke-width="1.5"/><rect x="838" y="154" width="6" height="92" rx="3" style="fill:var(--w-agent)"/><text x="854" y="176" style="font-size:13px;font-weight:700">author</text><text x="854" y="194" style="font-size:11px;fill:var(--muted)">implement · repair · optimize · reviewer</text><text x="854" y="210" style="font-size:11px;fill:var(--muted)">空工作区起步；可查阅借给它的原版源码</text><text x="854" y="226" style="font-size:11px;fill:var(--muted)">看不到任何测试</text><rect x="838" y="278" width="254" height="92" rx="8" style="fill:var(--surface);stroke:var(--w-agent-ink)" stroke-width="1.5"/><rect x="838" y="278" width="6" height="92" rx="3" style="fill:var(--w-agent)"/><text x="854" y="300" style="font-size:13px;font-weight:700">test designer · test reviewer</text><text x="854" y="318" style="font-size:11px;fill:var(--muted)">只在冻结阶段出现</text><text x="854" y="334" style="font-size:11px;fill:var(--muted)">在原版的私有副本里读源码和测试、写测试</text><text x="854" y="350" style="font-size:11px;fill:var(--muted)">看不到候选代码</text><path class="arrow" d="M120 104 L120 174" marker-end="url(#arr)"/><text x="112" y="144" text-anchor="end" style="font-size:10.5px;fill:var(--muted)">命令 + 选项</text><path class="arrow" d="M220 206 L306 86" marker-end="url(#arr)"/><text x="256" y="114" text-anchor="end" style="font-size:10.5px;fill:var(--muted)">MCP 工具：</text><text x="262" y="129" text-anchor="end" style="font-size:10.5px;fill:var(--muted)">manifest、</text><text x="252" y="144" text-anchor="end" style="font-size:10.5px;fill:var(--muted)">设置、提交</text><path class="arrow" d="M220 250 L306 222" marker-end="url(#arr)" stroke-dasharray="4 3"/><text x="226" y="292" text-anchor="start" style="font-size:10.5px;fill:var(--muted)">只观察状态；</text><text x="226" y="307" text-anchor="start" style="font-size:10.5px;fill:var(--muted)">可取消重交</text><path class="arrow" d="M470 106 L470 144" marker-end="url(#arr)"/><text x="478" y="130" text-anchor="start" style="font-size:10.5px;fill:var(--muted)">创建作业</text><path class="arrow" d="M470 242 L470 280" marker-end="url(#arr)"/><text x="478" y="266" text-anchor="start" style="font-size:10.5px;fill:var(--muted)">调用跑 check 的工具</text><path class="arrow" d="M632 194 H700 M700 60 V342" stroke-width="2"/><circle cx="700" cy="194" r="3.5" fill="currentColor"/><path class="arrow" d="M700 60 L836 60" marker-end="url(#arr)"/><text x="768" y="54" text-anchor="middle" style="font-size:10.5px;fill:var(--muted)">这一轮的上下文</text><path class="arrow" d="M836 94 L702 94" marker-end="url(#arr)"/><text x="768" y="88" text-anchor="middle" style="font-size:10.5px;fill:var(--muted)">一串工具调用</text><path class="arrow" d="M700 184 L836 184" marker-end="url(#arr)"/><text x="768" y="178" text-anchor="middle" style="font-size:10.5px;fill:var(--muted)">合同 + 知识 + 反馈</text><path class="arrow" d="M836 218 L702 218" marker-end="url(#arr)"/><text x="768" y="212" text-anchor="middle" style="font-size:10.5px;fill:var(--muted)">草稿文件</text><path class="arrow" d="M700 308 L836 308" marker-end="url(#arr)"/><text x="768" y="302" text-anchor="middle" style="font-size:10.5px;fill:var(--muted)">leaf + 原版副本</text><path class="arrow" d="M836 342 L702 342" marker-end="url(#arr)"/><text x="768" y="336" text-anchor="middle" style="font-size:10.5px;fill:var(--muted)">测试文件 / 裁决</text><text x="700" y="362" text-anchor="middle" style="font-size:10.5px;fill:var(--muted)">会话都由 worker 启动，</text><text x="700" y="377" text-anchor="middle" style="font-size:10.5px;fill:var(--muted)">彼此不直接对话</text></svg></div><p class="swipe">左右滑动查看 →</p>
-    <figcaption>箭头上是交接的内容。左边框条的颜色：灰 = 程序，紫 = controller，绿 = 其他 agent。</figcaption></figure></div>
-  <div class="card"><div class="scroll"><table style="min-width:60rem">
-    <thead><tr><th>角色</th><th>谁启动</th><th>数量</th><th>看得到什么</th><th>产出</th><th>它能决定什么</th></tr></thead>
-    <tbody><tr><th scope="row">host agent<br><span class="who w-agent">模型会话</span></th><td>用户输入入口命令</td><td>一个会话，贯穿全程</td><td>整个仓库（不受限）</td><td>功能清单 manifest、check、环境配方、提交</td><td>保留哪些功能、哪些算必需、怎么检查、怎么准备环境；无人值守时还包括出错后怎么绕</td></tr><tr><th scope="row">作业 worker · mainline<br><span class="who w-hard">程序</span></th><td>提交之后由 review 服务启动</td><td>每个作业一个进程</td><td>作业的全部状态</td><td>按固定顺序调用工具；记录每一步</td><td>冻结的顺序、导入草稿、第一次对比；parallel=off 时首版按层怎么写；controller 不回答时的每一步</td></tr><tr><th scope="row">controller<br><span class="who w-ctrl">模型会话</span></th><td>程序的循环（每到需要决定的地方问一次）</td><td>每轮一个新会话；本例 6 轮</td><td>合同、知识库、操作历史、失败摘要；看不到源码、测试、原始输出</td><td>一个 JSON：最多 24 个工具调用 + 理由 + 可选的委托</td><td>parallel=on 时首版怎么切；修什么、怎么拆、几个 author 同时写、何时对比、选哪个候选、何时交付</td></tr><tr><th scope="row">author<br><span class="who w-agent">模型会话</span></th><td>run_agent、run_parallel_agents、run_workspace_agents 这三个工具</td><td>每次调用一个会话；一个组最多 20 个</td><td>自己的工作区；本次调用涉及的原版源码（只读借阅）；看不到测试</td><td>草稿文件（保存后才成为候选）</td><td>代码怎么写。不能决定流程</td></tr><tr><th scope="row">test designer<br><span class="who w-agent">模型会话</span></th><td>design_leaf_tests 工具内部</td><td>每个需要测试的 leaf 一个，同时开</td><td>原版的私有副本：源码和已有测试；看不到候选</td><td>测试文件、场景文件</td><td>测试写什么。写出来能不能用由程序的门和试跑决定</td></tr><tr><th scope="row">test reviewer<br><span class="who w-agent">模型会话</span></th><td>design_leaf_tests 工具内部，试跑之后</td><td>每 8 个文件一个，同时开</td><td>原版副本 + 待评审的测试文件；不能运行</td><td>每个文件一个裁决：接受 / 否决 + 理由</td><td>接受还是否决。否决后只给 designer 一次修改机会（程序规则）</td></tr><tr><th scope="row">verifier<br><span class="who w-hard">程序</span></th><td>封存前和第一次全量对比：主线调用。之后：controller 点名调用 compare_behavior、run_checks、check_installation、capture_baseline</td><td>check 可以多个同时跑</td><td>原版、测试、期望输出、候选</td><td>baseline、对比报告、失败摘要</td><td>通过与否完全按规则算：退出码 → 逐用例 → 输出摘要。controller 只能定何时验、先筛查哪些 check，改不了 check、baseline 和判定规则</td></tr></tbody></table></div>
-    <p class="sub">本例没开任务评估（<code>tasks=off</code>），所以没有 examiner、solver、judge 这三个角色。所有角色用同一个模型（本例 Fable 5.2，effort high）。会话都跑在沙箱里：作业状态目录、原版仓库、别的会话的记录对它们不可见。</p>
+  <h2>分层：host → 控制层 → author / test designer / verifier</h2>
+  <p class="body">按三层看这套流程。最上面是 host；中间是作业的<b>控制层</b>，它有两半：程序里的 mainline（固定规则）和模型 controller；最下面是干活的三方：author、test designer（连同 test reviewer）、verifier。图里每个执行方的框上有两个接口，灰色接 mainline，紫色接 controller，框里写明各管什么。</p>
+  <div class="card"><figure><div class="scroll"><svg class="fig" viewBox="0 0 1100 590" role="img" style="min-width:900px" aria-label="三层结构：host agent 在上，中间是作业控制层（程序的 mainline 和模型 controller 两半），下面是 author、test designer 和 reviewer、verifier。author 和 verifier 两半都管得到，test designer 目前只归 mainline，controller 管不到"><defs><pattern id="hatch-follow" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="7" height="7" style="fill:var(--w-hard)"/><rect width="3.5" height="7" style="fill:var(--w-ctrl)"/></pattern><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker><marker id="arr-m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:var(--muted)"/></marker></defs><text x="40" y="16" style="font-size:11px;fill:var(--accent);font-family:var(--font-mono)">第 1 层　host</text><rect x="40" y="30" width="210" height="60" rx="8" style="fill:var(--surface);stroke:currentColor" stroke-width="1.5"/><rect x="40" y="30" width="6" height="60" rx="3" style="fill:var(--surface)"/><text x="56" y="52" style="font-size:13px;font-weight:700">用户（owner）</text><text x="56" y="70" style="font-size:11px;fill:var(--muted)">输入命令和选项；可随时取消</text><rect x="330" y="24" width="440" height="72" rx="8" style="fill:var(--surface);stroke:var(--w-agent-ink)" stroke-width="1.5"/><rect x="330" y="24" width="6" height="72" rx="3" style="fill:var(--w-agent)"/><text x="346" y="46" style="font-size:13px;font-weight:700">host agent</text><text x="346" y="64" style="font-size:11px;fill:var(--muted)">用户自己的 Claude Code 会话 + nanolize skill</text><text x="346" y="80" style="font-size:11px;fill:var(--muted)">读整个仓库，写出合同：功能清单、check、知识库</text><path class="arrow" d="M250 60 L328 60" marker-end="url(#arr)"/><text x="289" y="52" text-anchor="middle" style="font-size:10.5px;fill:var(--muted)">命令 + 选项</text><path class="arrow" d="M550 96 L550 166" marker-end="url(#arr)"/><text x="560" y="128" text-anchor="start" style="font-size:10.5px;fill:var(--muted)">MCP：合同 + 开关和上限 + 提交</text><text x="560" y="143" text-anchor="start" style="font-size:10.5px;fill:var(--muted)">运行中 host 不指挥 controller</text><text x="540" y="128" text-anchor="end" style="font-size:10.5px;fill:var(--muted)">只观察状态；</text><text x="540" y="143" text-anchor="end" style="font-size:10.5px;fill:var(--muted)">可取消、暂停、重交</text><rect x="40" y="168" width="1020" height="148" rx="12" style="fill:none;stroke:var(--line)" stroke-width="1.5" stroke-dasharray="6 4"/><text x="56" y="188" style="font-size:11px;fill:var(--accent);font-family:var(--font-mono)">第 2 层　作业控制层：两半用同一套工具；所有会话都由 worker 进程启动</text><rect x="70" y="202" width="430" height="98" rx="8" style="fill:var(--surface);stroke:var(--w-hard-ink)" stroke-width="1.5"/><rect x="70" y="202" width="6" height="98" rx="3" style="fill:var(--w-hard)"/><text x="86" y="224" style="font-size:13px;font-weight:700">mainline（程序，固定规则）</text><text x="86" y="242" style="font-size:11px;fill:var(--muted)">冻结各步、导入草稿、第一次全量对比</text><text x="86" y="258" style="font-size:11px;fill:var(--muted)">parallel=off 时按层写首版</text><text x="86" y="274" style="font-size:11px;fill:var(--muted)">controller 不回答时由它兜底</text><rect x="600" y="202" width="430" height="98" rx="8" style="fill:var(--surface);stroke:var(--w-ctrl-ink)" stroke-width="1.5"/><rect x="600" y="202" width="6" height="98" rx="3" style="fill:var(--w-ctrl)"/><text x="616" y="224" style="font-size:13px;font-weight:700">controller（模型，每轮一个新会话）</text><text x="616" y="242" style="font-size:11px;fill:var(--muted)">看不到源码和测试；只看合同、知识、历史、失败摘要</text><text x="616" y="258" style="font-size:11px;fill:var(--muted)">回答一串工具调用，由 worker 执行</text><text x="616" y="274" style="font-size:11px;fill:var(--muted)">parallel 的开关和上限它改不了</text><path class="arrow" d="M500 236 L598 236" marker-end="url(#arr)"/><text x="549" y="229" text-anchor="middle" style="font-size:10.5px;fill:var(--muted)">问：下一步？</text><path class="arrow" d="M598 272 L502 272" marker-end="url(#arr)"/><text x="549" y="265" text-anchor="middle" style="font-size:10.5px;fill:var(--muted)">答：工具调用</text><text x="40" y="340" style="font-size:11px;fill:var(--accent);font-family:var(--font-mono)">第 3 层　执行层</text><path d="M285 300 V354 M110 354 H810" style="fill:none;stroke:var(--w-hard-ink)" stroke-width="2"/><path d="M900 300 V378 M250 378 H950" style="fill:none;stroke:var(--w-ctrl-ink)" stroke-width="2"/><path d="M110 354 V399" style="fill:none;stroke:var(--w-hard-ink)" stroke-width="2"/><circle cx="110" cy="404" r="5" style="fill:var(--w-hard);stroke:var(--w-hard-ink)" stroke-width="1.5"/><path d="M460 354 V399" style="fill:none;stroke:var(--w-hard-ink)" stroke-width="2"/><circle cx="460" cy="404" r="5" style="fill:var(--w-hard);stroke:var(--w-hard-ink)" stroke-width="1.5"/><path d="M810 354 V399" style="fill:none;stroke:var(--w-hard-ink)" stroke-width="2"/><circle cx="810" cy="404" r="5" style="fill:var(--w-hard);stroke:var(--w-hard-ink)" stroke-width="1.5"/><path d="M250 378 V399" style="fill:none;stroke:var(--w-ctrl-ink)" stroke-width="2"/><circle cx="250" cy="404" r="5" style="fill:var(--w-ctrl);stroke:var(--w-ctrl-ink)" stroke-width="1.5"/><path d="M600 378 V399" style="fill:none;stroke:var(--w-ctrl-ink)" stroke-width="2" stroke-dasharray="4 4"/><circle cx="600" cy="404" r="5" style="fill:var(--surface);stroke:var(--w-ctrl-ink)" stroke-width="1.5" stroke-dasharray="2 2"/><text x="614" y="396" text-anchor="middle" style="font-size:13px;font-weight:700;fill:var(--bad)">✕</text><path d="M950 378 V399" style="fill:none;stroke:var(--w-ctrl-ink)" stroke-width="2"/><circle cx="950" cy="404" r="5" style="fill:var(--w-ctrl);stroke:var(--w-ctrl-ink)" stroke-width="1.5"/><rect x="40" y="404" width="320" height="152" rx="8" style="fill:var(--surface);stroke:var(--w-agent-ink)" stroke-width="1.5"/><rect x="40" y="404" width="6" height="152" rx="3" style="fill:var(--w-agent)"/><text x="56" y="426" style="font-size:13px;font-weight:700">author</text><text x="56" y="444" style="font-size:11px;fill:var(--muted)">空工作区起步；可查阅借给它的原版源码，看不到测试</text><circle cx="60" cy="472" r="5" style="fill:var(--w-hard);stroke:var(--w-hard-ink)" stroke-width="1.5"/><text x="74" y="476" style="font-size:11px;fill:var(--ink)">mainline：parallel=off 时的首版（按层）；</text><text x="74" y="492" style="font-size:11px;fill:var(--ink)">controller 不回答时兜底</text><circle cx="60" cy="512" r="5" style="fill:var(--w-ctrl);stroke:var(--w-ctrl-ink)" stroke-width="1.5"/><text x="74" y="516" style="font-size:11px;fill:var(--ink)">controller：parallel=on 时首版怎么切；</text><text x="74" y="532" style="font-size:11px;fill:var(--ink)">修复怎么拆、给什么指示</text><rect x="390" y="404" width="320" height="152" rx="8" style="fill:var(--surface);stroke:var(--w-agent-ink)" stroke-width="1.5"/><rect x="390" y="404" width="6" height="152" rx="3" style="fill:var(--w-agent)"/><text x="406" y="426" style="font-size:13px;font-weight:700">test designer · test reviewer</text><text x="406" y="444" style="font-size:11px;fill:var(--muted)">在原版的私有副本里写测试、评审；看不到候选</text><circle cx="410" cy="472" r="5" style="fill:var(--w-hard);stroke:var(--w-hard-ink)" stroke-width="1.5"/><text x="424" y="476" style="font-size:11px;fill:var(--ink)">mainline：封存前调用 design_leaf_tests，</text><text x="424" y="492" style="font-size:11px;fill:var(--ink)">给哪些 leaf 设计、开几个都由它算</text><circle cx="410" cy="512" r="5" style="fill:none;stroke:var(--w-ctrl-ink)" stroke-width="1.5" stroke-dasharray="2 2"/><text x="424" y="516" style="font-size:11px;fill:var(--bad);font-weight:700">controller：目前管不到</text><text x="424" y="532" style="font-size:11px;fill:var(--ink)">封存前它不被问，封存后这个工具被挡</text><rect x="740" y="404" width="320" height="152" rx="8" style="fill:var(--surface);stroke:var(--w-hard-ink)" stroke-width="1.5"/><rect x="740" y="404" width="6" height="152" rx="3" style="fill:var(--w-hard)"/><text x="756" y="426" style="font-size:13px;font-weight:700">verifier（程序，不是模型）</text><text x="756" y="444" style="font-size:11px;fill:var(--muted)">原版 baseline、跑 check、逐项对比</text><circle cx="760" cy="472" r="5" style="fill:var(--w-hard);stroke:var(--w-hard-ink)" stroke-width="1.5"/><text x="774" y="476" style="font-size:11px;fill:var(--ink)">mainline：冻结里的 baseline 和 knockout、</text><text x="774" y="492" style="font-size:11px;fill:var(--ink)">封存、第一次全量对比</text><circle cx="760" cy="512" r="5" style="fill:var(--w-ctrl);stroke:var(--w-ctrl-ink)" stroke-width="1.5"/><text x="774" y="516" style="font-size:11px;fill:var(--ink)">controller：之后何时对比、筛查哪些 check、</text><text x="774" y="532" style="font-size:11px;fill:var(--ink)">安装检查、重抓 baseline；判定规则改不了</text><text x="550" y="578" text-anchor="middle" style="font-size:10.5px;fill:var(--muted)">实线 = 现在有这条控制线　　虚线 ✕ = 目标分层里有、现在没有</text></svg></div><p class="swipe">左右滑动查看 →</p>
+    <figcaption>和目标分层 host → controller → author / test designer / verifier 对照：author 和 verifier 两条线 controller 都接得上，但各有一段归 mainline；<b>test designer 这条线目前不经过 controller</b>，设计测试全在封存之前，由 mainline 调用。</figcaption></figure></div>
+  <div class="card"><h3>现状和目标分层的对照</h3>
+    <div class="scroll"><table style="min-width:46rem">
+    <thead><tr><th>目标里的这条线</th><th>现在是否成立</th><th>现状</th></tr></thead><tbody>
+    <tr><th scope="row">host → controller</th><td>基本成立</td><td>配置式的上下级：host 写好合同和上限后提交，运行中不直接指挥 controller；controller 的每一轮由 mainline 发起</td></tr>
+    <tr><th scope="row">controller → author</th><td>parallel=on 时成立</td><td>封存后所有 author 调用（首版和修复）都由 controller 定。parallel=off 时首版由 mainline 按层写，controller 只管修复</td></tr>
+    <tr><th scope="row">controller → verifier</th><td>部分成立</td><td>第一次全量对比之后，何时验、先筛查哪些 check 归 controller。冻结里的 baseline、knockout、封存和第一次全量对比归 mainline</td></tr>
+    <tr><th scope="row">controller → test designer</th><td><span style="color:var(--bad);font-weight:700">不成立</span></td><td>设计测试全在封存之前，由 mainline 调用；controller 封存前不被问，封存后 <code>design_leaf_tests</code> 永远被挡。这是代码有意的安排：封存前从不被问的 agent，没法通过自己的选择去影响测试</td></tr>
+    </tbody></table></div></div>
+  <div class="card"><h3>各层的角色</h3><div class="scroll"><table style="min-width:62rem">
+    <thead><tr><th>角色</th><th>是什么</th><th>归上一层的谁管</th><th>它自己能决定什么</th><th>看得到什么</th></tr></thead>
+    <tbody><tr class="grp"><th colspan="5">第 1 层</th></tr><tr><th scope="row">host agent<br><span class="who w-agent">模型会话</span></th><td>模型：用户自己的 Claude Code 会话 + nanolize skill，一个会话贯穿全程</td><td>用户（owner）：入口命令和选项</td><td>保留哪些功能、哪些算必需、怎么检查、怎么准备环境；无人值守时出错后怎么绕（包括取消重交）</td><td>整个仓库，不受沙箱限制</td></tr><tr class="grp"><th colspan="5">第 2 层　控制层</th></tr><tr><th scope="row">mainline<br><span class="who w-hard">程序</span></th><td>程序：worker 进程里的一条固定顺序，每个作业一个</td><td>host 提交的合同和设置。提交之后 host 不再指挥它</td><td>冻结各步、导入草稿、第一次全量对比；parallel=off 时首版按层写；controller 不回答时的每一步</td><td>作业的全部状态</td></tr><tr><th scope="row">controller<br><span class="who w-ctrl">模型会话</span></th><td>模型：每轮一个新会话，本例 6 轮</td><td><span class="who w-hard">mainline</span> 到需要决定的地方才问它：默认从第一次全量对比之后，parallel=on 时从封存之后</td><td>parallel=on 时首版怎么切；修什么、怎么拆、几个 author 同时写；何时对比、先筛查哪些 check；选哪个候选、何时交付</td><td>合同、知识库、操作历史、失败摘要；看不到源码、测试、原始输出</td></tr><tr class="grp"><th colspan="5">第 3 层　执行层</th></tr><tr><th scope="row">author<br><span class="who w-agent">模型会话</span></th><td>模型：每次调用一个会话，一个组最多 20 个</td><td><span class="who w-ctrl">controller</span> parallel=on 的首版、所有修复<br><span class="who w-hard">mainline</span> parallel=off 的首版、兜底</td><td>代码怎么写。不能决定流程，启动不了工具或会话</td><td>自己的工作区；本次调用涉及的原版源码（只读借阅）；看不到测试</td></tr><tr><th scope="row">test designer<br><span class="who w-agent">模型会话</span></th><td>模型：每个需要测试的 leaf 一个会话，同时开</td><td><span class="who w-hard">mainline</span> 封存前的 design_leaf_tests<br><span style="color:var(--bad);font-weight:700">controller 管不到</span>：和目标分层的差距</td><td>测试写什么。写出来能不能用由 verifier 的门和试跑决定</td><td>原版的私有副本：源码和已有测试；看不到候选</td></tr><tr><th scope="row">test reviewer<br><span class="who w-agent">模型会话</span></th><td>模型：每 8 个文件一个会话，同时开</td><td><span class="who w-hard">mainline</span> 同上，在试跑之后<br><span style="color:var(--bad);font-weight:700">controller 管不到</span></td><td>接受还是否决。否决后 designer 只有一次修改机会</td><td>原版副本 + 待评审的测试文件；不能运行</td></tr><tr><th scope="row">verifier<br><span class="who w-hard">程序</span></th><td>程序：baseline、跑 check、逐项对比。不是模型</td><td><span class="who w-hard">mainline</span> 冻结里的 baseline 和 knockout、封存、第一次全量对比<br><span class="who w-ctrl">controller</span> 之后的对比、安装检查、重抓 baseline</td><td>通过与否，完全按规则算：退出码 → 逐用例 → 输出摘要。controller 改不了 check、baseline 和判定规则</td><td>原版、测试、期望输出、候选</td></tr></tbody></table></div>
+    <p class="sub">本例没开任务评估（<code>tasks=off</code>），所以没有 examiner、solver、judge 这三个角色。所有模型角色用同一个模型（本例 Fable 5.2，effort high）。会话都跑在沙箱里：作业状态目录、原版仓库、别的会话的记录对它们不可见。</p>
   </div>
 </section>
 
 <section id="timeline">
   <h2>整次运行的时间线（按真实时间）</h2>
-  <p class="body">先看全貌。横轴是从 host 启动起的分钟数；每个作业两行：上面一行是工具调用，下面是模型会话，上下叠放的细条是同时在跑的会话。颜色是“谁决定启动它”。这次运行有两对作业：第一对跑了 63 分钟后被 host 自己取消重交，第二对走到交付。</p>
+  <p class="body">先看全貌，按上面的三层画。横轴是从 host 启动起的分钟数。最上面一行是 host。每个作业先是一行<b>控制层</b>：它发出的每个工具调用，和 controller 的每一轮；下面几行是<b>执行层</b>，也就是这些调用让谁干了活：verifier、designer · reviewer、author 各一行，上下叠放的细条是同时在跑的会话。颜色是控制层的哪一半决定的。这次运行有两对作业：第一对跑了 63 分钟后被 host 自己取消重交，第二对走到交付。</p>
   <div class="card tips focusable" id="fig-scale">
     <div class="legend" data-for="fig-scale"><span class="hint">颜色 = 谁决定这一步（点一下只看一类）</span><button type="button" class="lg" data-kind="hard" aria-pressed="false"><span class="sw w-hard"></span>程序写死</button><button type="button" class="lg" data-kind="ctrl" aria-pressed="false"><span class="sw w-ctrl"></span>controller 决定</button><button type="button" class="lg" data-kind="agent" aria-pressed="false"><span class="sw w-agent"></span>其他 agent 决定</button><span class="lg"><span class="sw w-follow"></span>主线照固定顺序做，controller 放行</span><span class="lg"><span class="sw w-wait"></span>等待</span></div>
-    <figure><div class="scroll"><svg class="fig" viewBox="0 0 1180 504" role="img" aria-label="detectron2 这次运行按真实时间画出的时间线：host、两对作业各自的工具调用和模型会话"><defs><pattern id="hatch-follow" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="7" height="7" style="fill:var(--w-hard)"/><rect width="3.5" height="7" style="fill:var(--w-ctrl)"/></pattern><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker><marker id="arr-m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:var(--muted)"/></marker></defs><line class="grid" x1="150.0" y1="26" x2="150.0" y2="498"/><text class="t-axis" x="150.0" y="18" text-anchor="middle">host 启动</text><line class="grid" x1="215.4" y1="26" x2="215.4" y2="498"/><text class="t-axis" x="215.4" y="18" text-anchor="middle">+15 分</text><line class="grid" x1="280.9" y1="26" x2="280.9" y2="498"/><text class="t-axis" x="280.9" y="18" text-anchor="middle">+30 分</text><line class="grid" x1="346.3" y1="26" x2="346.3" y2="498"/><text class="t-axis" x="346.3" y="18" text-anchor="middle">+45 分</text><line class="grid" x1="411.7" y1="26" x2="411.7" y2="498"/><text class="t-axis" x="411.7" y="18" text-anchor="middle">+60 分</text><line class="grid" x1="477.2" y1="26" x2="477.2" y2="498"/><text class="t-axis" x="477.2" y="18" text-anchor="middle">+75 分</text><line class="grid" x1="542.6" y1="26" x2="542.6" y2="498"/><text class="t-axis" x="542.6" y="18" text-anchor="middle">+90 分</text><line class="grid" x1="608.0" y1="26" x2="608.0" y2="498"/><text class="t-axis" x="608.0" y="18" text-anchor="middle">+105 分</text><line class="grid" x1="673.4" y1="26" x2="673.4" y2="498"/><text class="t-axis" x="673.4" y="18" text-anchor="middle">+120 分</text><line class="grid" x1="738.9" y1="26" x2="738.9" y2="498"/><text class="t-axis" x="738.9" y="18" text-anchor="middle">+135 分</text><line class="grid" x1="804.3" y1="26" x2="804.3" y2="498"/><text class="t-axis" x="804.3" y="18" text-anchor="middle">+150 分</text><line class="grid" x1="869.7" y1="26" x2="869.7" y2="498"/><text class="t-axis" x="869.7" y="18" text-anchor="middle">+165 分</text><line class="grid" x1="935.2" y1="26" x2="935.2" y2="498"/><text class="t-axis" x="935.2" y="18" text-anchor="middle">+180 分</text><line class="grid" x1="1000.6" y1="26" x2="1000.6" y2="498"/><text class="t-axis" x="1000.6" y="18" text-anchor="middle">+195 分</text><line class="grid" x1="1066.0" y1="26" x2="1066.0" y2="498"/><text class="t-axis" x="1066.0" y="18" text-anchor="middle">+210 分</text><line class="grid" x1="1131.5" y1="26" x2="1131.5" y2="498"/><text class="t-axis" x="1131.5" y="18" text-anchor="middle">+225 分</text><text class="t-lane" x="0" y="49.0">host agent</text><text class="t-lane2" x="0" y="63.0">Claude Code + 插件</text><g class="blk w-hard" data-tip="读 skill（+0.0 → +3.2 分）
+    <figure><div class="scroll"><svg class="fig" viewBox="0 0 1180 587" role="img" aria-label="detectron2 这次运行按真实时间、按分层画出的时间线：host 一行；每个作业一行控制层（工具调用和 controller 的轮次），下面是 verifier、test designer 和 reviewer、author 各自干活的时间"><defs><pattern id="hatch-follow" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="7" height="7" style="fill:var(--w-hard)"/><rect width="3.5" height="7" style="fill:var(--w-ctrl)"/></pattern><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker><marker id="arr-m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:var(--muted)"/></marker></defs><line class="grid" x1="150.0" y1="26" x2="150.0" y2="581"/><text class="t-axis" x="150.0" y="18" text-anchor="middle">host 启动</text><line class="grid" x1="215.4" y1="26" x2="215.4" y2="581"/><text class="t-axis" x="215.4" y="18" text-anchor="middle">+15 分</text><line class="grid" x1="280.9" y1="26" x2="280.9" y2="581"/><text class="t-axis" x="280.9" y="18" text-anchor="middle">+30 分</text><line class="grid" x1="346.3" y1="26" x2="346.3" y2="581"/><text class="t-axis" x="346.3" y="18" text-anchor="middle">+45 分</text><line class="grid" x1="411.7" y1="26" x2="411.7" y2="581"/><text class="t-axis" x="411.7" y="18" text-anchor="middle">+60 分</text><line class="grid" x1="477.2" y1="26" x2="477.2" y2="581"/><text class="t-axis" x="477.2" y="18" text-anchor="middle">+75 分</text><line class="grid" x1="542.6" y1="26" x2="542.6" y2="581"/><text class="t-axis" x="542.6" y="18" text-anchor="middle">+90 分</text><line class="grid" x1="608.0" y1="26" x2="608.0" y2="581"/><text class="t-axis" x="608.0" y="18" text-anchor="middle">+105 分</text><line class="grid" x1="673.4" y1="26" x2="673.4" y2="581"/><text class="t-axis" x="673.4" y="18" text-anchor="middle">+120 分</text><line class="grid" x1="738.9" y1="26" x2="738.9" y2="581"/><text class="t-axis" x="738.9" y="18" text-anchor="middle">+135 分</text><line class="grid" x1="804.3" y1="26" x2="804.3" y2="581"/><text class="t-axis" x="804.3" y="18" text-anchor="middle">+150 分</text><line class="grid" x1="869.7" y1="26" x2="869.7" y2="581"/><text class="t-axis" x="869.7" y="18" text-anchor="middle">+165 分</text><line class="grid" x1="935.2" y1="26" x2="935.2" y2="581"/><text class="t-axis" x="935.2" y="18" text-anchor="middle">+180 分</text><line class="grid" x1="1000.6" y1="26" x2="1000.6" y2="581"/><text class="t-axis" x="1000.6" y="18" text-anchor="middle">+195 分</text><line class="grid" x1="1066.0" y1="26" x2="1066.0" y2="581"/><text class="t-axis" x="1066.0" y="18" text-anchor="middle">+210 分</text><line class="grid" x1="1131.5" y1="26" x2="1131.5" y2="581"/><text class="t-axis" x="1131.5" y="18" text-anchor="middle">+225 分</text><text class="t-lane" x="0" y="49.0">host agent</text><g class="blk w-hard" data-tip="读 skill（+0.0 → +3.2 分）
 读入口 skill（nanolize → nanolize-run → simplify-code）、开运行面板。
 步骤由 skill 的文字规定"><rect x="150.0" y="36.0" width="13.1" height="18.0" rx="3"/></g><g class="blk w-hard" data-tip="发现（+3.2 → +6.3 分）
 discover_evidence、discover_capabilities、prepare_graphify：
 由程序扫描仓库，host 只负责按 skill 的顺序调用"><rect x="164.1" y="36.0" width="12.4" height="18.0" rx="3"/></g><g class="blk w-agent" data-tip="理解代码 · 写 manifest（+6.3 → +21.9 分）
-host 自己读代码，决定保留哪些功能、哪些必须、怎么检查、怎么准备环境，写成 manifest。
+host 自己读代码，决定保留哪些功能、哪些必需、怎么检查、怎么准备环境，写成 manifest。
 这一段是 host agent 的判断，约 15.6 分钟"><rect x="177.6" y="36.0" width="67.0" height="18.0" rx="3"/></g><g class="blk w-hard" data-tip="校验（+21.9 → +28.4 分）
 propose_contract、plan_capabilities、audit_check_scope、task_doctor：
 程序校验 manifest、算出 leaf 和 scope"><rect x="245.6" y="36.0" width="27.2" height="18.0" rx="3"/><text x="259.2" y="48.8" text-anchor="middle">校验</text></g><g class="blk w-hard" data-tip="试跑（+28.4 → +32.9 分）
@@ -292,207 +300,206 @@ host 只观察，不干预作业内部"><rect x="301.5" y="36.0" width="273.3" h
 第一对作业封存时报 baseline 不可用（manifest 里有混合 check）。
 host 自己决定：取消两个作业、改 manifest、重新提交。作业没有崩溃"><rect x="575.8" y="36.0" width="8.9" height="18.0" rx="3"/></g><g class="blk w-wait" data-tip="看着作业跑（+99.9 → +227.8 分）
 host 只观察，不干预作业内部"><rect x="585.6" y="36.0" width="557.2" height="18.0" rx="3"/><text x="864.2" y="48.8" text-anchor="middle">看着作业跑</text></g><g class="blk w-hard" data-tip="收尾（+227.8 → +229.1 分）
-读最终状态、汇报 run_id / job id / 交付目录"><rect x="1143.9" y="36.0" width="4.4" height="18.0" rx="3"/></g><line class="rule" x1="0" y1="80.0" x2="1180" y2="80.0"/><text class="t-phase strong" x="0" y="96.0">第一对作业（被 host 取消）</text><text class="t-lane" x="0" y="121.0">main job</text><g class="blk w-hard" data-tip="create_workspace（建 workspace）
+读最终状态、汇报 run_id / job id / 交付目录"><rect x="1143.9" y="36.0" width="4.4" height="18.0" rx="3"/></g><line class="rule" x1="0" y1="72.0" x2="1180" y2="72.0"/><text class="t-phase strong" x="0" y="88.0">第一对作业（被 host 取消）</text><text class="t-lane" x="0" y="111.0">main job</text><rect x="148" y="96.0" width="1016" height="22" rx="3" style="fill:var(--par-bg)"/><text class="t-lane2" x="142" y="111.0" text-anchor="end">控制层</text><g class="blk w-hard" data-tip="create_workspace（建 workspace）
 +35.7 分 · 用时 0.3 分 · 结果 created
-程序写死：固定顺序里的一步，没有问 controller"><rect x="305.7" y="108.0" width="1.6" height="18.0" rx="3"/></g><g class="blk w-hard" data-tip="prepare_environment（准备环境）
+程序写死：固定顺序里的一步，没有问 controller"><rect x="305.7" y="98.0" width="1.6" height="18.0" rx="3"/></g><g class="blk w-hard" data-tip="prepare_environment（准备环境）
 +36.0 分 · 用时 0.0 分 · 结果 passed
 程序写死：固定顺序里的一步，没有问 controller
-目标：原版 的工作树"><rect x="306.9" y="108.0" width="1.6" height="18.0" rx="3"/></g><g class="blk w-hard" data-tip="prepare_environment（准备环境）
+目标：原版 的工作树"><rect x="306.9" y="98.0" width="1.6" height="18.0" rx="3"/></g><g class="blk w-hard" data-tip="prepare_environment（准备环境）
 +36.0 分 · 用时 0.0 分 · 结果 passed
 程序写死：固定顺序里的一步，没有问 controller
-目标：候选 的工作树"><rect x="307.1" y="108.0" width="1.6" height="18.0" rx="3"/></g><g class="blk w-hard" data-tip="capture_baseline（抓 baseline）
+目标：候选 的工作树"><rect x="307.1" y="98.0" width="1.6" height="18.0" rx="3"/></g><g class="blk w-hard" data-tip="capture_baseline（抓 baseline）
 +36.1 分 · 用时 9.6 分 · 结果 ready
 程序写死：固定顺序里的一步，没有问 controller
-在原版上跑了 46 个 check"><rect x="307.3" y="108.0" width="41.1" height="18.0" rx="3"/></g><g class="blk w-hard" data-tip="design_leaf_tests（设计 leaf 测试）
+在原版上跑了 46 个 check"><rect x="307.3" y="98.0" width="41.1" height="18.0" rx="3"/></g><g class="blk w-hard" data-tip="design_leaf_tests（设计 leaf 测试）
 +45.6 分 · 用时 30.2 分 · 结果 done
-程序写死：固定顺序里的一步，没有问 controller"><rect x="348.9" y="108.0" width="131.3" height="18.0" rx="3"/><text x="414.5" y="120.8" text-anchor="middle">设计 leaf 测试</text></g><g class="blk w-hard" data-tip="capture_baseline（抓 baseline）
+程序写死：固定顺序里的一步，没有问 controller"><rect x="348.9" y="98.0" width="131.3" height="18.0" rx="3"/><text x="414.5" y="110.8" text-anchor="middle">设计 leaf 测试</text></g><g class="blk w-hard" data-tip="capture_baseline（抓 baseline）
 +75.8 分 · 用时 17.1 分 · 结果 unverified
 程序写死：固定顺序里的一步，没有问 controller
-在原版上跑了 89 个 check"><rect x="480.8" y="108.0" width="73.8" height="18.0" rx="3"/><text x="517.7" y="120.8" text-anchor="middle">抓 baseline</text></g><g class="blk w-hard" data-tip="seal_contract（封存合同）
+在原版上跑了 89 个 check"><rect x="480.8" y="98.0" width="73.8" height="18.0" rx="3"/><text x="517.7" y="110.8" text-anchor="middle">抓 baseline</text></g><g class="blk w-hard" data-tip="seal_contract（封存合同）
 +93.0 分 · 用时 0.3 分 · 结果 done
-程序写死：固定顺序里的一步，没有问 controller"><rect x="555.7" y="108.0" width="1.6" height="18.0" rx="3"/></g><g class="blk w-wait" data-tip="import_draft（等待并导入草稿）
+程序写死：固定顺序里的一步，没有问 controller"><rect x="555.7" y="98.0" width="1.6" height="18.0" rx="3"/></g><g class="blk w-wait" data-tip="import_draft（等待并导入草稿）
 +93.4 分 · 用时 4.5 分 · 结果 None
 程序写死：固定顺序里的一步，没有问 controller
-其中 0.0 分钟在等草稿作业"><rect x="557.2" y="108.0" width="18.9" height="18.0" rx="3"/></g><g class="blk w-hard" data-tip="test designer 会话 · generalized_rcnn_71859e83
-+45.7 → +58.5 分（12.7 分钟）· 24 轮对话 · $5.64"><rect x="349.5" y="131.0" width="54.9" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test designer 会话 · data_transforms_8967f4a5
-+45.7 → +55.2 分（9.4 分钟）· 17 轮对话 · $5.21"><rect x="349.5" y="138.5" width="40.6" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test designer 会话 · runtime_utils_6c9046d5
-+45.7 → +54.9 分（9.2 分钟）· 22 轮对话 · $4.24"><rect x="349.5" y="146.0" width="39.6" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test designer 会话 · layers
-+45.7 → +54.2 分（8.4 分钟）· 20 轮对话 · $4.51"><rect x="349.5" y="153.5" width="36.3" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test designer 会话 · export_torchscript_ceee9d66
-+45.7 → +54.0 分（8.3 分钟）· 20 轮对话 · $3.97"><rect x="349.5" y="161.0" width="35.7" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test designer 会话 · model_zoo_b9ca42f9
-+45.7 → +53.1 分（7.3 分钟）· 16 轮对话 · $2.94"><rect x="349.5" y="168.5" width="31.5" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test designer 会话 · packaging
-+45.7 → +53.1 分（7.3 分钟）· 14 轮对话 · $3.15"><rect x="349.5" y="176.0" width="31.4" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test designer 会话 · predictor
-+45.7 → +52.0 分（6.3 分钟）· 13 轮对话 · $2.72"><rect x="349.5" y="183.5" width="26.9" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test designer 会话 · data_catalog_4b9d42d1
-+45.7 → +51.4 分（5.7 分钟）· 12 轮对话 · $2.48"><rect x="349.5" y="191.0" width="24.2" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test reviewer 会话 · review 5
-+66.0 → +69.3 分（3.3 分钟）· 19 轮对话 · $2.80"><rect x="437.9" y="131.0" width="13.9" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test reviewer 会话 · review 4
-+66.0 → +69.3 分（3.3 分钟）· 23 轮对话 · $3.23"><rect x="437.9" y="138.5" width="13.7" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test reviewer 会话 · review 2
-+66.0 → +68.8 分（2.8 分钟）· 10 轮对话 · $2.00"><rect x="437.9" y="146.0" width="11.5" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test reviewer 会话 · review 1
-+66.0 → +68.2 分（2.2 分钟）· 14 轮对话 · $2.18"><rect x="437.9" y="153.5" width="9.3" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test reviewer 会话 · review 6
-+66.0 → +68.0 分（2.0 分钟）· 9 轮对话 · $1.20"><rect x="437.9" y="161.0" width="8.2" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test reviewer 会话 · review 3
-+66.0 → +67.8 分（1.8 分钟）· 10 轮对话 · $1.30"><rect x="437.9" y="168.5" width="7.2" height="6.0" rx="2"/></g><text class="t-lane2" x="142" y="121.0" text-anchor="end">工具调用</text><text class="t-lane2" x="142" y="139.0" text-anchor="end">模型会话</text><text class="t-lane" x="0" y="227.5">draft job</text><g class="blk w-hard" data-tip="create_workspace（建 workspace）
+其中 0.0 分钟在等草稿作业"><rect x="557.2" y="98.0" width="18.9" height="18.0" rx="3"/></g><text class="t-lane2" x="142" y="131.0" text-anchor="end">verifier</text><g class="blk w-hard" data-tip="verifier 在原版上跑 46 个 check、做 knockout（9.6 分钟）"><rect x="307.3" y="123.0" width="41.1" height="10.0" rx="2"/></g><g class="blk w-hard" data-tip="verifier 在原版上试跑设计出来的测试，带 knockout（7.5 分钟）"><rect x="405.0" y="123.0" width="32.3" height="10.0" rx="2"/></g><g class="blk w-hard" data-tip="verifier 做最终试跑，把通过的测试提交到原版上（6.5 分钟）"><rect x="452.3" y="123.0" width="27.8" height="10.0" rx="2"/></g><g class="blk w-hard" data-tip="verifier 在原版上跑 89 个 check、做 knockout（17.1 分钟）"><rect x="480.8" y="123.0" width="73.8" height="10.0" rx="2"/></g><text class="t-lane2" x="142" y="147.0" text-anchor="end">designer · reviewer</text><g class="blk w-hard" data-tip="test designer 会话 · generalized_rcnn_71859e83
++45.7 → +58.5 分（12.7 分钟）· 24 轮对话 · $5.64"><rect x="349.5" y="139.0" width="54.9" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test designer 会话 · data_transforms_8967f4a5
++45.7 → +55.2 分（9.4 分钟）· 17 轮对话 · $5.21"><rect x="349.5" y="146.5" width="40.6" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test designer 会话 · runtime_utils_6c9046d5
++45.7 → +54.9 分（9.2 分钟）· 22 轮对话 · $4.24"><rect x="349.5" y="154.0" width="39.6" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test designer 会话 · layers
++45.7 → +54.2 分（8.4 分钟）· 20 轮对话 · $4.51"><rect x="349.5" y="161.5" width="36.3" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test designer 会话 · export_torchscript_ceee9d66
++45.7 → +54.0 分（8.3 分钟）· 20 轮对话 · $3.97"><rect x="349.5" y="169.0" width="35.7" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test designer 会话 · model_zoo_b9ca42f9
++45.7 → +53.1 分（7.3 分钟）· 16 轮对话 · $2.94"><rect x="349.5" y="176.5" width="31.5" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test designer 会话 · packaging
++45.7 → +53.1 分（7.3 分钟）· 14 轮对话 · $3.15"><rect x="349.5" y="184.0" width="31.4" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test designer 会话 · predictor
++45.7 → +52.0 分（6.3 分钟）· 13 轮对话 · $2.72"><rect x="349.5" y="191.5" width="26.9" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test designer 会话 · data_catalog_4b9d42d1
++45.7 → +51.4 分（5.7 分钟）· 12 轮对话 · $2.48"><rect x="349.5" y="199.0" width="24.2" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test reviewer 会话 · review 5
++66.0 → +69.3 分（3.3 分钟）· 19 轮对话 · $2.80"><rect x="437.9" y="139.0" width="13.9" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test reviewer 会话 · review 4
++66.0 → +69.3 分（3.3 分钟）· 23 轮对话 · $3.23"><rect x="437.9" y="146.5" width="13.7" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test reviewer 会话 · review 2
++66.0 → +68.8 分（2.8 分钟）· 10 轮对话 · $2.00"><rect x="437.9" y="154.0" width="11.5" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test reviewer 会话 · review 1
++66.0 → +68.2 分（2.2 分钟）· 14 轮对话 · $2.18"><rect x="437.9" y="161.5" width="9.3" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test reviewer 会话 · review 6
++66.0 → +68.0 分（2.0 分钟）· 9 轮对话 · $1.20"><rect x="437.9" y="169.0" width="8.2" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test reviewer 会话 · review 3
++66.0 → +67.8 分（1.8 分钟）· 10 轮对话 · $1.30"><rect x="437.9" y="176.5" width="7.2" height="6.0" rx="2"/></g><text class="t-lane" x="0" y="235.5">draft job</text><rect x="148" y="220.5" width="1016" height="22" rx="3" style="fill:var(--par-bg)"/><text class="t-lane2" x="142" y="235.5" text-anchor="end">控制层</text><g class="blk w-hard" data-tip="create_workspace（建 workspace）
 +34.7 分 · 用时 0.3 分 · 结果 created
-程序写死：固定顺序里的一步，没有问 controller"><rect x="301.5" y="214.5" width="1.6" height="18.0" rx="3"/></g><g class="blk w-hard" data-tip="prepare_environment（准备环境）
+程序写死：固定顺序里的一步，没有问 controller"><rect x="301.5" y="222.5" width="1.6" height="18.0" rx="3"/></g><g class="blk w-hard" data-tip="prepare_environment（准备环境）
 +35.0 分 · 用时 0.0 分 · 结果 passed
 程序写死：固定顺序里的一步，没有问 controller
-目标：原版 的工作树"><rect x="302.7" y="214.5" width="1.6" height="18.0" rx="3"/></g><g class="blk w-hard" data-tip="prepare_environment（准备环境）
+目标：原版 的工作树"><rect x="302.7" y="222.5" width="1.6" height="18.0" rx="3"/></g><g class="blk w-hard" data-tip="prepare_environment（准备环境）
 +35.0 分 · 用时 0.0 分 · 结果 passed
 程序写死：固定顺序里的一步，没有问 controller
-目标：候选 的工作树"><rect x="302.8" y="214.5" width="1.6" height="18.0" rx="3"/></g><g class="blk w-hard" data-tip="capture_baseline（抓 baseline）
+目标：候选 的工作树"><rect x="302.8" y="222.5" width="1.6" height="18.0" rx="3"/></g><g class="blk w-hard" data-tip="capture_baseline（抓 baseline）
 +35.1 分 · 用时 2.2 分 · 结果 ready
 程序写死：固定顺序里的一步，没有问 controller
-在原版上跑了 46 个 check"><rect x="303.0" y="214.5" width="9.1" height="18.0" rx="3"/></g><g class="blk w-hard" data-tip="seal_contract（封存合同）
+在原版上跑了 46 个 check"><rect x="303.0" y="222.5" width="9.1" height="18.0" rx="3"/></g><g class="blk w-hard" data-tip="seal_contract（封存合同）
 +37.4 分 · 用时 0.3 分 · 结果 done
-程序写死：固定顺序里的一步，没有问 controller"><rect x="312.9" y="214.5" width="1.6" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="run_parallel_agents（并行 author 组）
+程序写死：固定顺序里的一步，没有问 controller"><rect x="312.9" y="222.5" width="1.6" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="run_parallel_agents（并行 author 组）
 +40.9 分 · 用时 38.4 分 · 结果 done
 controller 第 1 轮点名要调的
-split 组，5 个请求：scope-1、scope-2、scope-3、scope-4、scope-5"><rect x="328.5" y="214.5" width="166.7" height="18.0" rx="3"/><text x="411.9" y="227.3" text-anchor="middle">并行 author 组</text></g><g class="blk w-ctrl" data-tip="run_agent（author 调用）
+split 组，5 个请求：scope-1、scope-2、scope-3、scope-4、scope-5"><rect x="328.5" y="222.5" width="166.7" height="18.0" rx="3"/><text x="411.9" y="235.3" text-anchor="middle">并行 author 组</text></g><g class="blk w-ctrl" data-tip="run_agent（author 调用）
 +79.3 分 · 用时 18.5 分 · 结果 None
 controller 第 1 轮点名要调的
-implement：整个选择范围"><rect x="495.9" y="214.5" width="80.2" height="18.0" rx="3"/><text x="536.0" y="227.3" text-anchor="middle">author 调用</text></g><g class="blk w-ctrl" data-tip="controller 会话 · round 1
-+37.7 → +40.9 分（3.2 分钟）· 6 轮对话 · $1.70"><rect x="314.3" y="237.5" width="13.7" height="6.0" rx="2"/></g><g class="blk w-ctrl" data-tip="author 会话 · workspace-61d332ff7f84
-+43.5 → +76.3 分（32.8 分钟）· 89 轮对话 · $19.95"><rect x="339.8" y="237.5" width="142.4" height="6.0" rx="2"/></g><g class="blk w-ctrl" data-tip="author 会话 · workspace-f6b6a7d0fdfe
-+43.5 → +72.4 分（28.9 分钟）· 69 轮对话 · $15.56"><rect x="339.8" y="245.0" width="125.7" height="6.0" rx="2"/></g><g class="blk w-ctrl" data-tip="author 会话 · workspace-04efbe71533c
-+43.5 → +64.6 分（21.1 分钟）· 50 轮对话 · $12.05"><rect x="339.8" y="252.5" width="91.4" height="6.0" rx="2"/></g><g class="blk w-ctrl" data-tip="author 会话 · workspace-66b6689eec9d
-+43.5 → +78.3 分（34.8 分钟）· 79 轮对话 · $20.26"><rect x="339.8" y="260.0" width="151.1" height="6.0" rx="2"/></g><g class="blk w-ctrl" data-tip="author 会话 · workspace-58c7241fab3f
-+43.5 → +60.2 分（16.7 分钟）· 44 轮对话 · $9.22"><rect x="339.8" y="267.5" width="72.3" height="6.0" rx="2"/></g><g class="blk w-ctrl" data-tip="author 会话 · main workspace
-+79.3 → +79.3 分（0.0 分钟）· 0 轮对话 · $0.00"><rect x="496.1" y="237.5" width="1.6" height="6.0" rx="2"/></g><text class="t-lane2" x="142" y="227.5" text-anchor="end">工具调用</text><text class="t-lane2" x="142" y="245.5" text-anchor="end">模型会话</text><line class="rule" x1="0" y1="283.0" x2="1180" y2="283.0"/><text class="t-phase strong" x="0" y="299.0">第二对作业（交付）</text><text class="t-lane" x="0" y="324.0">main job</text><g class="blk w-hard" data-tip="create_workspace（建 workspace）
+implement：整个选择范围"><rect x="495.9" y="222.5" width="80.2" height="18.0" rx="3"/><text x="536.0" y="235.3" text-anchor="middle">author 调用</text></g><g class="blk w-ctrl" data-tip="controller 第 1 轮
++37.7 → +40.9 分（3.2 分钟）· $1.70"><rect x="314.3" y="222.5" width="13.7" height="18.0" rx="3"/><text x="321.1" y="235.3" text-anchor="middle">轮</text></g><text class="t-lane2" x="142" y="255.5" text-anchor="end">verifier</text><g class="blk w-hard" data-tip="verifier 在原版上跑 46 个 check（2.2 分钟）"><rect x="303.0" y="247.5" width="9.1" height="10.0" rx="2"/></g><text class="t-lane2" x="142" y="271.5" text-anchor="end">author</text><g class="blk w-ctrl" data-tip="author 会话 · workspace-61d332ff7f84
++43.5 → +76.3 分（32.8 分钟）· 89 轮对话 · $19.95"><rect x="339.8" y="263.5" width="142.4" height="6.0" rx="2"/></g><g class="blk w-ctrl" data-tip="author 会话 · workspace-f6b6a7d0fdfe
++43.5 → +72.4 分（28.9 分钟）· 69 轮对话 · $15.56"><rect x="339.8" y="271.0" width="125.7" height="6.0" rx="2"/></g><g class="blk w-ctrl" data-tip="author 会话 · workspace-04efbe71533c
++43.5 → +64.6 分（21.1 分钟）· 50 轮对话 · $12.05"><rect x="339.8" y="278.5" width="91.4" height="6.0" rx="2"/></g><g class="blk w-ctrl" data-tip="author 会话 · workspace-66b6689eec9d
++43.5 → +78.3 分（34.8 分钟）· 79 轮对话 · $20.26"><rect x="339.8" y="286.0" width="151.1" height="6.0" rx="2"/></g><g class="blk w-ctrl" data-tip="author 会话 · workspace-58c7241fab3f
++43.5 → +60.2 分（16.7 分钟）· 44 轮对话 · $9.22"><rect x="339.8" y="293.5" width="72.3" height="6.0" rx="2"/></g><line class="rule" x1="0" y1="313.0" x2="1180" y2="313.0"/><text class="t-phase strong" x="0" y="329.0">第二对作业（交付）</text><text class="t-lane" x="0" y="352.0">main job</text><rect x="148" y="337.0" width="1016" height="22" rx="3" style="fill:var(--par-bg)"/><text class="t-lane2" x="142" y="352.0" text-anchor="end">控制层</text><g class="blk w-hard" data-tip="create_workspace（建 workspace）
 +100.8 分 · 用时 0.3 分 · 结果 created
-程序写死：固定顺序里的一步，没有问 controller"><rect x="589.8" y="311.0" width="1.6" height="18.0" rx="3"/></g><g class="blk w-hard" data-tip="prepare_environment（准备环境）
+程序写死：固定顺序里的一步，没有问 controller"><rect x="589.8" y="339.0" width="1.6" height="18.0" rx="3"/></g><g class="blk w-hard" data-tip="prepare_environment（准备环境）
 +101.1 分 · 用时 0.1 分 · 结果 passed
 程序写死：固定顺序里的一步，没有问 controller
-目标：原版 的工作树"><rect x="591.0" y="311.0" width="1.6" height="18.0" rx="3"/></g><g class="blk w-hard" data-tip="prepare_environment（准备环境）
+目标：原版 的工作树"><rect x="591.0" y="339.0" width="1.6" height="18.0" rx="3"/></g><g class="blk w-hard" data-tip="prepare_environment（准备环境）
 +101.1 分 · 用时 0.0 分 · 结果 passed
 程序写死：固定顺序里的一步，没有问 controller
-目标：候选 的工作树"><rect x="591.2" y="311.0" width="1.6" height="18.0" rx="3"/></g><g class="blk w-hard" data-tip="capture_baseline（抓 baseline）
+目标：候选 的工作树"><rect x="591.2" y="339.0" width="1.6" height="18.0" rx="3"/></g><g class="blk w-hard" data-tip="capture_baseline（抓 baseline）
 +101.2 分 · 用时 9.7 分 · 结果 ready
 程序写死：固定顺序里的一步，没有问 controller
-在原版上跑了 46 个 check"><rect x="591.4" y="311.0" width="41.6" height="18.0" rx="3"/></g><g class="blk w-hard" data-tip="design_leaf_tests（设计 leaf 测试）
+在原版上跑了 46 个 check"><rect x="591.4" y="339.0" width="41.6" height="18.0" rx="3"/></g><g class="blk w-hard" data-tip="design_leaf_tests（设计 leaf 测试）
 +110.9 分 · 用时 27.5 分 · 结果 done
-程序写死：固定顺序里的一步，没有问 controller"><rect x="633.6" y="311.0" width="119.3" height="18.0" rx="3"/><text x="693.2" y="323.8" text-anchor="middle">设计 leaf 测试</text></g><g class="blk w-hard" data-tip="capture_baseline（抓 baseline）
+程序写死：固定顺序里的一步，没有问 controller"><rect x="633.6" y="339.0" width="119.3" height="18.0" rx="3"/><text x="693.2" y="351.8" text-anchor="middle">设计 leaf 测试</text></g><g class="blk w-hard" data-tip="capture_baseline（抓 baseline）
 +138.4 分 · 用时 14.5 分 · 结果 ready
 程序写死：固定顺序里的一步，没有问 controller
-在原版上跑了 90 个 check"><rect x="753.5" y="311.0" width="62.7" height="18.0" rx="3"/><text x="784.9" y="323.8" text-anchor="middle">抓 baseline</text></g><g class="blk w-hard" data-tip="seal_contract（封存合同）
+在原版上跑了 90 个 check"><rect x="753.5" y="339.0" width="62.7" height="18.0" rx="3"/><text x="784.9" y="351.8" text-anchor="middle">抓 baseline</text></g><g class="blk w-hard" data-tip="seal_contract（封存合同）
 +153.0 分 · 用时 0.4 分 · 结果 done
-程序写死：固定顺序里的一步，没有问 controller"><rect x="817.5" y="311.0" width="1.6" height="18.0" rx="3"/></g><g class="blk w-wait" data-tip="import_draft（等待并导入草稿）
+程序写死：固定顺序里的一步，没有问 controller"><rect x="817.5" y="339.0" width="1.6" height="18.0" rx="3"/></g><g class="blk w-wait" data-tip="import_draft（等待并导入草稿）
 +153.4 分 · 用时 24.7 分 · 结果 imported
 程序写死：固定顺序里的一步，没有问 controller
-其中 24.6 分钟在等草稿作业"><rect x="819.2" y="311.0" width="107.3" height="18.0" rx="3"/><text x="872.8" y="323.8" text-anchor="middle">等待并导入草稿</text></g><g class="blk w-hard" data-tip="compare_behavior（全量对比）
+其中 24.6 分钟在等草稿作业"><rect x="819.2" y="339.0" width="107.3" height="18.0" rx="3"/><text x="872.8" y="351.8" text-anchor="middle">等待并导入草稿</text></g><g class="blk w-hard" data-tip="compare_behavior（全量对比）
 +178.3 分 · 用时 3.4 分 · 结果 regressed
 程序写死：固定顺序里的一步，没有问 controller
-20 个 check 失败（候选 candidate-1）"><rect x="927.7" y="311.0" width="14.1" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="prepare_environment（准备环境）
+20 个 check 失败（候选 candidate-1）"><rect x="927.7" y="339.0" width="14.1" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="prepare_environment（准备环境）
 +183.1 分 · 用时 0.0 分 · 结果 passed
 controller 第 1 轮点名要调的
-目标：候选 的工作树"><rect x="948.6" y="311.0" width="1.6" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="capture_baseline（抓 baseline）
+目标：候选 的工作树"><rect x="948.6" y="339.0" width="1.6" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="capture_baseline（抓 baseline）
 +183.1 分 · 用时 0.1 分 · 结果 ready
 controller 第 1 轮点名要调的
-沿用已有的 baseline，没有重跑"><rect x="948.7" y="311.0" width="1.6" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="compare_behavior（全量对比）
+沿用已有的 baseline，没有重跑"><rect x="948.7" y="339.0" width="1.6" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="compare_behavior（全量对比）
 +183.2 分 · 用时 2.0 分 · 结果 regressed
 controller 第 1 轮点名要调的
-4 个 check 失败（候选 candidate-1）"><rect x="949.2" y="311.0" width="7.9" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="check_installation（安装检查）
+4 个 check 失败（候选 candidate-1）"><rect x="949.2" y="339.0" width="7.9" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="check_installation（安装检查）
 +185.2 分 · 用时 1.4 分 · 结果 passed
-controller 第 1 轮点名要调的"><rect x="957.7" y="311.0" width="5.5" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="run_parallel_agents（并行 author 组）
+controller 第 1 轮点名要调的"><rect x="957.7" y="339.0" width="5.5" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="run_parallel_agents（并行 author 组）
 +187.8 分 · 用时 19.3 分 · 结果 done
 controller 第 2 轮点名要调的
-split 组，2 个请求：data-catalog、model-zoo+packaging"><rect x="969.1" y="311.0" width="83.5" height="18.0" rx="3"/><text x="1010.8" y="323.8" text-anchor="middle">并行 author 组</text></g><g class="blk w-ctrl" data-tip="compare_behavior（全量对比）
+split 组，2 个请求：data-catalog、model-zoo+packaging"><rect x="969.1" y="339.0" width="83.5" height="18.0" rx="3"/><text x="1010.8" y="351.8" text-anchor="middle">并行 author 组</text></g><g class="blk w-ctrl" data-tip="compare_behavior（全量对比）
 +207.1 分 · 用时 3.5 分 · 结果 regressed
 controller 第 2 轮点名要调的
-17 个 check 失败（候选 candidate-4）"><rect x="1053.2" y="311.0" width="14.9" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="prepare_environment（准备环境）
+17 个 check 失败（候选 candidate-4）"><rect x="1053.2" y="339.0" width="14.9" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="prepare_environment（准备环境）
 +211.2 分 · 用时 0.0 分 · 结果 passed
 controller 第 3 轮点名要调的
-目标：候选 的工作树"><rect x="1071.2" y="311.0" width="1.6" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="capture_baseline（抓 baseline）
+目标：候选 的工作树"><rect x="1071.2" y="339.0" width="1.6" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="capture_baseline（抓 baseline）
 +211.2 分 · 用时 0.1 分 · 结果 ready
 controller 第 3 轮点名要调的
-沿用已有的 baseline，没有重跑"><rect x="1071.3" y="311.0" width="1.6" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="compare_behavior（全量对比）
+沿用已有的 baseline，没有重跑"><rect x="1071.3" y="339.0" width="1.6" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="compare_behavior（全量对比）
 +211.3 分 · 用时 1.9 分 · 结果 regressed
 controller 第 3 轮点名要调的
-1 个 check 失败（候选 candidate-4）"><rect x="1071.9" y="311.0" width="7.5" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="check_installation（安装检查）
+1 个 check 失败（候选 candidate-4）"><rect x="1071.9" y="339.0" width="7.5" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="check_installation（安装检查）
 +213.2 分 · 用时 1.4 分 · 结果 passed
-controller 第 3 轮点名要调的"><rect x="1080.0" y="311.0" width="5.5" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="run_agent（author 调用）
+controller 第 3 轮点名要调的"><rect x="1080.0" y="339.0" width="5.5" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="run_agent（author 调用）
 +215.8 分 · 用时 5.9 分 · 结果 completed
 controller 第 4 轮点名要调的
-repair：model-zoo、config-lazy"><rect x="1091.2" y="311.0" width="25.2" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="save_candidate（保存候选）
+repair：model-zoo、config-lazy"><rect x="1091.2" y="339.0" width="25.2" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="save_candidate（保存候选）
 +221.7 分 · 用时 0.2 分 · 结果 done
-controller 第 4 轮点名要调的"><rect x="1117.0" y="311.0" width="1.6" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="prepare_environment（准备环境）
+controller 第 4 轮点名要调的"><rect x="1117.0" y="339.0" width="1.6" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="prepare_environment（准备环境）
 +221.9 分 · 用时 0.0 分 · 结果 passed
 controller 第 4 轮点名要调的
-目标：候选 的工作树"><rect x="1117.9" y="311.0" width="1.6" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="capture_baseline（抓 baseline）
+目标：候选 的工作树"><rect x="1117.9" y="339.0" width="1.6" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="capture_baseline（抓 baseline）
 +221.9 分 · 用时 0.1 分 · 结果 ready
 controller 第 4 轮点名要调的
-沿用已有的 baseline，没有重跑"><rect x="1118.1" y="311.0" width="1.6" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="compare_behavior（全量对比）
+沿用已有的 baseline，没有重跑"><rect x="1118.1" y="339.0" width="1.6" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="compare_behavior（全量对比）
 +222.1 分 · 用时 1.8 分 · 结果 checks_passed
 controller 第 4 轮点名要调的
-0 个 check 失败（候选 candidate-5）"><rect x="1118.7" y="311.0" width="7.3" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="check_installation（安装检查）
+0 个 check 失败（候选 candidate-5）"><rect x="1118.7" y="339.0" width="7.3" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="check_installation（安装检查）
 +223.9 分 · 用时 1.4 分 · 结果 passed
-controller 第 4 轮点名要调的"><rect x="1126.6" y="311.0" width="5.5" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="select_candidate（选定候选）
+controller 第 4 轮点名要调的"><rect x="1126.6" y="339.0" width="5.5" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="select_candidate（选定候选）
 +225.3 分 · 用时 0.1 分 · 结果 selected
-controller 第 4 轮点名要调的"><rect x="1132.7" y="311.0" width="1.6" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="deliver（交付）
+controller 第 4 轮点名要调的"><rect x="1132.7" y="339.0" width="1.6" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="deliver（交付）
 +225.4 分 · 用时 2.1 分 · 结果 completed_with_gaps
-controller 第 4 轮点名要调的"><rect x="1133.4" y="311.0" width="8.4" height="18.0" rx="3"/></g><g class="blk w-hard" data-tip="test designer 会话 · runtime_utils_6c9046d5
-+111.0 → +121.4 分（10.4 分钟）· 21 轮对话 · $4.70"><rect x="634.2" y="334.0" width="44.8" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test designer 会话 · data_transforms_8967f4a5
-+111.0 → +120.7 分（9.7 分钟）· 23 轮对话 · $5.54"><rect x="634.2" y="341.5" width="41.9" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test designer 会话 · layers
-+111.0 → +119.7 分（8.7 分钟）· 14 轮对话 · $4.43"><rect x="634.2" y="349.0" width="37.3" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test designer 会话 · predictor
-+111.0 → +119.2 分（8.2 分钟）· 21 轮对话 · $3.31"><rect x="634.2" y="356.5" width="35.3" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test designer 会话 · model_zoo_b9ca42f9
-+111.0 → +119.2 分（8.2 分钟）· 16 轮对话 · $3.50"><rect x="634.2" y="364.0" width="35.2" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test designer 会话 · export_torchscript_ceee9d66
-+111.0 → +119.0 分（8.0 分钟）· 24 轮对话 · $3.85"><rect x="634.2" y="371.5" width="34.2" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test designer 会话 · generalized_rcnn_71859e83
-+111.0 → +118.7 分（7.7 分钟）· 16 轮对话 · $3.57"><rect x="634.2" y="379.0" width="33.1" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test designer 会话 · data_catalog_4b9d42d1
-+111.0 → +118.3 分（7.3 分钟）· 13 轮对话 · $3.27"><rect x="634.2" y="386.5" width="31.2" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test designer 会话 · packaging
-+111.0 → +117.2 分（6.2 分钟）· 13 轮对话 · $2.83"><rect x="634.2" y="394.0" width="26.7" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test reviewer 会话 · review 5
-+128.1 → +132.1 分（4.0 分钟）· 21 轮对话 · $3.05"><rect x="708.8" y="334.0" width="17.1" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test reviewer 会话 · review 4
-+128.1 → +131.2 分（3.1 分钟）· 16 轮对话 · $2.83"><rect x="708.8" y="341.5" width="13.1" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test reviewer 会话 · review 1
-+128.1 → +131.2 分（3.0 分钟）· 17 轮对话 · $2.61"><rect x="708.8" y="349.0" width="12.8" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test reviewer 会话 · review 2
-+128.1 → +130.8 分（2.7 分钟）· 16 轮对话 · $1.93"><rect x="708.8" y="356.5" width="11.3" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test reviewer 会话 · review 6
-+128.1 → +130.1 分（2.0 分钟）· 9 轮对话 · $1.38"><rect x="708.8" y="364.0" width="8.3" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test reviewer 会话 · review 3
-+128.1 → +129.9 分（1.8 分钟）· 10 轮对话 · $1.52"><rect x="708.8" y="371.5" width="7.2" height="6.0" rx="2"/></g><g class="blk w-ctrl" data-tip="controller 会话 · round 1
-+181.7 → +183.1 分（1.4 分钟）· 6 轮对话 · $1.24"><rect x="942.6" y="334.0" width="5.4" height="6.0" rx="2"/></g><g class="blk w-ctrl" data-tip="controller 会话 · round 2
-+186.6 → +187.8 分（1.2 分钟）· 4 轮对话 · $1.06"><rect x="964.0" y="334.0" width="4.6" height="6.0" rx="2"/></g><g class="blk w-ctrl" data-tip="author 会话 · workspace-4dadf2f4feae
-+188.9 → +206.4 分（17.5 分钟）· 39 轮对话 · $9.03"><rect x="974.1" y="334.0" width="75.8" height="6.0" rx="2"/></g><g class="blk w-ctrl" data-tip="author 会话 · workspace-972f5ced848e
-+188.9 → +193.8 分（4.9 分钟）· 17 轮对话 · $2.83"><rect x="974.1" y="341.5" width="20.9" height="6.0" rx="2"/></g><g class="blk w-ctrl" data-tip="controller 会话 · round 3
-+210.7 → +211.2 分（0.5 分钟）· 3 轮对话 · $0.88"><rect x="1068.9" y="334.0" width="1.9" height="6.0" rx="2"/></g><g class="blk w-ctrl" data-tip="controller 会话 · round 4
-+214.7 → +215.8 分（1.1 分钟）· 5 轮对话 · $1.18"><rect x="1086.3" y="334.0" width="4.3" height="6.0" rx="2"/></g><g class="blk w-ctrl" data-tip="author 会话 · main workspace
-+215.8 → +221.5 分（5.7 分钟）· 23 轮对话 · $3.08"><rect x="1091.5" y="334.0" width="24.2" height="6.0" rx="2"/></g><text class="t-lane2" x="142" y="324.0" text-anchor="end">工具调用</text><text class="t-lane2" x="142" y="342.0" text-anchor="end">模型会话</text><text class="t-lane" x="0" y="430.5">draft job</text><g class="blk w-hard" data-tip="create_workspace（建 workspace）
+controller 第 4 轮点名要调的"><rect x="1133.4" y="339.0" width="8.4" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="controller 第 1 轮
++181.7 → +183.1 分（1.4 分钟）· $1.24"><rect x="942.6" y="339.0" width="5.4" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="controller 第 2 轮
++186.6 → +187.8 分（1.2 分钟）· $1.06"><rect x="964.0" y="339.0" width="4.6" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="controller 第 3 轮
++210.7 → +211.2 分（0.5 分钟）· $0.88"><rect x="1068.9" y="339.0" width="1.9" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="controller 第 4 轮
++214.7 → +215.8 分（1.1 分钟）· $1.18"><rect x="1086.3" y="339.0" width="4.3" height="18.0" rx="3"/></g><text class="t-lane2" x="142" y="372.0" text-anchor="end">verifier</text><g class="blk w-hard" data-tip="verifier 在原版上跑 46 个 check、做 knockout（9.7 分钟）"><rect x="591.4" y="364.0" width="41.6" height="10.0" rx="2"/></g><g class="blk w-hard" data-tip="verifier 在原版上试跑设计出来的测试，带 knockout（6.7 分钟）"><rect x="679.5" y="364.0" width="28.8" height="10.0" rx="2"/></g><g class="blk w-hard" data-tip="verifier 做最终试跑，把通过的测试提交到原版上（6.2 分钟）"><rect x="726.4" y="364.0" width="26.5" height="10.0" rx="2"/></g><g class="blk w-hard" data-tip="verifier 在原版上跑 90 个 check、做 knockout（14.5 分钟）"><rect x="753.5" y="364.0" width="62.7" height="10.0" rx="2"/></g><g class="blk w-hard" data-tip="verifier 在候选上跑 check 并和 baseline 逐项比（3.4 分钟）：20 个 check 失败"><rect x="927.7" y="364.0" width="14.1" height="10.0" rx="2"/></g><g class="blk w-ctrl" data-tip="verifier 在候选上跑 check 并和 baseline 逐项比（2.0 分钟）：4 个 check 失败"><rect x="949.2" y="364.0" width="7.9" height="10.0" rx="2"/></g><g class="blk w-ctrl" data-tip="verifier 在全新环境里构建、安装、冒烟（1.4 分钟）"><rect x="957.7" y="364.0" width="5.5" height="10.0" rx="2"/></g><g class="blk w-ctrl" data-tip="verifier 在候选上跑 check 并和 baseline 逐项比（3.5 分钟）：17 个 check 失败"><rect x="1053.2" y="364.0" width="14.9" height="10.0" rx="2"/></g><g class="blk w-ctrl" data-tip="verifier 在候选上跑 check 并和 baseline 逐项比（1.9 分钟）：1 个 check 失败"><rect x="1071.9" y="364.0" width="7.5" height="10.0" rx="2"/></g><g class="blk w-ctrl" data-tip="verifier 在全新环境里构建、安装、冒烟（1.4 分钟）"><rect x="1080.0" y="364.0" width="5.5" height="10.0" rx="2"/></g><g class="blk w-ctrl" data-tip="verifier 在候选上跑 check 并和 baseline 逐项比（1.8 分钟）：0 个 check 失败"><rect x="1118.7" y="364.0" width="7.3" height="10.0" rx="2"/></g><g class="blk w-ctrl" data-tip="verifier 在全新环境里构建、安装、冒烟（1.4 分钟）"><rect x="1126.6" y="364.0" width="5.5" height="10.0" rx="2"/></g><text class="t-lane2" x="142" y="388.0" text-anchor="end">designer · reviewer</text><g class="blk w-hard" data-tip="test designer 会话 · runtime_utils_6c9046d5
++111.0 → +121.4 分（10.4 分钟）· 21 轮对话 · $4.70"><rect x="634.2" y="380.0" width="44.8" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test designer 会话 · data_transforms_8967f4a5
++111.0 → +120.7 分（9.7 分钟）· 23 轮对话 · $5.54"><rect x="634.2" y="387.5" width="41.9" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test designer 会话 · layers
++111.0 → +119.7 分（8.7 分钟）· 14 轮对话 · $4.43"><rect x="634.2" y="395.0" width="37.3" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test designer 会话 · predictor
++111.0 → +119.2 分（8.2 分钟）· 21 轮对话 · $3.31"><rect x="634.2" y="402.5" width="35.3" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test designer 会话 · model_zoo_b9ca42f9
++111.0 → +119.2 分（8.2 分钟）· 16 轮对话 · $3.50"><rect x="634.2" y="410.0" width="35.2" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test designer 会话 · export_torchscript_ceee9d66
++111.0 → +119.0 分（8.0 分钟）· 24 轮对话 · $3.85"><rect x="634.2" y="417.5" width="34.2" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test designer 会话 · generalized_rcnn_71859e83
++111.0 → +118.7 分（7.7 分钟）· 16 轮对话 · $3.57"><rect x="634.2" y="425.0" width="33.1" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test designer 会话 · data_catalog_4b9d42d1
++111.0 → +118.3 分（7.3 分钟）· 13 轮对话 · $3.27"><rect x="634.2" y="432.5" width="31.2" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test designer 会话 · packaging
++111.0 → +117.2 分（6.2 分钟）· 13 轮对话 · $2.83"><rect x="634.2" y="440.0" width="26.7" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test reviewer 会话 · review 5
++128.1 → +132.1 分（4.0 分钟）· 21 轮对话 · $3.05"><rect x="708.8" y="380.0" width="17.1" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test reviewer 会话 · review 4
++128.1 → +131.2 分（3.1 分钟）· 16 轮对话 · $2.83"><rect x="708.8" y="387.5" width="13.1" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test reviewer 会话 · review 1
++128.1 → +131.2 分（3.0 分钟）· 17 轮对话 · $2.61"><rect x="708.8" y="395.0" width="12.8" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test reviewer 会话 · review 2
++128.1 → +130.8 分（2.7 分钟）· 16 轮对话 · $1.93"><rect x="708.8" y="402.5" width="11.3" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test reviewer 会话 · review 6
++128.1 → +130.1 分（2.0 分钟）· 9 轮对话 · $1.38"><rect x="708.8" y="410.0" width="8.3" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test reviewer 会话 · review 3
++128.1 → +129.9 分（1.8 分钟）· 10 轮对话 · $1.52"><rect x="708.8" y="417.5" width="7.2" height="6.0" rx="2"/></g><text class="t-lane2" x="142" y="461.5" text-anchor="end">author</text><g class="blk w-ctrl" data-tip="author 会话 · workspace-4dadf2f4feae
++188.9 → +206.4 分（17.5 分钟）· 39 轮对话 · $9.03"><rect x="974.1" y="453.5" width="75.8" height="6.0" rx="2"/></g><g class="blk w-ctrl" data-tip="author 会话 · workspace-972f5ced848e
++188.9 → +193.8 分（4.9 分钟）· 17 轮对话 · $2.83"><rect x="974.1" y="461.0" width="20.9" height="6.0" rx="2"/></g><g class="blk w-ctrl" data-tip="author 会话 · main workspace
++215.8 → +221.5 分（5.7 分钟）· 23 轮对话 · $3.08"><rect x="1091.5" y="453.5" width="24.2" height="6.0" rx="2"/></g><text class="t-lane" x="0" y="497.5">draft job</text><rect x="148" y="482.5" width="1016" height="22" rx="3" style="fill:var(--par-bg)"/><text class="t-lane2" x="142" y="497.5" text-anchor="end">控制层</text><g class="blk w-hard" data-tip="create_workspace（建 workspace）
 +99.9 分 · 用时 0.3 分 · 结果 created
-程序写死：固定顺序里的一步，没有问 controller"><rect x="585.7" y="417.5" width="1.6" height="18.0" rx="3"/></g><g class="blk w-hard" data-tip="prepare_environment（准备环境）
+程序写死：固定顺序里的一步，没有问 controller"><rect x="585.7" y="484.5" width="1.6" height="18.0" rx="3"/></g><g class="blk w-hard" data-tip="prepare_environment（准备环境）
 +100.1 分 · 用时 0.0 分 · 结果 passed
 程序写死：固定顺序里的一步，没有问 controller
-目标：原版 的工作树"><rect x="586.8" y="417.5" width="1.6" height="18.0" rx="3"/></g><g class="blk w-hard" data-tip="prepare_environment（准备环境）
+目标：原版 的工作树"><rect x="586.8" y="484.5" width="1.6" height="18.0" rx="3"/></g><g class="blk w-hard" data-tip="prepare_environment（准备环境）
 +100.2 分 · 用时 0.0 分 · 结果 passed
 程序写死：固定顺序里的一步，没有问 controller
-目标：候选 的工作树"><rect x="587.0" y="417.5" width="1.6" height="18.0" rx="3"/></g><g class="blk w-hard" data-tip="capture_baseline（抓 baseline）
+目标：候选 的工作树"><rect x="587.0" y="484.5" width="1.6" height="18.0" rx="3"/></g><g class="blk w-hard" data-tip="capture_baseline（抓 baseline）
 +100.2 分 · 用时 2.2 分 · 结果 ready
 程序写死：固定顺序里的一步，没有问 controller
-在原版上跑了 46 个 check"><rect x="587.2" y="417.5" width="9.1" height="18.0" rx="3"/></g><g class="blk w-hard" data-tip="seal_contract（封存合同）
+在原版上跑了 46 个 check"><rect x="587.2" y="484.5" width="9.1" height="18.0" rx="3"/></g><g class="blk w-hard" data-tip="seal_contract（封存合同）
 +102.5 分 · 用时 0.3 分 · 结果 done
-程序写死：固定顺序里的一步，没有问 controller"><rect x="597.0" y="417.5" width="1.6" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="run_parallel_agents（并行 author 组）
+程序写死：固定顺序里的一步，没有问 controller"><rect x="597.0" y="484.5" width="1.6" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="run_parallel_agents（并行 author 组）
 +105.9 分 · 用时 38.0 分 · 结果 done
 controller 第 1 轮点名要调的
-split 组，5 个请求：scope-1、scope-2、scope-3、scope-4、scope-5"><rect x="612.1" y="417.5" width="165.0" height="18.0" rx="3"/><text x="694.6" y="430.3" text-anchor="middle">并行 author 组</text></g><g class="blk w-follow" data-tip="compare_behavior（全量对比）
+split 组，5 个请求：scope-1、scope-2、scope-3、scope-4、scope-5"><rect x="612.1" y="484.5" width="165.0" height="18.0" rx="3"/><text x="694.6" y="497.3" text-anchor="middle">并行 author 组</text></g><g class="blk w-follow" data-tip="compare_behavior（全量对比）
 +144.0 分 · 用时 3.2 分 · 结果 regressed
 controller 第 1 轮放行后，由主线的固定顺序接着做的
-40 个 check 失败（候选 candidate-6）"><rect x="778.1" y="417.5" width="13.3" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="prepare_environment（准备环境）
+40 个 check 失败（候选 candidate-6）"><rect x="778.1" y="484.5" width="13.3" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="prepare_environment（准备环境）
 +150.2 分 · 用时 0.0 分 · 结果 passed
 controller 第 2 轮点名要调的
-目标：候选 的工作树"><rect x="805.1" y="417.5" width="1.6" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="capture_baseline（抓 baseline）
+目标：候选 的工作树"><rect x="805.1" y="484.5" width="1.6" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="capture_baseline（抓 baseline）
 +150.2 分 · 用时 0.1 分 · 结果 ready
 controller 第 2 轮点名要调的
-沿用已有的 baseline，没有重跑"><rect x="805.1" y="417.5" width="1.6" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="compare_behavior（全量对比）
+沿用已有的 baseline，没有重跑"><rect x="805.1" y="484.5" width="1.6" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="compare_behavior（全量对比）
 +150.2 分 · 用时 1.1 分 · 结果 regressed
 controller 第 2 轮点名要调的
-4 个 check 失败（候选 candidate-6）"><rect x="805.4" y="417.5" width="4.2" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="run_agent（author 调用）
+4 个 check 失败（候选 candidate-6）"><rect x="805.4" y="484.5" width="4.2" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="run_agent（author 调用）
 +151.3 分 · 用时 26.0 分 · 结果 completed
 controller 第 2 轮点名要调的
-repair：整个选择范围"><rect x="810.2" y="417.5" width="113.0" height="18.0" rx="3"/><text x="866.7" y="430.3" text-anchor="middle">author 调用</text></g><g class="blk w-ctrl" data-tip="save_candidate（保存候选）
+repair：整个选择范围"><rect x="810.2" y="484.5" width="113.0" height="18.0" rx="3"/><text x="866.7" y="497.3" text-anchor="middle">author 调用</text></g><g class="blk w-ctrl" data-tip="save_candidate（保存候选）
 +177.4 分 · 用时 0.2 分 · 结果 done
-controller 第 2 轮点名要调的"><rect x="923.8" y="417.5" width="1.6" height="18.0" rx="3"/></g><g class="blk w-hard" data-tip="finish_draft（交出草稿）
+controller 第 2 轮点名要调的"><rect x="923.8" y="484.5" width="1.6" height="18.0" rx="3"/></g><g class="blk w-hard" data-tip="finish_draft（交出草稿）
 +177.6 分 · 用时 0.1 分 · 结果 ready
-程序写死：固定顺序里的一步，没有问 controller"><rect x="924.7" y="417.5" width="1.6" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="controller 会话 · round 1
-+102.8 → +105.9 分（3.1 分钟）· 5 轮对话 · $1.68"><rect x="598.4" y="440.5" width="13.2" height="6.0" rx="2"/></g><g class="blk w-ctrl" data-tip="author 会话 · workspace-0b1405c74f08
-+108.5 → +136.1 分（27.6 分钟）· 55 轮对话 · $14.06"><rect x="623.3" y="440.5" width="119.7" height="6.0" rx="2"/></g><g class="blk w-ctrl" data-tip="author 会话 · workspace-90f26c630374
-+108.5 → +128.5 分（20.0 分钟）· 50 轮对话 · $11.58"><rect x="623.3" y="448.0" width="86.9" height="6.0" rx="2"/></g><g class="blk w-ctrl" data-tip="author 会话 · workspace-289b45a338b4
-+108.5 → +142.9 分（34.4 分钟）· 70 轮对话 · $19.65"><rect x="623.3" y="455.5" width="149.6" height="6.0" rx="2"/></g><g class="blk w-ctrl" data-tip="author 会话 · workspace-64918f447779
-+108.5 → +138.7 分（30.2 分钟）· 73 轮对话 · $17.75"><rect x="623.3" y="463.0" width="131.1" height="6.0" rx="2"/></g><g class="blk w-ctrl" data-tip="author 会话 · workspace-75cbc55c0ee6
-+108.5 → +125.8 分（17.2 分钟）· 49 轮对话 · $9.64"><rect x="623.3" y="470.5" width="74.7" height="6.0" rx="2"/></g><g class="blk w-ctrl" data-tip="controller 会话 · round 2
-+147.2 → +150.2 分（3.0 分钟）· 9 轮对话 · $1.96"><rect x="792.1" y="440.5" width="12.5" height="6.0" rx="2"/></g><g class="blk w-ctrl" data-tip="author 会话 · main workspace
-+151.4 → +177.2 分（25.8 分钟）· 76 轮对话 · $12.56"><rect x="810.4" y="440.5" width="112.1" height="6.0" rx="2"/></g><text class="t-lane2" x="142" y="430.5" text-anchor="end">工具调用</text><text class="t-lane2" x="142" y="448.5" text-anchor="end">模型会话</text></svg></div><p class="swipe">左右滑动查看 →</p>
-    <figcaption>灰色占了前半段：冻结和导入全是程序按固定顺序做的。紫色从 draft job 封存之后（parallel 模式）和 main job 第一次对比之后才出现。绿色只在 host 那一行：作业内部没有“其他 agent 决定流程”的地方。把鼠标放在任意一块上看它是什么。</figcaption></figure>
+程序写死：固定顺序里的一步，没有问 controller"><rect x="924.7" y="484.5" width="1.6" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="controller 第 1 轮
++102.8 → +105.9 分（3.1 分钟）· $1.68"><rect x="598.4" y="484.5" width="13.2" height="18.0" rx="3"/><text x="605.0" y="497.3" text-anchor="middle">轮</text></g><g class="blk w-ctrl" data-tip="controller 第 2 轮
++147.2 → +150.2 分（3.0 分钟）· $1.96"><rect x="792.1" y="484.5" width="12.5" height="18.0" rx="3"/><text x="798.3" y="497.3" text-anchor="middle">轮</text></g><text class="t-lane2" x="142" y="517.5" text-anchor="end">verifier</text><g class="blk w-hard" data-tip="verifier 在原版上跑 46 个 check（2.2 分钟）"><rect x="587.2" y="509.5" width="9.1" height="10.0" rx="2"/></g><g class="blk w-follow" data-tip="verifier 在候选上跑 check 并和 baseline 逐项比（3.2 分钟）：40 个 check 失败"><rect x="778.1" y="509.5" width="13.3" height="10.0" rx="2"/></g><g class="blk w-ctrl" data-tip="verifier 在候选上跑 check 并和 baseline 逐项比（1.1 分钟）：4 个 check 失败"><rect x="805.4" y="509.5" width="4.2" height="10.0" rx="2"/></g><text class="t-lane2" x="142" y="533.5" text-anchor="end">author</text><g class="blk w-ctrl" data-tip="author 会话 · workspace-0b1405c74f08
++108.5 → +136.1 分（27.6 分钟）· 55 轮对话 · $14.06"><rect x="623.3" y="525.5" width="119.7" height="6.0" rx="2"/></g><g class="blk w-ctrl" data-tip="author 会话 · workspace-90f26c630374
++108.5 → +128.5 分（20.0 分钟）· 50 轮对话 · $11.58"><rect x="623.3" y="533.0" width="86.9" height="6.0" rx="2"/></g><g class="blk w-ctrl" data-tip="author 会话 · workspace-289b45a338b4
++108.5 → +142.9 分（34.4 分钟）· 70 轮对话 · $19.65"><rect x="623.3" y="540.5" width="149.6" height="6.0" rx="2"/></g><g class="blk w-ctrl" data-tip="author 会话 · workspace-64918f447779
++108.5 → +138.7 分（30.2 分钟）· 73 轮对话 · $17.75"><rect x="623.3" y="548.0" width="131.1" height="6.0" rx="2"/></g><g class="blk w-ctrl" data-tip="author 会话 · workspace-75cbc55c0ee6
++108.5 → +125.8 分（17.2 分钟）· 49 轮对话 · $9.64"><rect x="623.3" y="555.5" width="74.7" height="6.0" rx="2"/></g><g class="blk w-ctrl" data-tip="author 会话 · main workspace
++151.4 → +177.2 分（25.8 分钟）· 76 轮对话 · $12.56"><rect x="810.4" y="525.5" width="112.1" height="6.0" rx="2"/></g></svg></div><p class="swipe">左右滑动查看 →</p>
+    <figcaption>逐行看：designer · reviewer 这一行只有灰色，test designer 归 mainline，controller 管不到。verifier 这一行先灰后紫：冻结里的 baseline 和第一次对比归 mainline，之后归 controller。author 这一行全是紫色，因为开了 parallel 模式。绿色只在 host 那一行。把鼠标放在任意一块上看它是什么。</figcaption></figure>
   </div>
 </section>
 
@@ -535,163 +542,187 @@ controller 第 2 轮点名要调的"><rect x="923.8" y="417.5" width="1.6" heigh
 
 <section id="s3">
   <h2>③ 冻结 ∥ 写首版：两个作业同时进行</h2>
-  <p class="body">这是并行最多的一段。main job 在冻结合同：记录原版行为、给没有有效测试的 leaf 设计测试、封存。draft job 同时在另一个克隆上写第一版代码。两边互不可见：写代码的看不到测试，设计测试的看不到代码。下图一格是一份工作，上下叠放表示同时进行；左侧有绿色竖条的块是模型会话。</p>
+  <p class="body">这是并行最多的一段。main job 在冻结合同：记录原版行为、给没有有效测试的 leaf 设计测试、封存。draft job 同时在另一个克隆上写第一版代码。两边互不可见：写代码的看不到测试，设计测试的看不到代码。下图按分层画：一列是一次工具调用；每个作业第一行是控制层发出的调用，下面几行是这次调用让执行层的谁干活。上下叠放表示同时进行，左侧有绿色竖条的块是模型会话。</p>
   <div class="card tips focusable" id="fig-a">
     <div class="legend" data-for="fig-a"><span class="hint">颜色 = 谁决定这一步（点一下只看一类）</span><button type="button" class="lg" data-kind="hard" aria-pressed="false"><span class="sw w-hard"></span>程序写死</button><button type="button" class="lg" data-kind="ctrl" aria-pressed="false"><span class="sw w-ctrl"></span>controller 决定</button><span class="lg"><span class="sw w-follow"></span>主线照固定顺序做，controller 放行</span><span class="lg"><span class="sw w-ghost"></span>计划了但没执行</span><span class="lg"><span class="sw w-wait"></span>等待</span></div>
-    <figure><div class="scroll"><svg class="fig" viewBox="0 0 1124 426" role="img" aria-label="detectron2 运行里 main job 的冻结和 draft job 写首版同时进行：每格一份工作，上下叠放表示同时进行，颜色表示谁决定这一步" style="min-width:966px"><defs><pattern id="hatch-follow" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="7" height="7" style="fill:var(--w-hard)"/><rect width="3.5" height="7" style="fill:var(--w-ctrl)"/></pattern><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker><marker id="arr-m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:var(--muted)"/></marker></defs><text class="t-lane" x="0" y="54">main job</text><text class="t-lane2" x="0" y="68">冻结合同</text><path class="bracket " d="M334 35 V31 H630 V35"/><text class="t-phase " x="482.0" y="26" text-anchor="middle">design_leaf_tests · 27.5 分</text><g class="blk w-hard" data-tip="作业开始前把 author、controller、test designer 三个 runner 各试调一次（各约 10 秒），
+    <figure><div class="scroll"><svg class="fig" viewBox="0 0 1228 584" role="img" aria-label="detectron2 运行里 main job 的冻结和 draft job 写首版同时进行，按分层画：每个作业第一行是控制层发出的工具调用，下面几行是这些调用让 verifier、test designer、author 干的活；颜色表示是控制层的 mainline 还是 controller 决定的" style="min-width:1056px"><defs><pattern id="hatch-follow" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="7" height="7" style="fill:var(--w-hard)"/><rect width="3.5" height="7" style="fill:var(--w-ctrl)"/></pattern><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker><marker id="arr-m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:var(--muted)"/></marker></defs><text class="t-lane" x="0" y="26">main job</text><rect x="124" y="36" width="1096" height="28" rx="4" style="fill:var(--par-bg)"/><text class="t-lane2" x="118" y="54" text-anchor="end">控制层</text><text class="t-lane2" x="118" y="90" text-anchor="end">verifier</text><text class="t-lane2" x="118" y="126" text-anchor="end">designer · reviewer</text><path class="bracket " d="M130 33 V29 H1214 V33"/><text class="t-phase " x="672.0" y="24" text-anchor="middle">mainline 掌控：整个冻结按固定顺序走，controller 一次都没被问</text><g class="blk w-hard" data-tip="作业开始前把 author、controller、test designer 三个 runner 各试调一次（各约 10 秒），
 再发一个空的探测批次确认 check 在哪台机器上跑。
 
-程序写死：固定顺序里的一步，没有问 controller"><rect x="93.5" y="40" width="57.0" height="20" rx="4"/><text x="122.0" y="54" text-anchor="middle">试调用</text></g><text class="t-dur" x="122.0" y="71" text-anchor="middle">1.0 分</text><g class="blk w-hard" data-tip="create_workspace：建两个工作树（原版 / 候选）和作业分支，读入评审过的选择范围。
+控制层的 mainline 一半：固定顺序里的一步，没有问 controller"><rect x="129.5" y="40" width="61.0" height="20" rx="4"/><text x="160.0" y="54" text-anchor="middle">试调用</text></g><text class="t-dur" x="160.0" y="71" text-anchor="middle">1.0 分</text><g class="blk w-hard" data-tip="create_workspace：建两个工作树（原版 / 候选）和作业分支，读入评审过的选择范围。
+worker 自己的操作，不派给下面任何一行。
 
-程序写死：固定顺序里的一步，没有问 controller"><rect x="153.5" y="40" width="57.0" height="20" rx="4"/><text x="182.0" y="54" text-anchor="middle">建工作区</text></g><text class="t-dur" x="182.0" y="71" text-anchor="middle">16 秒</text><g class="blk w-hard" data-tip="prepare_environment ×2：在原版和候选的工作树里各跑一遍 owner 的准备配方
-（本例：把预编译的 C++ 扩展拷进去）。配方内容是 host 写的；什么时候跑由程序定。
+控制层的 mainline 一半：固定顺序里的一步，没有问 controller"><rect x="193.5" y="40" width="61.0" height="20" rx="4"/><text x="224.0" y="54" text-anchor="middle">建工作区</text></g><text class="t-dur" x="224.0" y="71" text-anchor="middle">16 秒</text><g class="blk w-hard" data-tip="prepare_environment ×2：在原版和候选的工作树里各跑一遍 owner 的准备配方
+（本例：把预编译的 C++ 扩展拷进去）。配方内容是 host 写的；什么时候跑由 mainline 定。
 
-程序写死：固定顺序里的一步，没有问 controller"><rect x="213.5" y="40" width="57.0" height="20" rx="4"/><text x="242.0" y="54" text-anchor="middle">备环境</text></g><text class="t-dur" x="242.0" y="71" text-anchor="middle">5 秒</text><g class="blk w-hard" data-tip="capture_baseline：在原版上跑 46 个 check，每个重复 3 次确认稳定；
+控制层的 mainline 一半：固定顺序里的一步，没有问 controller"><rect x="257.5" y="40" width="61.0" height="20" rx="4"/><text x="288.0" y="54" text-anchor="middle">备环境</text></g><text class="t-dur" x="288.0" y="71" text-anchor="middle">5 秒</text><g class="blk w-hard" data-tip="capture_baseline：mainline 发出的工具调用，干活的是下面的 verifier。
+
+控制层的 mainline 一半：固定顺序里的一步，没有问 controller"><rect x="321.5" y="40" width="61.0" height="20" rx="4"/><text x="352.0" y="54" text-anchor="middle">抓基线</text></g><text class="t-dur" x="352.0" y="71" text-anchor="middle">9.7 分</text><g class="blk w-hard" data-tip="verifier 在原版上跑 46 个 check，每个重复 3 次确认稳定；
 再对已有测试的 leaf 做 knockout（在原版副本里禁用这个 leaf 的代码，看测它的 check 会不会挂）。
-结果：4 个选中的 leaf 没有有效测试 → 下一步要设计。
+同时跑 8 个 check、8 个 knockout 导出（owner 的上限）。
+结果：4 个选中的 leaf 没有有效测试 → 下一步要设计。"><rect x="321.5" y="76" width="61.0" height="20" rx="4"/><text x="352.0" y="90" text-anchor="middle">原版 check</text></g><g class="blk w-hard" data-tip="design_leaf_tests：一次工具调用，内部按固定流程把 test designer、verifier、test reviewer 轮流叫起来。
+给哪些 leaf 设计、开几个会话都由程序算，controller 不参与。
 
-程序写死：固定顺序里的一步，没有问 controller"><rect x="273.5" y="40" width="57.0" height="20" rx="4"/><text x="302.0" y="54" text-anchor="middle">抓基线</text></g><text class="t-dur" x="302.0" y="71" text-anchor="middle">9.7 分</text><g class="blk w-hard" data-tip="test designer 会话：给 leaf「model-zoo」写测试
+控制层的 mainline 一半：固定顺序里的一步，没有问 controller"><rect x="385.5" y="40" width="317.0" height="20" rx="4"/><text x="544.0" y="54" text-anchor="middle">设计 leaf 测试（design_leaf_tests，一次调用）</text></g><text class="t-dur" x="544.0" y="71" text-anchor="middle">27.5 分</text><g class="blk w-hard" data-tip="test designer 会话：给 leaf「model-zoo」写测试
 8.2 分钟 · 16 轮 · $3.50
 
-开几个会话：程序写死（每个需要测试的 leaf 一个）
-同时开几个：owner 的上限，parallel 模式下由程序放宽
-测试写成什么样：test designer 自己决定"><rect x="333.5" y="40" width="117.0" height="20" rx="4"/><rect x="333.5" y="40" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="394.0" y="54" text-anchor="middle">model-zoo</text></g><g class="blk w-hard" data-tip="test designer 会话：给 leaf「predictor」写测试
+开几个会话：程序（每个需要测试的 leaf 一个）
+同时开几个：owner 的上限，没给就全部同时
+测试写成什么样：test designer 自己决定
+谁叫它起来：mainline。controller 管不到这一行"><rect x="385.5" y="112" width="125.0" height="20" rx="4"/><rect x="385.5" y="112" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="450.0" y="126" text-anchor="middle">model-zoo</text></g><g class="blk w-hard" data-tip="test designer 会话：给 leaf「predictor」写测试
 8.2 分钟 · 21 轮 · $3.31
 
-开几个会话：程序写死（每个需要测试的 leaf 一个）
-同时开几个：owner 的上限，parallel 模式下由程序放宽
-测试写成什么样：test designer 自己决定"><rect x="333.5" y="63" width="117.0" height="20" rx="4"/><rect x="333.5" y="63" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="394.0" y="77" text-anchor="middle">predictor</text></g><g class="blk w-hard" data-tip="test designer 会话：给 leaf「layers」写测试
+开几个会话：程序（每个需要测试的 leaf 一个）
+同时开几个：owner 的上限，没给就全部同时
+测试写成什么样：test designer 自己决定
+谁叫它起来：mainline。controller 管不到这一行"><rect x="385.5" y="135" width="125.0" height="20" rx="4"/><rect x="385.5" y="135" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="450.0" y="149" text-anchor="middle">predictor</text></g><g class="blk w-hard" data-tip="test designer 会话：给 leaf「layers」写测试
 8.7 分钟 · 14 轮 · $4.43
 
-开几个会话：程序写死（每个需要测试的 leaf 一个）
-同时开几个：owner 的上限，parallel 模式下由程序放宽
-测试写成什么样：test designer 自己决定"><rect x="333.5" y="86" width="117.0" height="20" rx="4"/><rect x="333.5" y="86" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="394.0" y="100" text-anchor="middle">layers</text></g><g class="blk w-hard" data-tip="test designer 会话：给 leaf「data-catalog」写测试
+开几个会话：程序（每个需要测试的 leaf 一个）
+同时开几个：owner 的上限，没给就全部同时
+测试写成什么样：test designer 自己决定
+谁叫它起来：mainline。controller 管不到这一行"><rect x="385.5" y="158" width="125.0" height="20" rx="4"/><rect x="385.5" y="158" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="450.0" y="172" text-anchor="middle">layers</text></g><g class="blk w-hard" data-tip="test designer 会话：给 leaf「data-catalog」写测试
 7.3 分钟 · 13 轮 · $3.27
 
-开几个会话：程序写死（每个需要测试的 leaf 一个）
-同时开几个：owner 的上限，parallel 模式下由程序放宽
-测试写成什么样：test designer 自己决定"><rect x="333.5" y="109" width="117.0" height="20" rx="4"/><rect x="333.5" y="109" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="394.0" y="123" text-anchor="middle">data-catalog</text></g><g class="blk w-hard" data-tip="test designer 会话：给 leaf「export」写测试
+开几个会话：程序（每个需要测试的 leaf 一个）
+同时开几个：owner 的上限，没给就全部同时
+测试写成什么样：test designer 自己决定
+谁叫它起来：mainline。controller 管不到这一行"><rect x="385.5" y="181" width="125.0" height="20" rx="4"/><rect x="385.5" y="181" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="450.0" y="195" text-anchor="middle">data-catalog</text></g><g class="blk w-hard" data-tip="test designer 会话：给 leaf「export」写测试
 8.0 分钟 · 24 轮 · $3.85
 
-开几个会话：程序写死（每个需要测试的 leaf 一个）
-同时开几个：owner 的上限，parallel 模式下由程序放宽
-测试写成什么样：test designer 自己决定"><rect x="333.5" y="132" width="117.0" height="20" rx="4"/><rect x="333.5" y="132" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="394.0" y="146" text-anchor="middle">export</text></g><g class="blk w-hard" data-tip="test designer 会话：给 leaf「packaging」写测试
+开几个会话：程序（每个需要测试的 leaf 一个）
+同时开几个：owner 的上限，没给就全部同时
+测试写成什么样：test designer 自己决定
+谁叫它起来：mainline。controller 管不到这一行"><rect x="385.5" y="204" width="125.0" height="20" rx="4"/><rect x="385.5" y="204" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="450.0" y="218" text-anchor="middle">export</text></g><g class="blk w-hard" data-tip="test designer 会话：给 leaf「packaging」写测试
 6.2 分钟 · 13 轮 · $2.83
 
-开几个会话：程序写死（每个需要测试的 leaf 一个）
-同时开几个：owner 的上限，parallel 模式下由程序放宽
-测试写成什么样：test designer 自己决定"><rect x="333.5" y="155" width="117.0" height="20" rx="4"/><rect x="333.5" y="155" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="394.0" y="169" text-anchor="middle">packaging</text></g><g class="blk w-hard" data-tip="test designer 会话：给 leaf「runtime-utils」写测试
+开几个会话：程序（每个需要测试的 leaf 一个）
+同时开几个：owner 的上限，没给就全部同时
+测试写成什么样：test designer 自己决定
+谁叫它起来：mainline。controller 管不到这一行"><rect x="385.5" y="227" width="125.0" height="20" rx="4"/><rect x="385.5" y="227" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="450.0" y="241" text-anchor="middle">packaging</text></g><g class="blk w-hard" data-tip="test designer 会话：给 leaf「runtime-utils」写测试
 10.4 分钟 · 21 轮 · $4.70
 
-开几个会话：程序写死（每个需要测试的 leaf 一个）
-同时开几个：owner 的上限，parallel 模式下由程序放宽
-测试写成什么样：test designer 自己决定"><rect x="333.5" y="178" width="117.0" height="20" rx="4"/><rect x="333.5" y="178" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="394.0" y="192" text-anchor="middle">runtime-utils</text></g><g class="blk w-hard" data-tip="test designer 会话：给 leaf「data-transforms」写测试
+开几个会话：程序（每个需要测试的 leaf 一个）
+同时开几个：owner 的上限，没给就全部同时
+测试写成什么样：test designer 自己决定
+谁叫它起来：mainline。controller 管不到这一行"><rect x="385.5" y="250" width="125.0" height="20" rx="4"/><rect x="385.5" y="250" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="450.0" y="264" text-anchor="middle">runtime-utils</text></g><g class="blk w-hard" data-tip="test designer 会话：给 leaf「data-transforms」写测试
 9.7 分钟 · 23 轮 · $5.54
 
-开几个会话：程序写死（每个需要测试的 leaf 一个）
-同时开几个：owner 的上限，parallel 模式下由程序放宽
-测试写成什么样：test designer 自己决定"><rect x="333.5" y="201" width="117.0" height="20" rx="4"/><rect x="333.5" y="201" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="394.0" y="215" text-anchor="middle">data-transforms</text></g><g class="blk w-hard" data-tip="test designer 会话：给 leaf「rcnn」写测试
+开几个会话：程序（每个需要测试的 leaf 一个）
+同时开几个：owner 的上限，没给就全部同时
+测试写成什么样：test designer 自己决定
+谁叫它起来：mainline。controller 管不到这一行"><rect x="385.5" y="273" width="125.0" height="20" rx="4"/><rect x="385.5" y="273" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="450.0" y="287" text-anchor="middle">data-transforms</text></g><g class="blk w-hard" data-tip="test designer 会话：给 leaf「rcnn」写测试
 7.7 分钟 · 16 轮 · $3.57
 
-开几个会话：程序写死（每个需要测试的 leaf 一个）
-同时开几个：owner 的上限，parallel 模式下由程序放宽
-测试写成什么样：test designer 自己决定"><rect x="333.5" y="224" width="117.0" height="20" rx="4"/><rect x="333.5" y="224" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="394.0" y="238" text-anchor="middle">rcnn</text></g><text class="t-dur" x="392.0" y="255" text-anchor="middle">10.4 分（最长的一个）</text><g class="blk w-hard" data-tip="程序在原版上试跑设计出来的测试：不通过的提案直接丢弃
-（本例 model-zoo 有 2 个提案在原版上不通过，被拒）。
-
-程序写死：固定顺序里的一步，没有问 controller"><rect x="453.5" y="40" width="57.0" height="20" rx="4"/><text x="482.0" y="54" text-anchor="middle">试跑</text></g><text class="t-dur" x="482.0" y="71" text-anchor="middle">6.7 分</text><g class="blk w-hard" data-tip="test reviewer 会话 1：检查设计出来的测试文件
+开几个会话：程序（每个需要测试的 leaf 一个）
+同时开几个：owner 的上限，没给就全部同时
+测试写成什么样：test designer 自己决定
+谁叫它起来：mainline。controller 管不到这一行"><rect x="385.5" y="296" width="125.0" height="20" rx="4"/><rect x="385.5" y="296" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="450.0" y="310" text-anchor="middle">rcnn</text></g><text class="t-dur" x="448.0" y="327" text-anchor="middle">最长 10.4 分</text><g class="blk w-hard" data-tip="verifier 在原版上试跑设计出来的测试：先过静态门，再要求通过、重复一致，
+并且 knockout 掉自己的 leaf 后因行为而失败。不合格的提案直接丢弃
+（本例 model-zoo 有 2 个提案在原版上不通过）。"><rect x="513.5" y="76" width="61.0" height="20" rx="4"/><text x="544.0" y="90" text-anchor="middle">试跑</text></g><text class="t-dur" x="544.0" y="107" text-anchor="middle">6.7 分</text><g class="blk w-hard" data-tip="test reviewer 会话 1：检查设计出来的测试文件
 3.0 分钟 · 17 轮 · $2.61
 
-开几个：程序写死（按文件数分批）
-接受还是拒绝：test reviewer 自己决定"><rect x="513.5" y="40" width="57.0" height="20" rx="4"/><rect x="513.5" y="40" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="544.0" y="54" text-anchor="middle">评审 1</text></g><g class="blk w-hard" data-tip="test reviewer 会话 2：检查设计出来的测试文件
+开几个：程序（每 8 个文件一个）
+接受还是否决：test reviewer 自己决定
+谁叫它起来：mainline"><rect x="577.5" y="112" width="61.0" height="20" rx="4"/><rect x="577.5" y="112" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="610.0" y="126" text-anchor="middle">评审 1</text></g><g class="blk w-hard" data-tip="test reviewer 会话 2：检查设计出来的测试文件
 2.7 分钟 · 16 轮 · $1.93
 
-开几个：程序写死（按文件数分批）
-接受还是拒绝：test reviewer 自己决定"><rect x="513.5" y="63" width="57.0" height="20" rx="4"/><rect x="513.5" y="63" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="544.0" y="77" text-anchor="middle">评审 2</text></g><g class="blk w-hard" data-tip="test reviewer 会话 3：检查设计出来的测试文件
+开几个：程序（每 8 个文件一个）
+接受还是否决：test reviewer 自己决定
+谁叫它起来：mainline"><rect x="577.5" y="135" width="61.0" height="20" rx="4"/><rect x="577.5" y="135" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="610.0" y="149" text-anchor="middle">评审 2</text></g><g class="blk w-hard" data-tip="test reviewer 会话 3：检查设计出来的测试文件
 1.8 分钟 · 10 轮 · $1.52
 
-开几个：程序写死（按文件数分批）
-接受还是拒绝：test reviewer 自己决定"><rect x="513.5" y="86" width="57.0" height="20" rx="4"/><rect x="513.5" y="86" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="544.0" y="100" text-anchor="middle">评审 3</text></g><g class="blk w-hard" data-tip="test reviewer 会话 4：检查设计出来的测试文件
+开几个：程序（每 8 个文件一个）
+接受还是否决：test reviewer 自己决定
+谁叫它起来：mainline"><rect x="577.5" y="158" width="61.0" height="20" rx="4"/><rect x="577.5" y="158" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="610.0" y="172" text-anchor="middle">评审 3</text></g><g class="blk w-hard" data-tip="test reviewer 会话 4：检查设计出来的测试文件
 3.1 分钟 · 16 轮 · $2.83
 
-开几个：程序写死（按文件数分批）
-接受还是拒绝：test reviewer 自己决定"><rect x="513.5" y="109" width="57.0" height="20" rx="4"/><rect x="513.5" y="109" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="544.0" y="123" text-anchor="middle">评审 4</text></g><g class="blk w-hard" data-tip="test reviewer 会话 5：检查设计出来的测试文件
+开几个：程序（每 8 个文件一个）
+接受还是否决：test reviewer 自己决定
+谁叫它起来：mainline"><rect x="577.5" y="181" width="61.0" height="20" rx="4"/><rect x="577.5" y="181" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="610.0" y="195" text-anchor="middle">评审 4</text></g><g class="blk w-hard" data-tip="test reviewer 会话 5：检查设计出来的测试文件
 4.0 分钟 · 21 轮 · $3.05
 
-开几个：程序写死（按文件数分批）
-接受还是拒绝：test reviewer 自己决定"><rect x="513.5" y="132" width="57.0" height="20" rx="4"/><rect x="513.5" y="132" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="544.0" y="146" text-anchor="middle">评审 5</text></g><g class="blk w-hard" data-tip="test reviewer 会话 6：检查设计出来的测试文件
+开几个：程序（每 8 个文件一个）
+接受还是否决：test reviewer 自己决定
+谁叫它起来：mainline"><rect x="577.5" y="204" width="61.0" height="20" rx="4"/><rect x="577.5" y="204" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="610.0" y="218" text-anchor="middle">评审 5</text></g><g class="blk w-hard" data-tip="test reviewer 会话 6：检查设计出来的测试文件
 2.0 分钟 · 9 轮 · $1.38
 
-开几个：程序写死（按文件数分批）
-接受还是拒绝：test reviewer 自己决定"><rect x="513.5" y="155" width="57.0" height="20" rx="4"/><rect x="513.5" y="155" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="544.0" y="169" text-anchor="middle">评审 6</text></g><text class="t-dur" x="542.0" y="186" text-anchor="middle">4.0 分</text><g class="blk w-hard" data-tip="程序做静态检查、knockout 预检，把通过的 44 个文件提交到原版上：
-35 个测试 + 9 个场景文件（303 个用例）被接受；3 个测试提案、1 个场景文件被拒。
+开几个：程序（每 8 个文件一个）
+接受还是否决：test reviewer 自己决定
+谁叫它起来：mainline"><rect x="577.5" y="227" width="61.0" height="20" rx="4"/><rect x="577.5" y="227" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="610.0" y="241" text-anchor="middle">评审 6</text></g><text class="t-dur" x="608.0" y="258" text-anchor="middle">4.0 分</text><g class="blk w-hard" data-tip="verifier 做最终试跑，把通过的 44 个文件提交到原版上：
+35 个测试 + 9 个场景文件（303 个用例）被接受；3 个测试提案、1 个场景文件被拒。"><rect x="641.5" y="76" width="61.0" height="20" rx="4"/><text x="672.0" y="90" text-anchor="middle">检查·提交</text></g><text class="t-dur" x="672.0" y="107" text-anchor="middle">6.2 分</text><g class="blk w-hard" data-tip="capture_baseline 第二次：新测试进了原版，baseline 要重抓。
 
-程序写死：固定顺序里的一步，没有问 controller"><rect x="573.5" y="40" width="57.0" height="20" rx="4"/><text x="602.0" y="54" text-anchor="middle">检查·提交</text></g><text class="t-dur" x="602.0" y="71" text-anchor="middle">6.2 分</text><g class="blk w-hard" data-tip="capture_baseline 第二次：新测试进了原版，baseline 要重抓。
-这次 90 个 check，同样重复 3 次 + leaf knockout（179 对 knockout，127 个行为性 kill）。
-结果：0 个选中的 leaf 没有有效测试。
+控制层的 mainline 一半：固定顺序里的一步，没有问 controller"><rect x="705.5" y="40" width="125.0" height="20" rx="4"/><text x="768.0" y="54" text-anchor="middle">再抓基线</text></g><text class="t-dur" x="768.0" y="71" text-anchor="middle">14.5 分</text><g class="blk w-hard" data-tip="verifier 在原版上跑 90 个 check，同样重复 3 次 + leaf knockout
+（179 对 knockout，127 个行为性 kill）。
+结果：0 个选中的 leaf 没有有效测试。"><rect x="705.5" y="76" width="125.0" height="20" rx="4"/><text x="768.0" y="90" text-anchor="middle">原版 check（90 个）</text></g><g class="blk w-hard" data-tip="seal_contract：检查 baseline 可用、导出验证包（253 个 verifier 文件），打第一个检查点。
+此后测试和 baseline 不再改。worker 自己的操作。
 
-程序写死：固定顺序里的一步，没有问 controller"><rect x="633.5" y="40" width="117.0" height="20" rx="4"/><text x="692.0" y="54" text-anchor="middle">再抓基线（90 个 check）</text></g><text class="t-dur" x="692.0" y="71" text-anchor="middle">14.5 分</text><g class="blk w-hard" data-tip="seal_contract：检查 baseline 可用、导出验证包（253 个 verifier 文件），打第一个检查点。
-此后测试和 baseline 不再改。
-
-程序写死：固定顺序里的一步，没有问 controller"><rect x="753.5" y="40" width="57.0" height="20" rx="4"/><text x="782.0" y="54" text-anchor="middle">封存</text></g><text class="t-dur" x="782.0" y="71" text-anchor="middle">23 秒</text><g class="blk w-wait" data-tip="import_draft：main job 封存后就等 draft job。
+控制层的 mainline 一半：固定顺序里的一步，没有问 controller"><rect x="833.5" y="40" width="61.0" height="20" rx="4"/><text x="864.0" y="54" text-anchor="middle">封存</text></g><text class="t-dur" x="864.0" y="71" text-anchor="middle">23 秒</text><g class="blk w-wait" data-tip="import_draft：main job 封存后就等 draft job。
 本例 draft job 正在修复，等了 24.7 分钟。
 
-程序写死：固定顺序里的一步，没有问 controller"><rect x="813.5" y="40" width="297.0" height="20" rx="4"/><text x="962.0" y="54" text-anchor="middle">等草稿作业交出首版（24.7 分）</text></g><text class="t-lane" x="0" y="309">draft job</text><text class="t-lane2" x="0" y="323">写首版</text><path class="bracket ctrl" d="M334 290 V286 H570 V290"/><text class="t-phase strong" x="452.0" y="281" text-anchor="middle">controller 第 1 轮的计划</text><path class="bracket ctrl" d="M574 290 V286 H1050 V290"/><text class="t-phase strong" x="812.0" y="281" text-anchor="middle">controller 第 2 轮的计划</text><g class="blk w-hard" data-tip="draft job 在仓库的第二个克隆上工作，和 main job 互不干扰。
+控制层的 mainline 一半：固定顺序里的一步，没有问 controller"><rect x="897.5" y="40" width="317.0" height="20" rx="4"/><text x="1056.0" y="54" text-anchor="middle">import_draft：等草稿作业交出首版（24.7 分）</text></g><text class="t-lane" x="0" y="362">draft job</text><rect x="124" y="372" width="1096" height="28" rx="4" style="fill:var(--par-bg)"/><text class="t-lane2" x="118" y="390" text-anchor="end">控制层</text><text class="t-lane2" x="118" y="426" text-anchor="end">verifier</text><text class="t-lane2" x="118" y="462" text-anchor="end">author</text><path class="bracket " d="M130 369 V365 H382 V369"/><text class="t-phase " x="256.0" y="360" text-anchor="middle">mainline 掌控</text><path class="bracket ctrl" d="M386 369 V365 H638 V369"/><text class="t-phase strong" x="512.0" y="360" text-anchor="middle">controller 第 1 轮的计划</text><path class="bracket ctrl" d="M642 369 V365 H1150 V369"/><text class="t-phase strong" x="896.0" y="360" text-anchor="middle">controller 第 2 轮的计划</text><g class="blk w-hard" data-tip="draft job 在仓库的第二个克隆上工作，和 main job 互不干扰。
 
-程序写死：固定顺序里的一步，没有问 controller"><rect x="93.5" y="295" width="57.0" height="20" rx="4"/><text x="122.0" y="309" text-anchor="middle">建工作区</text></g><text class="t-dur" x="122.0" y="326" text-anchor="middle">16 秒</text><g class="blk w-hard" data-tip="prepare_environment ×2（原版、候选）。
+控制层的 mainline 一半：固定顺序里的一步，没有问 controller"><rect x="129.5" y="376" width="61.0" height="20" rx="4"/><text x="160.0" y="390" text-anchor="middle">建工作区</text></g><text class="t-dur" x="160.0" y="407" text-anchor="middle">16 秒</text><g class="blk w-hard" data-tip="prepare_environment ×2（原版、候选）。
 
-程序写死：固定顺序里的一步，没有问 controller"><rect x="153.5" y="295" width="57.0" height="20" rx="4"/><text x="182.0" y="309" text-anchor="middle">备环境</text></g><text class="t-dur" x="182.0" y="326" text-anchor="middle">5 秒</text><g class="blk w-hard" data-tip="capture_baseline：只跑 46 个已有的 check，不做 leaf 测试验证、不设计测试，
-所以只要 2.2 分钟（main job 要 9.7 分钟）。
+控制层的 mainline 一半：固定顺序里的一步，没有问 controller"><rect x="193.5" y="376" width="61.0" height="20" rx="4"/><text x="224.0" y="390" text-anchor="middle">备环境</text></g><text class="t-dur" x="224.0" y="407" text-anchor="middle">5 秒</text><g class="blk w-hard" data-tip="capture_baseline：draft job 的轻量版。
 
-程序写死：固定顺序里的一步，没有问 controller"><rect x="213.5" y="295" width="57.0" height="20" rx="4"/><text x="242.0" y="309" text-anchor="middle">抓基线</text></g><text class="t-dur" x="242.0" y="326" text-anchor="middle">2.2 分</text><g class="blk w-hard" data-tip="seal_contract：draft job 用自己这份较轻的合同。
+控制层的 mainline 一半：固定顺序里的一步，没有问 controller"><rect x="257.5" y="376" width="61.0" height="20" rx="4"/><text x="288.0" y="390" text-anchor="middle">抓基线</text></g><text class="t-dur" x="288.0" y="407" text-anchor="middle">2.2 分</text><g class="blk w-hard" data-tip="verifier 只跑 46 个已有的 check，不做 leaf 测试验证，
+所以只要 2.2 分钟（main job 要 9.7 分钟）。"><rect x="257.5" y="412" width="61.0" height="20" rx="4"/><text x="288.0" y="426" text-anchor="middle">原版 check</text></g><g class="blk w-hard" data-tip="seal_contract：draft job 用自己这份较轻的合同。
 
-程序写死：固定顺序里的一步，没有问 controller"><rect x="273.5" y="295" width="57.0" height="20" rx="4"/><text x="302.0" y="309" text-anchor="middle">封存</text></g><text class="t-dur" x="302.0" y="326" text-anchor="middle">17 秒</text><g class="blk w-ctrl" data-tip="controller 第 1 轮（3.2 分钟）
-程序给它的默认做法是 run_agent（按 5 层一个接一个写）。
+控制层的 mainline 一半：固定顺序里的一步，没有问 controller"><rect x="321.5" y="376" width="61.0" height="20" rx="4"/><text x="352.0" y="390" text-anchor="middle">封存</text></g><text class="t-dur" x="352.0" y="407" text-anchor="middle">17 秒</text><g class="blk w-ctrl" data-tip="controller 第 1 轮（3.2 分钟）
+mainline 给它的默认做法是 run_agent（按 5 层一个接一个写）。
 它改成：一个 split 组同时写 5 个 scope，并给每个共享文件指定唯一的负责 scope。
-之后放行主线最多 20 步，到首次对比为止。
+之后放行 mainline 最多 20 步，到首次对比为止。
 
-parallel 模式下，写首版之前先问 controller（否则这一步由程序按层写）。"><rect x="333.5" y="295" width="57.0" height="20" rx="4"/><rect x="333.5" y="295" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="364.0" y="309" text-anchor="middle">轮 1</text></g><text class="t-dur" x="362.0" y="326" text-anchor="middle">3.2 分</text><g class="blk w-ctrl" data-tip="author 会话：写 scope-1（runtime-utils、config-yacs、config-lazy、layers）
+parallel 模式下，写首版之前先问 controller（否则这一步由 mainline 按层写）。"><rect x="385.5" y="376" width="61.0" height="20" rx="4"/><rect x="385.5" y="376" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="418.0" y="390" text-anchor="middle">轮 1</text></g><text class="t-dur" x="416.0" y="407" text-anchor="middle">3.2 分</text><g class="blk w-ctrl" data-tip="run_parallel_agents(group=split, 5 个 implement 请求)：controller 点名的工具调用，干活的是下面 5 个 author。
+
+控制层的 controller 一半：它这一轮点名要调的"><rect x="449.5" y="376" width="125.0" height="20" rx="4"/><text x="512.0" y="390" text-anchor="middle">并行组（split）</text></g><text class="t-dur" x="512.0" y="407" text-anchor="middle">38.0 分</text><g class="blk w-ctrl" data-tip="author 会话：写 scope-1（runtime-utils、config-yacs、config-lazy、layers）
 20.0 分钟 · 50 轮 · $11.58 · 新增 26 个文件
 
 怎么切、几个 author：controller 决定
 同时最多几个：owner 的 max_agents=8
-代码怎么写：author 自己决定"><rect x="393.5" y="295" width="117.0" height="20" rx="4"/><rect x="393.5" y="295" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="454.0" y="309" text-anchor="middle">scope-1</text></g><g class="blk w-ctrl" data-tip="author 会话：写 scope-2（structures、events、checkpoint、rotated-box-ops）
+代码怎么写：author 自己决定"><rect x="449.5" y="448" width="125.0" height="20" rx="4"/><rect x="449.5" y="448" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="514.0" y="462" text-anchor="middle">scope-1</text></g><g class="blk w-ctrl" data-tip="author 会话：写 scope-2（structures、events、checkpoint、rotated-box-ops）
 27.6 分钟 · 55 轮 · $14.06 · 新增 14 个文件
 
 怎么切、几个 author：controller 决定
 同时最多几个：owner 的 max_agents=8
-代码怎么写：author 自己决定"><rect x="393.5" y="318" width="117.0" height="20" rx="4"/><rect x="393.5" y="318" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="454.0" y="332" text-anchor="middle">scope-2</text></g><g class="blk w-ctrl" data-tip="author 会话：写 scope-3（proposal-generation、deformable-conv、backbone-resnet-fpn、data-catalog、data-transforms）
+代码怎么写：author 自己决定"><rect x="449.5" y="471" width="125.0" height="20" rx="4"/><rect x="449.5" y="471" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="514.0" y="485" text-anchor="middle">scope-2</text></g><g class="blk w-ctrl" data-tip="author 会话：写 scope-3（proposal-generation、deformable-conv、backbone-resnet-fpn、data-catalog、data-transforms）
 34.4 分钟 · 70 轮 · $19.65 · 新增 20 个文件
 
 怎么切、几个 author：controller 决定
 同时最多几个：owner 的 max_agents=8
-代码怎么写：author 自己决定"><rect x="393.5" y="341" width="117.0" height="20" rx="4"/><rect x="393.5" y="341" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="454.0" y="355" text-anchor="middle">scope-3</text></g><g class="blk w-ctrl" data-tip="author 会话：写 scope-4（detection-utils、roi-heads、generalized-rcnn、rotated-rcnn）
+代码怎么写：author 自己决定"><rect x="449.5" y="494" width="125.0" height="20" rx="4"/><rect x="449.5" y="494" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="514.0" y="508" text-anchor="middle">scope-3</text></g><g class="blk w-ctrl" data-tip="author 会话：写 scope-4（detection-utils、roi-heads、generalized-rcnn、rotated-rcnn）
 30.2 分钟 · 73 轮 · $17.75 · 新增 15 个文件
 
 怎么切、几个 author：controller 决定
 同时最多几个：owner 的 max_agents=8
-代码怎么写：author 自己决定"><rect x="393.5" y="364" width="117.0" height="20" rx="4"/><rect x="393.5" y="364" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="454.0" y="378" text-anchor="middle">scope-4</text></g><g class="blk w-ctrl" data-tip="author 会话：写 scope-5（predictor、model-zoo、export-torchscript、testing-helpers、packaging）
+代码怎么写：author 自己决定"><rect x="449.5" y="517" width="125.0" height="20" rx="4"/><rect x="449.5" y="517" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="514.0" y="531" text-anchor="middle">scope-4</text></g><g class="blk w-ctrl" data-tip="author 会话：写 scope-5（predictor、model-zoo、export-torchscript、testing-helpers、packaging）
 17.2 分钟 · 49 轮 · $9.64 · 新增 11 个文件
 
 怎么切、几个 author：controller 决定
 同时最多几个：owner 的 max_agents=8
-代码怎么写：author 自己决定"><rect x="393.5" y="387" width="117.0" height="20" rx="4"/><rect x="393.5" y="387" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="454.0" y="401" text-anchor="middle">scope-5</text></g><text class="t-dur" x="452.0" y="418" text-anchor="middle">38.0 分（含合并）</text><g class="blk w-follow" data-tip="compare_behavior（全量）：用 draft job 自己的 baseline 对比合并后的首版。
-40 个 check 失败，其中 36 个是同一个 ImportError（候选工作树丢了预编译扩展）。
-
-controller 在第 1 轮放行了主线，这一步是主线按固定顺序做的。"><rect x="513.5" y="295" width="57.0" height="20" rx="4"/><text x="542.0" y="309" text-anchor="middle">对比</text></g><text class="t-dur" x="542.0" y="326" text-anchor="middle">3.2 分</text><g class="blk w-ctrl" data-tip="controller 第 2 轮（3.0 分钟）
+代码怎么写：author 自己决定"><rect x="449.5" y="540" width="125.0" height="20" rx="4"/><rect x="449.5" y="540" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="514.0" y="554" text-anchor="middle">scope-5</text></g><g class="blk w-follow" data-tip="compare_behavior（全量）：controller 在第 1 轮放行了 mainline，这一步是 mainline 按固定顺序发出的。"><rect x="577.5" y="376" width="61.0" height="20" rx="4"/><text x="608.0" y="390" text-anchor="middle">对比</text></g><text class="t-dur" x="608.0" y="407" text-anchor="middle">3.2 分</text><g class="blk w-follow" data-tip="verifier 用 draft job 自己的 baseline 对比合并后的首版。
+40 个 check 失败，其中 36 个是同一个 ImportError（候选工作树丢了预编译扩展）。"><rect x="577.5" y="412" width="61.0" height="20" rx="4"/><text x="608.0" y="426" text-anchor="middle">候选 check</text></g><g class="blk w-ctrl" data-tip="controller 第 2 轮（3.0 分钟）
 判断：36 个失败是同一个 ImportError，可能是环境问题。
-计划：重新准备候选环境 → 沿用 baseline → 全量对比 → 若仍有失败，一个 repair author 做整体集成修复 → 保存 → 对比。"><rect x="573.5" y="295" width="57.0" height="20" rx="4"/><rect x="573.5" y="295" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="604.0" y="309" text-anchor="middle">轮 2</text></g><text class="t-dur" x="602.0" y="326" text-anchor="middle">3.0 分</text><g class="blk w-ctrl" data-tip="prepare_environment(target=candidate)：重新跑候选的准备配方。
-controller 点名调用。"><rect x="633.5" y="295" width="57.0" height="20" rx="4"/><text x="662.0" y="309" text-anchor="middle">备环境</text></g><text class="t-dur" x="662.0" y="326" text-anchor="middle">1 秒</text><g class="blk w-ctrl" data-tip="capture_baseline：指纹没变，直接沿用已有 baseline（没有重跑）。
-controller 点名调用。"><rect x="693.5" y="295" width="57.0" height="20" rx="4"/><text x="722.0" y="309" text-anchor="middle">基线</text></g><text class="t-dur" x="722.0" y="326" text-anchor="middle">4 秒</text><g class="blk w-ctrl" data-tip="compare_behavior（全量）：失败从 40 个降到 4 个——确实是环境问题。
-controller 点名调用。"><rect x="753.5" y="295" width="57.0" height="20" rx="4"/><text x="782.0" y="309" text-anchor="middle">对比</text></g><text class="t-dur" x="782.0" y="326" text-anchor="middle">1.1 分</text><g class="blk w-ctrl" data-tip="run_agent(role=repair)：一个 author 修剩下的 4 个失败。
+计划：重新准备候选环境 → 沿用 baseline → 全量对比 → 若仍有失败，一个 repair author 做整体集成修复 → 保存 → 对比。"><rect x="641.5" y="376" width="61.0" height="20" rx="4"/><rect x="641.5" y="376" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="674.0" y="390" text-anchor="middle">轮 2</text></g><text class="t-dur" x="672.0" y="407" text-anchor="middle">3.0 分</text><g class="blk w-ctrl" data-tip="prepare_environment(target=candidate)：重新跑候选的准备配方。
+
+控制层的 controller 一半：它这一轮点名要调的"><rect x="705.5" y="376" width="61.0" height="20" rx="4"/><text x="736.0" y="390" text-anchor="middle">备环境</text></g><text class="t-dur" x="736.0" y="407" text-anchor="middle">1 秒</text><g class="blk w-ctrl" data-tip="capture_baseline：指纹没变，直接沿用已有 baseline，verifier 没有重跑。
+
+控制层的 controller 一半：它这一轮点名要调的"><rect x="769.5" y="376" width="61.0" height="20" rx="4"/><text x="800.0" y="390" text-anchor="middle">基线</text></g><text class="t-dur" x="800.0" y="407" text-anchor="middle">4 秒</text><g class="blk w-ctrl" data-tip="compare_behavior（全量）。
+
+控制层的 controller 一半：它这一轮点名要调的"><rect x="833.5" y="376" width="61.0" height="20" rx="4"/><text x="864.0" y="390" text-anchor="middle">对比</text></g><text class="t-dur" x="864.0" y="407" text-anchor="middle">1.1 分</text><g class="blk w-ctrl" data-tip="verifier 重新对比：失败从 40 个降到 4 个——确实是环境问题。"><rect x="833.5" y="412" width="61.0" height="20" rx="4"/><text x="864.0" y="426" text-anchor="middle">候选 check</text></g><g class="blk w-ctrl" data-tip="run_agent(role=repair)：controller 点名的工具调用，干活的是下面 1 个 author。
+
+控制层的 controller 一半：它这一轮点名要调的"><rect x="897.5" y="376" width="125.0" height="20" rx="4"/><text x="960.0" y="390" text-anchor="middle">修复（run_agent）</text></g><text class="t-dur" x="960.0" y="407" text-anchor="middle">26.0 分</text><g class="blk w-ctrl" data-tip="author 会话：修剩下的 4 个失败。
 25.8 分钟 · 76 轮 · $12.56
 
-修什么、给谁修：controller 决定"><rect x="813.5" y="295" width="117.0" height="20" rx="4"/><rect x="813.5" y="295" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="874.0" y="309" text-anchor="middle">修复（1 个 author）</text></g><text class="t-dur" x="872.0" y="326" text-anchor="middle">26.0 分</text><g class="blk w-ctrl" data-tip="save_candidate：把草稿存成 candidate-7（集成检查、与原版重复度检查都在这里）。
-controller 点名调用。"><rect x="933.5" y="295" width="57.0" height="20" rx="4"/><text x="962.0" y="309" text-anchor="middle">保存</text></g><text class="t-dur" x="962.0" y="326" text-anchor="middle">12 秒</text><g class="blk w-ghost" data-tip="controller 计划里的最后一次对比没有执行：
-main job 已经封存，程序强制 draft job 立刻交出草稿。"><rect x="993.5" y="295" width="57.0" height="20" rx="4"/><text x="1022.0" y="309" text-anchor="middle">对比</text></g><g class="blk w-hard" data-tip="finish_draft：把当前候选封存为 main job 要导入的首版，作业以 draft_ready 结束。
-main job 一封存，程序就强制这一步（不等 controller）。
+修什么、给谁修：controller 决定
+怎么改：author 自己决定"><rect x="897.5" y="448" width="125.0" height="20" rx="4"/><rect x="897.5" y="448" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="962.0" y="462" text-anchor="middle">1 个 repair author</text></g><g class="blk w-ctrl" data-tip="save_candidate：把草稿存成 candidate-7（集成检查、与原版重复度检查都在这里）。worker 自己的操作。
 
-程序写死：固定顺序里的一步，没有问 controller"><rect x="1053.5" y="295" width="57.0" height="20" rx="4"/><text x="1082.0" y="309" text-anchor="middle">交出草稿</text></g><text class="t-dur" x="1082.0" y="326" text-anchor="middle">9 秒</text><path class="link" d="M782.0 60.0 C782.0 177.5 1082.0 177.5 1082.0 293.0" marker-end="url(#arr)"/><text class="t-note" x="940.0" y="173.5" text-anchor="start">main 封存 → 强制交出</text></svg></div><p class="swipe">左右滑动查看 →</p>
-    <figcaption>main job 这一行全是灰色：整个冻结 controller 一次都没被问。代码里的说法是，封存之前从不被问的 agent，没法通过它的选择去影响测试。draft job 从封存之后变紫，是因为开了 parallel 模式。每块下面是真实用时。</figcaption></figure>
+控制层的 controller 一半：它这一轮点名要调的"><rect x="1025.5" y="376" width="61.0" height="20" rx="4"/><text x="1056.0" y="390" text-anchor="middle">保存</text></g><text class="t-dur" x="1056.0" y="407" text-anchor="middle">12 秒</text><g class="blk w-ghost" data-tip="controller 计划里的最后一次对比没有执行：
+main job 已经封存，mainline 强制 draft job 立刻交出草稿。"><rect x="1089.5" y="376" width="61.0" height="20" rx="4"/><text x="1120.0" y="390" text-anchor="middle">对比</text></g><g class="blk w-hard" data-tip="finish_draft：把当前候选封存为 main job 要导入的首版，作业以 draft_ready 结束。
+main job 一封存，mainline 就强制这一步（不等 controller）。
+
+控制层的 mainline 一半：固定顺序里的一步，没有问 controller"><rect x="1153.5" y="376" width="61.0" height="20" rx="4"/><text x="1184.0" y="390" text-anchor="middle">交出草稿</text></g><text class="t-dur" x="1184.0" y="407" text-anchor="middle">9 秒</text><path class="link" d="M864.0 60.0 C864.0 217.0 1184.0 217.0 1184.0 374.0" marker-end="url(#arr)"/><text class="t-note" x="1034.0" y="211.0" text-anchor="start">main 封存 → 强制交出</text></svg></div><p class="swipe">左右滑动查看 →</p>
+    <figcaption>main job 的控制层一行全是灰色：整个冻结 controller 一次都没被问，所以它下面的 verifier 和 designer · reviewer 两行也全是灰色。代码里的说法是，封存之前从不被问的 agent，没法通过它的选择去影响测试。draft job 从封存之后变紫，是因为开了 parallel 模式：author 那一行归 controller。控制层那一行里没有对应下层方块的调用（建工作区、备环境、封存、保存）是 worker 自己的操作。每块下面是真实用时。</figcaption></figure>
   </div>
   <div class="card"><h3>并行点一览：开几个、同时几个，分别由谁定</h3>
 <p class="sub">图里每一处上下叠放都对应下面一行。规律是：开几个由程序或 controller 定，同时跑几个是 owner 的上限，里面做什么是那个 agent 自己的事。controller 能影响的只有 author 这两行。</p>
@@ -704,81 +735,82 @@ main job 一封存，程序就强制这一步（不等 controller）。
 
 <section id="s4">
   <h2>④ 导入之后：对比、修复、交付</h2>
-  <p class="body">从这里起只剩 main job。先是程序写死的两步（导入、第一次全量对比），然后 controller 一轮一轮地决定。下图每个紫色括号是 controller 一轮的计划；虚线框是计划里有、但因为前一步没达到条件而没执行的调用。</p>
+  <p class="body">从这里起只剩 main job。先是 mainline 的两步（导入、第一次全量对比），然后 controller 一轮一轮地决定。下图同样按分层画：第一行是控制层的调用，下面是 verifier 和 author 干的活。每个紫色括号是 controller 一轮的计划；虚线框是计划里有、但因为前一步没达到条件而没执行的调用。</p>
   <div class="card tips focusable" id="fig-b">
     <div class="legend" data-for="fig-b"><span class="hint">颜色 = 谁决定这一步（点一下只看一类）</span><button type="button" class="lg" data-kind="hard" aria-pressed="false"><span class="sw w-hard"></span>程序写死</button><button type="button" class="lg" data-kind="ctrl" aria-pressed="false"><span class="sw w-ctrl"></span>controller 决定</button><span class="lg"><span class="sw w-ghost"></span>计划了但没执行</span></div>
-    <figure><div class="scroll"><svg class="fig" viewBox="0 0 1134 173" role="img" aria-label="detectron2 运行里 main job 导入草稿之后：一次固定的对比，然后 controller 的四轮计划，直到交付" style="min-width:975px"><defs><pattern id="hatch-follow" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="7" height="7" style="fill:var(--w-hard)"/><rect width="3.5" height="7" style="fill:var(--w-ctrl)"/></pattern><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker><marker id="arr-m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:var(--muted)"/></marker></defs><text class="t-lane" x="0" y="54">main job</text><path class="bracket ctrl" d="M196 35 V31 H482 V35"/><text class="t-phase strong" x="339.0" y="26" text-anchor="middle">controller 第 1 轮的计划</text><path class="bracket ctrl" d="M486 35 V31 H946 V35"/><text class="t-phase strong" x="716.0" y="26" text-anchor="middle">controller 第 2 轮的计划</text><g class="blk w-hard" data-tip="import_draft：把 draft job 交出的首版（83 个文件）存成本作业的 candidate-1。
+    <figure><div class="scroll"><svg class="fig" viewBox="0 0 1184 331" role="img" aria-label="detectron2 运行里 main job 导入草稿之后，按分层画：一次由 mainline 发出的对比，然后 controller 的四轮计划，每个工具调用下面是它让 verifier 或 author 干的活" style="min-width:1018px"><defs><pattern id="hatch-follow" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="7" height="7" style="fill:var(--w-hard)"/><rect width="3.5" height="7" style="fill:var(--w-ctrl)"/></pattern><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker><marker id="arr-m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:var(--muted)"/></marker></defs><text class="t-lane" x="0" y="26">main job</text><rect x="124" y="36" width="1052" height="28" rx="4" style="fill:var(--par-bg)"/><text class="t-lane2" x="118" y="54" text-anchor="end">控制层</text><text class="t-lane2" x="118" y="90" text-anchor="end">verifier</text><text class="t-lane2" x="118" y="126" text-anchor="end">author</text><path class="bracket " d="M130 33 V29 H242 V33"/><text class="t-phase " x="186.0" y="24" text-anchor="middle">mainline 掌控</text><path class="bracket ctrl" d="M246 33 V29 H532 V33"/><text class="t-phase strong" x="389.0" y="24" text-anchor="middle">controller 第 1 轮的计划</text><path class="bracket ctrl" d="M536 33 V29 H996 V33"/><text class="t-phase strong" x="766.0" y="24" text-anchor="middle">controller 第 2 轮的计划</text><g class="blk w-hard" data-tip="import_draft：把 draft job 交出的首版（83 个文件）存成本作业的 candidate-1。
 不调用 author；按保存候选的规则检查（集成、与原版重复度）。
 
-程序写死：固定顺序里的一步，没有问 controller"><rect x="79.5" y="40" width="55.0" height="20" rx="4"/><text x="107.0" y="54" text-anchor="middle">导入</text></g><text class="t-dur" x="107.0" y="71" text-anchor="middle">15 秒</text><g class="blk w-hard" data-tip="compare_behavior（全量）：candidate-1 对比原版 baseline（90 个 check）。
-20 个 check 失败。
+控制层的 mainline 一半：固定顺序里的一步，没有问 controller"><rect x="129.5" y="40" width="55.0" height="20" rx="4"/><text x="157.0" y="54" text-anchor="middle">导入</text></g><text class="t-dur" x="157.0" y="71" text-anchor="middle">15 秒</text><g class="blk w-hard" data-tip="compare_behavior（全量）：导入后的第一次对比仍是固定顺序里的一步；
+它之后 controller 才第一次被问。
 
-导入后的第一次对比仍是固定顺序里的一步；
-它之后 controller 才第一次被询问。
-
-程序写死：固定顺序里的一步，没有问 controller"><rect x="137.5" y="40" width="55.0" height="20" rx="4"/><text x="165.0" y="54" text-anchor="middle">对比</text></g><text class="t-dur" x="165.0" y="71" text-anchor="middle">3.4 分</text><g class="blk w-ctrl" data-tip="controller 第 1 轮（1.4 分钟，$1.24）
+控制层的 mainline 一半：固定顺序里的一步，没有问 controller"><rect x="187.5" y="40" width="55.0" height="20" rx="4"/><text x="215.0" y="54" text-anchor="middle">对比</text></g><text class="t-dur" x="215.0" y="71" text-anchor="middle">3.4 分</text><g class="blk w-hard" data-tip="verifier 在 candidate-1 上跑 90 个 check，和原版 baseline 逐项比。
+20 个 check 失败。"><rect x="187.5" y="76" width="55.0" height="20" rx="4"/><text x="215.0" y="90" text-anchor="middle">候选 check</text></g><g class="blk w-ctrl" data-tip="controller 第 1 轮（1.4 分钟，$1.24）
 看到的：20 个失败里 16 个是两种相同的报错（缺编译产物、model_zoo 找不到配置）。
 判断：候选工作树是在导入之前准备的，先别花 author。
-计划：重新准备候选环境 → 沿用 baseline → 全量对比 → 安装检查。"><rect x="195.5" y="40" width="55.0" height="20" rx="4"/><rect x="195.5" y="40" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="225.0" y="54" text-anchor="middle">轮 1</text></g><text class="t-dur" x="223.0" y="71" text-anchor="middle">1.4 分</text><g class="blk w-ctrl" data-tip="prepare_environment(target=candidate)：重新跑候选的准备配方。
+计划：重新准备候选环境 → 沿用 baseline → 全量对比 → 安装检查。"><rect x="245.5" y="40" width="55.0" height="20" rx="4"/><rect x="245.5" y="40" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="275.0" y="54" text-anchor="middle">轮 1</text></g><text class="t-dur" x="273.0" y="71" text-anchor="middle">1.4 分</text><g class="blk w-ctrl" data-tip="prepare_environment(target=candidate)：重新跑候选的准备配方。worker 自己的操作。
 
-controller 第 1 轮点名调用"><rect x="253.5" y="40" width="55.0" height="20" rx="4"/><text x="281.0" y="54" text-anchor="middle">备环境</text></g><text class="t-dur" x="281.0" y="71" text-anchor="middle">1 秒</text><g class="blk w-ctrl" data-tip="capture_baseline：指纹没变，直接沿用已有 baseline（没有重跑）。
+控制层的 controller 一半：它这一轮点名要调的"><rect x="303.5" y="40" width="55.0" height="20" rx="4"/><text x="331.0" y="54" text-anchor="middle">备环境</text></g><text class="t-dur" x="331.0" y="71" text-anchor="middle">1 秒</text><g class="blk w-ctrl" data-tip="capture_baseline：指纹没变，直接沿用已有 baseline，verifier 没有重跑。
 
-controller 第 1 轮点名调用"><rect x="311.5" y="40" width="55.0" height="20" rx="4"/><text x="339.0" y="54" text-anchor="middle">基线</text></g><text class="t-dur" x="339.0" y="71" text-anchor="middle">7 秒</text><g class="blk w-ctrl" data-tip="compare_behavior（全量，90 个 check）。
-结果：失败 20 → 4 个
+控制层的 controller 一半：它这一轮点名要调的"><rect x="361.5" y="40" width="55.0" height="20" rx="4"/><text x="389.0" y="54" text-anchor="middle">基线</text></g><text class="t-dur" x="389.0" y="71" text-anchor="middle">7 秒</text><g class="blk w-ctrl" data-tip="compare_behavior（全量）：controller 点名的工具调用，干活的是下面的 verifier。
 
-controller 第 1 轮点名调用"><rect x="369.5" y="40" width="55.0" height="20" rx="4"/><text x="397.0" y="54" text-anchor="middle">对比</text></g><text class="t-dur" x="397.0" y="71" text-anchor="middle">2.0 分</text><g class="blk w-ctrl" data-tip="check_installation：在全新的隔离环境里构建、安装、冒烟。
-结果：3 步全过
+控制层的 controller 一半：它这一轮点名要调的"><rect x="419.5" y="40" width="55.0" height="20" rx="4"/><text x="447.0" y="54" text-anchor="middle">对比</text></g><text class="t-dur" x="447.0" y="71" text-anchor="middle">2.0 分</text><g class="blk w-ctrl" data-tip="verifier 在候选上跑 90 个 check，和原版 baseline 逐项比。
+结果：失败 20 → 4 个"><rect x="419.5" y="76" width="55.0" height="20" rx="4"/><text x="447.0" y="90" text-anchor="middle">候选 check</text></g><g class="blk w-ctrl" data-tip="check_installation：controller 点名的工具调用，干活的是下面的 verifier。
 
-controller 第 1 轮点名调用"><rect x="427.5" y="40" width="55.0" height="20" rx="4"/><text x="455.0" y="54" text-anchor="middle">安装检查</text></g><text class="t-dur" x="455.0" y="71" text-anchor="middle">1.4 分</text><g class="blk w-ctrl" data-tip="controller 第 2 轮（1.2 分钟，$1.06）
+控制层的 controller 一半：它这一轮点名要调的"><rect x="477.5" y="40" width="55.0" height="20" rx="4"/><text x="505.0" y="54" text-anchor="middle">安装检查</text></g><text class="t-dur" x="505.0" y="71" text-anchor="middle">1.4 分</text><g class="blk w-ctrl" data-tip="verifier 在全新的隔离环境里构建、安装、冒烟。
+结果：3 步全过"><rect x="477.5" y="76" width="55.0" height="20" rx="4"/><text x="505.0" y="90" text-anchor="middle">装并冒烟</text></g><g class="blk w-ctrl" data-tip="controller 第 2 轮（1.2 分钟，$1.06）
 看到的：重新准备后 16 个失败自己消失，还剩 4 个，分在两组互不相交的文件里。
 计划：一个 split 修复组，两个请求同时修 → 全量对比 → 安装检查 → 选定 → 交付（要求 best_reachable）。
-前一步不成功，后面的就不执行。"><rect x="485.5" y="40" width="55.0" height="20" rx="4"/><rect x="485.5" y="40" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="515.0" y="54" text-anchor="middle">轮 2</text></g><text class="t-dur" x="513.0" y="71" text-anchor="middle">1.2 分</text><g class="blk w-ctrl" data-tip="repair author：修 data-catalog
+前一步不成功，后面的就不执行。"><rect x="535.5" y="40" width="55.0" height="20" rx="4"/><rect x="535.5" y="40" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="565.0" y="54" text-anchor="middle">轮 2</text></g><text class="t-dur" x="563.0" y="71" text-anchor="middle">1.2 分</text><g class="blk w-ctrl" data-tip="run_parallel_agents(group=split, 2 个 repair 请求)：controller 点名的工具调用，干活的是下面 2 个 author。
+
+控制层的 controller 一半：它这一轮点名要调的"><rect x="593.5" y="40" width="171.0" height="20" rx="4"/><text x="679.0" y="54" text-anchor="middle">并行修复组（split）</text></g><text class="t-dur" x="679.0" y="71" text-anchor="middle">19.3 分</text><g class="blk w-ctrl" data-tip="repair author：修 data-catalog
 4.9 分钟 · 17 轮 · $2.83
 
 拆成几个请求、各修哪些 check：controller 决定
-两个请求各在一个新 workspace 里同时进行，结束后程序把改动合并成一个新候选"><rect x="543.5" y="40" width="171.0" height="20" rx="4"/><rect x="543.5" y="40" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="631.0" y="54" text-anchor="middle">data-catalog</text></g><g class="blk w-ctrl" data-tip="repair author：修 model-zoo + packaging
+两个请求各在一个新 workspace 里同时进行，结束后程序把改动合并成一个新候选"><rect x="593.5" y="112" width="171.0" height="20" rx="4"/><rect x="593.5" y="112" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="681.0" y="126" text-anchor="middle">data-catalog</text></g><g class="blk w-ctrl" data-tip="repair author：修 model-zoo + packaging
 17.5 分钟 · 39 轮 · $9.03
 
 拆成几个请求、各修哪些 check：controller 决定
-两个请求各在一个新 workspace 里同时进行，结束后程序把改动合并成一个新候选"><rect x="543.5" y="63" width="171.0" height="20" rx="4"/><rect x="543.5" y="63" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="631.0" y="77" text-anchor="middle">model-zoo + packaging</text></g><text class="t-dur" x="629.0" y="94" text-anchor="middle">19.3 分（含合并）</text><g class="blk w-ctrl" data-tip="compare_behavior（全量，90 个 check）。
-结果：17 个失败（又是环境）
+两个请求各在一个新 workspace 里同时进行，结束后程序把改动合并成一个新候选"><rect x="593.5" y="135" width="171.0" height="20" rx="4"/><rect x="593.5" y="135" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="681.0" y="149" text-anchor="middle">model-zoo + packaging</text></g><g class="blk w-ctrl" data-tip="compare_behavior（全量）：controller 点名的工具调用，干活的是下面的 verifier。
 
-controller 第 2 轮点名调用"><rect x="717.5" y="40" width="55.0" height="20" rx="4"/><text x="745.0" y="54" text-anchor="middle">对比</text></g><text class="t-dur" x="745.0" y="71" text-anchor="middle">3.5 分</text><g class="blk w-ghost" data-tip="check_installation：在 controller 第 2 轮的计划里，但前一步没达到条件（对比没通过），程序没有执行它。"><rect x="775.5" y="40" width="55.0" height="20" rx="4"/><text x="803.0" y="54" text-anchor="middle">安装检查</text></g><g class="blk w-ghost" data-tip="select_candidate：在 controller 第 2 轮的计划里，但前一步没达到条件（对比没通过），程序没有执行它。"><rect x="833.5" y="40" width="55.0" height="20" rx="4"/><text x="861.0" y="54" text-anchor="middle">选定</text></g><g class="blk w-ghost" data-tip="deliver：在 controller 第 2 轮的计划里，但前一步没达到条件（对比没通过），程序没有执行它。"><rect x="891.5" y="40" width="55.0" height="20" rx="4"/><text x="919.0" y="54" text-anchor="middle">交付</text></g><text class="t-lane" x="0" y="148">main job</text><text class="t-lane2" x="0" y="162">（接上一行）</text><path class="bracket ctrl" d="M80 129 V125 H540 V129"/><text class="t-phase strong" x="310.0" y="120" text-anchor="middle">controller 第 3 轮的计划</text><path class="bracket ctrl" d="M544 129 V125 H1120 V129"/><text class="t-phase strong" x="832.0" y="120" text-anchor="middle">controller 第 4 轮的计划</text><g class="blk w-ctrl" data-tip="controller 第 3 轮（0.6 分钟，$0.88）
+控制层的 controller 一半：它这一轮点名要调的"><rect x="767.5" y="40" width="55.0" height="20" rx="4"/><text x="795.0" y="54" text-anchor="middle">对比</text></g><text class="t-dur" x="795.0" y="71" text-anchor="middle">3.5 分</text><g class="blk w-ctrl" data-tip="verifier 在候选上跑 90 个 check，和原版 baseline 逐项比。
+结果：17 个失败（又是环境）"><rect x="767.5" y="76" width="55.0" height="20" rx="4"/><text x="795.0" y="90" text-anchor="middle">候选 check</text></g><g class="blk w-ghost" data-tip="check_installation：在 controller 第 2 轮的计划里，但前一步没达到条件（对比没通过），程序没有执行它。"><rect x="825.5" y="40" width="55.0" height="20" rx="4"/><text x="853.0" y="54" text-anchor="middle">安装检查</text></g><g class="blk w-ghost" data-tip="select_candidate：在 controller 第 2 轮的计划里，但前一步没达到条件（对比没通过），程序没有执行它。"><rect x="883.5" y="40" width="55.0" height="20" rx="4"/><text x="911.0" y="54" text-anchor="middle">选定</text></g><g class="blk w-ghost" data-tip="deliver：在 controller 第 2 轮的计划里，但前一步没达到条件（对比没通过），程序没有执行它。"><rect x="941.5" y="40" width="55.0" height="20" rx="4"/><text x="969.0" y="54" text-anchor="middle">交付</text></g><text class="t-lane" x="0" y="201">main job（接上一行）</text><rect x="124" y="211" width="1052" height="28" rx="4" style="fill:var(--par-bg)"/><text class="t-lane2" x="118" y="229" text-anchor="end">控制层</text><text class="t-lane2" x="118" y="265" text-anchor="end">verifier</text><text class="t-lane2" x="118" y="301" text-anchor="end">author</text><path class="bracket ctrl" d="M130 208 V204 H590 V208"/><text class="t-phase strong" x="360.0" y="199" text-anchor="middle">controller 第 3 轮的计划</text><path class="bracket ctrl" d="M594 208 V204 H1170 V208"/><text class="t-phase strong" x="882.0" y="199" text-anchor="middle">controller 第 4 轮的计划</text><g class="blk w-ctrl" data-tip="controller 第 3 轮（0.6 分钟，$0.88）
 看到的：合并后又是那 16 个环境性失败（合并产生了新的工作树）。
-计划：重新准备 → 沿用 baseline → 全量对比 → 安装 → 选定 → 交付；若对比仍失败，单独再跑一次安装检查拿证据。"><rect x="79.5" y="134" width="55.0" height="20" rx="4"/><rect x="79.5" y="134" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="109.0" y="148" text-anchor="middle">轮 3</text></g><text class="t-dur" x="107.0" y="165" text-anchor="middle">33 秒</text><g class="blk w-ctrl" data-tip="prepare_environment(target=candidate)：重新跑候选的准备配方。
+计划：重新准备 → 沿用 baseline → 全量对比 → 安装 → 选定 → 交付；若对比仍失败，单独再跑一次安装检查拿证据。"><rect x="129.5" y="215" width="55.0" height="20" rx="4"/><rect x="129.5" y="215" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="159.0" y="229" text-anchor="middle">轮 3</text></g><text class="t-dur" x="157.0" y="246" text-anchor="middle">33 秒</text><g class="blk w-ctrl" data-tip="prepare_environment(target=candidate)：重新跑候选的准备配方。worker 自己的操作。
 
-controller 第 3 轮点名调用"><rect x="137.5" y="134" width="55.0" height="20" rx="4"/><text x="165.0" y="148" text-anchor="middle">备环境</text></g><text class="t-dur" x="165.0" y="165" text-anchor="middle">1 秒</text><g class="blk w-ctrl" data-tip="capture_baseline：指纹没变，直接沿用已有 baseline（没有重跑）。
+控制层的 controller 一半：它这一轮点名要调的"><rect x="187.5" y="215" width="55.0" height="20" rx="4"/><text x="215.0" y="229" text-anchor="middle">备环境</text></g><text class="t-dur" x="215.0" y="246" text-anchor="middle">1 秒</text><g class="blk w-ctrl" data-tip="capture_baseline：指纹没变，直接沿用已有 baseline，verifier 没有重跑。
 
-controller 第 3 轮点名调用"><rect x="195.5" y="134" width="55.0" height="20" rx="4"/><text x="223.0" y="148" text-anchor="middle">基线</text></g><text class="t-dur" x="223.0" y="165" text-anchor="middle">7 秒</text><g class="blk w-ctrl" data-tip="compare_behavior（全量，90 个 check）。
-结果：只剩 1 个失败
+控制层的 controller 一半：它这一轮点名要调的"><rect x="245.5" y="215" width="55.0" height="20" rx="4"/><text x="273.0" y="229" text-anchor="middle">基线</text></g><text class="t-dur" x="273.0" y="246" text-anchor="middle">7 秒</text><g class="blk w-ctrl" data-tip="compare_behavior（全量）：controller 点名的工具调用，干活的是下面的 verifier。
 
-controller 第 3 轮点名调用"><rect x="253.5" y="134" width="55.0" height="20" rx="4"/><text x="281.0" y="148" text-anchor="middle">对比</text></g><text class="t-dur" x="281.0" y="165" text-anchor="middle">1.9 分</text><g class="blk w-ghost" data-tip="check_installation：在 controller 第 3 轮的计划里，但前一步没达到条件（对比没通过），程序没有执行它。"><rect x="311.5" y="134" width="55.0" height="20" rx="4"/><text x="339.0" y="148" text-anchor="middle">安装检查</text></g><g class="blk w-ghost" data-tip="select_candidate：在 controller 第 3 轮的计划里，但前一步没达到条件（对比没通过），程序没有执行它。"><rect x="369.5" y="134" width="55.0" height="20" rx="4"/><text x="397.0" y="148" text-anchor="middle">选定</text></g><g class="blk w-ghost" data-tip="deliver：在 controller 第 3 轮的计划里，但前一步没达到条件（对比没通过），程序没有执行它。"><rect x="427.5" y="134" width="55.0" height="20" rx="4"/><text x="455.0" y="148" text-anchor="middle">交付</text></g><g class="blk w-ctrl" data-tip="check_installation：在全新的隔离环境里构建、安装、冒烟。
-结果：3 步全过
+控制层的 controller 一半：它这一轮点名要调的"><rect x="303.5" y="215" width="55.0" height="20" rx="4"/><text x="331.0" y="229" text-anchor="middle">对比</text></g><text class="t-dur" x="331.0" y="246" text-anchor="middle">1.9 分</text><g class="blk w-ctrl" data-tip="verifier 在候选上跑 90 个 check，和原版 baseline 逐项比。
+结果：只剩 1 个失败"><rect x="303.5" y="251" width="55.0" height="20" rx="4"/><text x="331.0" y="265" text-anchor="middle">候选 check</text></g><g class="blk w-ghost" data-tip="check_installation：在 controller 第 3 轮的计划里，但前一步没达到条件（对比没通过），程序没有执行它。"><rect x="361.5" y="215" width="55.0" height="20" rx="4"/><text x="389.0" y="229" text-anchor="middle">安装检查</text></g><g class="blk w-ghost" data-tip="select_candidate：在 controller 第 3 轮的计划里，但前一步没达到条件（对比没通过），程序没有执行它。"><rect x="419.5" y="215" width="55.0" height="20" rx="4"/><text x="447.0" y="229" text-anchor="middle">选定</text></g><g class="blk w-ghost" data-tip="deliver：在 controller 第 3 轮的计划里，但前一步没达到条件（对比没通过），程序没有执行它。"><rect x="477.5" y="215" width="55.0" height="20" rx="4"/><text x="505.0" y="229" text-anchor="middle">交付</text></g><g class="blk w-ctrl" data-tip="check_installation：controller 点名的工具调用，干活的是下面的 verifier。
 
-controller 第 3 轮点名调用"><rect x="485.5" y="134" width="55.0" height="20" rx="4"/><text x="513.0" y="148" text-anchor="middle">安装检查</text></g><text class="t-dur" x="513.0" y="165" text-anchor="middle">1.4 分</text><g class="blk w-ctrl" data-tip="controller 第 4 轮（1.1 分钟，$1.18）
+控制层的 controller 一半：它这一轮点名要调的"><rect x="535.5" y="215" width="55.0" height="20" rx="4"/><text x="563.0" y="229" text-anchor="middle">安装检查</text></g><text class="t-dur" x="563.0" y="246" text-anchor="middle">1.4 分</text><g class="blk w-ctrl" data-tip="verifier 在全新的隔离环境里构建、安装、冒烟。
+结果：3 步全过"><rect x="535.5" y="251" width="55.0" height="20" rx="4"/><text x="563.0" y="265" text-anchor="middle">装并冒烟</text></g><g class="blk w-ctrl" data-tip="controller 第 4 轮（1.1 分钟，$1.18）
 看到的：90 个 check 里 89 个通过，只剩 check-70（model-zoo 场景）的 1 个断言。
-计划：一个定向 repair（model-zoo + config-lazy）→ 保存 → 重新准备 → 沿用 baseline → 全量对比 → 安装 → 选定 → 交付。"><rect x="543.5" y="134" width="55.0" height="20" rx="4"/><rect x="543.5" y="134" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="573.0" y="148" text-anchor="middle">轮 4</text></g><text class="t-dur" x="571.0" y="165" text-anchor="middle">1.1 分</text><g class="blk w-ctrl" data-tip="run_agent(role=repair, capabilities=[model-zoo, config-lazy])：一个 author 定向修 check-70。
+计划：一个定向 repair（model-zoo + config-lazy）→ 保存 → 重新准备 → 沿用 baseline → 全量对比 → 安装 → 选定 → 交付。"><rect x="593.5" y="215" width="55.0" height="20" rx="4"/><rect x="593.5" y="215" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="623.0" y="229" text-anchor="middle">轮 4</text></g><text class="t-dur" x="621.0" y="246" text-anchor="middle">1.1 分</text><g class="blk w-ctrl" data-tip="run_agent(role=repair, capabilities=[model-zoo, config-lazy])：controller 点名的工具调用，干活的是下面 1 个 author。
 
-controller 第 4 轮点名调用"><rect x="601.5" y="134" width="113.0" height="20" rx="4"/><rect x="601.5" y="134" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="660.0" y="148" text-anchor="middle">修复（1 个 author）</text></g><text class="t-dur" x="658.0" y="165" text-anchor="middle">5.9 分</text><g class="blk w-ctrl" data-tip="save_candidate：把草稿存成 candidate-5。
+控制层的 controller 一半：它这一轮点名要调的"><rect x="651.5" y="215" width="113.0" height="20" rx="4"/><text x="708.0" y="229" text-anchor="middle">修复（run_agent）</text></g><text class="t-dur" x="708.0" y="246" text-anchor="middle">5.9 分</text><g class="blk w-ctrl" data-tip="author 会话：定向修 check-70。
+5.7 分钟 · 23 轮 · $3.08"><rect x="651.5" y="287" width="113.0" height="20" rx="4"/><rect x="651.5" y="287" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="710.0" y="301" text-anchor="middle">1 个 repair author</text></g><g class="blk w-ctrl" data-tip="save_candidate：把草稿存成 candidate-5。worker 自己的操作。
 
-controller 第 4 轮点名调用"><rect x="717.5" y="134" width="55.0" height="20" rx="4"/><text x="745.0" y="148" text-anchor="middle">保存</text></g><text class="t-dur" x="745.0" y="165" text-anchor="middle">13 秒</text><g class="blk w-ctrl" data-tip="prepare_environment(target=candidate)：重新跑候选的准备配方。
+控制层的 controller 一半：它这一轮点名要调的"><rect x="767.5" y="215" width="55.0" height="20" rx="4"/><text x="795.0" y="229" text-anchor="middle">保存</text></g><text class="t-dur" x="795.0" y="246" text-anchor="middle">13 秒</text><g class="blk w-ctrl" data-tip="prepare_environment(target=candidate)：重新跑候选的准备配方。worker 自己的操作。
 
-controller 第 4 轮点名调用"><rect x="775.5" y="134" width="55.0" height="20" rx="4"/><text x="803.0" y="148" text-anchor="middle">备环境</text></g><text class="t-dur" x="803.0" y="165" text-anchor="middle">2 秒</text><g class="blk w-ctrl" data-tip="capture_baseline：指纹没变，直接沿用已有 baseline（没有重跑）。
+控制层的 controller 一半：它这一轮点名要调的"><rect x="825.5" y="215" width="55.0" height="20" rx="4"/><text x="853.0" y="229" text-anchor="middle">备环境</text></g><text class="t-dur" x="853.0" y="246" text-anchor="middle">2 秒</text><g class="blk w-ctrl" data-tip="capture_baseline：指纹没变，直接沿用已有 baseline，verifier 没有重跑。
 
-controller 第 4 轮点名调用"><rect x="833.5" y="134" width="55.0" height="20" rx="4"/><text x="861.0" y="148" text-anchor="middle">基线</text></g><text class="t-dur" x="861.0" y="165" text-anchor="middle">8 秒</text><g class="blk w-ctrl" data-tip="compare_behavior（全量，90 个 check）。
-结果：90 个 check 全部通过
+控制层的 controller 一半：它这一轮点名要调的"><rect x="883.5" y="215" width="55.0" height="20" rx="4"/><text x="911.0" y="229" text-anchor="middle">基线</text></g><text class="t-dur" x="911.0" y="246" text-anchor="middle">8 秒</text><g class="blk w-ctrl" data-tip="compare_behavior（全量）：controller 点名的工具调用，干活的是下面的 verifier。
 
-controller 第 4 轮点名调用"><rect x="891.5" y="134" width="55.0" height="20" rx="4"/><text x="919.0" y="148" text-anchor="middle">对比</text></g><text class="t-dur" x="919.0" y="165" text-anchor="middle">1.8 分</text><g class="blk w-ctrl" data-tip="check_installation：在全新的隔离环境里构建、安装、冒烟。
-结果：3 步全过
+控制层的 controller 一半：它这一轮点名要调的"><rect x="941.5" y="215" width="55.0" height="20" rx="4"/><text x="969.0" y="229" text-anchor="middle">对比</text></g><text class="t-dur" x="969.0" y="246" text-anchor="middle">1.8 分</text><g class="blk w-ctrl" data-tip="verifier 在候选上跑 90 个 check，和原版 baseline 逐项比。
+结果：90 个 check 全部通过"><rect x="941.5" y="251" width="55.0" height="20" rx="4"/><text x="969.0" y="265" text-anchor="middle">候选 check</text></g><g class="blk w-ctrl" data-tip="check_installation：controller 点名的工具调用，干活的是下面的 verifier。
 
-controller 第 4 轮点名调用"><rect x="949.5" y="134" width="55.0" height="20" rx="4"/><text x="977.0" y="148" text-anchor="middle">安装检查</text></g><text class="t-dur" x="977.0" y="165" text-anchor="middle">1.4 分</text><g class="blk w-ctrl" data-tip="select_candidate：选定 candidate-5 作为要交付的版本。
+控制层的 controller 一半：它这一轮点名要调的"><rect x="999.5" y="215" width="55.0" height="20" rx="4"/><text x="1027.0" y="229" text-anchor="middle">安装检查</text></g><text class="t-dur" x="1027.0" y="246" text-anchor="middle">1.4 分</text><g class="blk w-ctrl" data-tip="verifier 在全新的隔离环境里构建、安装、冒烟。
+结果：3 步全过"><rect x="999.5" y="251" width="55.0" height="20" rx="4"/><text x="1027.0" y="265" text-anchor="middle">装并冒烟</text></g><g class="blk w-ctrl" data-tip="select_candidate：选定 candidate-5 作为要交付的版本。
 
-controller 第 4 轮点名调用"><rect x="1007.5" y="134" width="55.0" height="20" rx="4"/><text x="1035.0" y="148" text-anchor="middle">选定</text></g><text class="t-dur" x="1035.0" y="165" text-anchor="middle">9 秒</text><g class="blk w-ctrl" data-tip="deliver(require=best_reachable)：按交付验收报告给出最终状态。
+控制层的 controller 一半：它这一轮点名要调的"><rect x="1057.5" y="215" width="55.0" height="20" rx="4"/><text x="1085.0" y="229" text-anchor="middle">选定</text></g><text class="t-dur" x="1085.0" y="246" text-anchor="middle">9 秒</text><g class="blk w-ctrl" data-tip="deliver(require=best_reachable)：按交付验收报告给出最终状态。
 结果：completed_with_gaps：90/90 通过、安装通过；
-缺口是 2 个原版测试函数在转换时离开了验收
+缺口是 2 个原版测试函数在转换时离开了验收。
 
-controller 第 4 轮点名调用"><rect x="1065.5" y="134" width="55.0" height="20" rx="4"/><text x="1093.0" y="148" text-anchor="middle">交付</text></g><text class="t-dur" x="1093.0" y="165" text-anchor="middle">2.1 分</text></svg></div><p class="swipe">左右滑动查看 →</p>
-    <figcaption>一轮的回答是一份带条件的计划，不是一个动作：第 2、3 轮都把“安装 → 选定 → 交付”写进去了，但对比没通过，这三步就没触发，controller 被重新询问。</figcaption></figure>
+控制层的 controller 一半：它这一轮点名要调的"><rect x="1115.5" y="215" width="55.0" height="20" rx="4"/><text x="1143.0" y="229" text-anchor="middle">交付</text></g><text class="t-dur" x="1143.0" y="246" text-anchor="middle">2.1 分</text></svg></div><p class="swipe">左右滑动查看 →</p>
+    <figcaption>从第 1 轮起，verifier 和 author 两行都是紫色：这一段完全符合 controller → author / verifier 的分层。一轮的回答是一份带条件的计划，不是一个动作：第 2、3 轮都把“安装 → 选定 → 交付”写进去了，但对比没通过，这三步就没触发，controller 被重新询问。</figcaption></figure>
   </div>
   <div class="stage"><header><span class="no">阶段 ④</span><h3>main job：导入、对比、修复、交付</h3><span class="when">本例 +78.2 → +127.6 分（作业时钟），49.4 分钟</span></header><div class="steps"><div class="step"><div class="idx">1</div><div class="what"><div class="t"><span>import_draft</span><span class="who w-hard">程序写死</span></div><p>封存之后 main job 等 draft job（最多等自己剩余时间的一半），核对两个作业确实出自同一次评审，只拷生成的文件，按保存候选的规则检查后存成自己的第一个候选，记一次 author 尝试。draft 不可用时 main job 自己写首版。这个工具 controller 看不到。</p></div><div class="ex"><span class="h">detectron2 这次</span><div>等了 24.7 分（draft 的修复还没完）</div><div>83 个文件 → candidate-1</div></div></div><div class="step"><div class="idx">2</div><div class="what"><div class="t"><span>第一次全量对比</span><span class="who w-hard">程序写死</span></div><p><code>compare_behavior()</code> 不带参数就是全量。它<b>只在候选上跑 check</b>，再和存下来的原版 baseline 逐项比：退出码 → 逐个用例 → 输出摘要。原版不会重跑，只核对指纹。baseline 里标了可并行的 check 在树的副本里同时跑，结果和 baseline 不一致的再单独跑一遍为准。</p></div><div class="ex"><span class="h">detectron2 这次</span><div>3.4 分，90 个 check</div><div>20 个失败</div></div></div><div class="step"><div class="idx">3</div><div class="what"><div class="t"><span>controller 第一次被问</span><span class="who w-ctrl">controller 决定</span></div><p>从这里起每一步都是 controller 的决定。它看不到源码和测试，只看失败摘要：哪个 check（只有编号）、属于哪个功能、错误类型、出错位置在候选的哪一行。它的工具不被任何修复策略限制，只有破坏作业完整性的调用会被拒绝。</p></div><div class="ex"><span class="h">detectron2 这次</span><div>本例 4 轮，共 4.2 分钟</div></div></div><div class="step"><div class="idx">4</div><div class="what"><div class="t"><span>修复循环</span><span class="who w-ctrl">修什么、怎么拆</span><span class="who w-agent">怎么改代码</span><span class="who w-hard">保存时的检查</span></div><p>典型的一轮：<code>run_agent(role=repair)</code> 或一个修复组 → <code>save_candidate</code> → <code>compare_behavior</code>（可以先点名几个 check 做筛查，再全量）→ <code>check_installation</code>。保存时程序做集成检查（不许写测试、不许遮蔽标准库）并测量与原版的重复度（默认只报告，不拒绝）。repair author 比首版 author 多拿到一样东西：失败断言比较的两个值。</p><div class="scroll"><table style="min-width:38rem"><thead><tr><th></th><th>controller 看到的</th><th>它的计划</th><th>结果</th></tr></thead><tbody><tr><th scope="row">第 1 轮<br><span class="muted mono">1.4 分</span></th><td>20 个失败里 16 个是两种相同的报错：编译产物缺失、model zoo 找不到配置。候选工作树是导入之前准备的。</td><td>先别花 author：重新准备候选环境 → 沿用 baseline → 全量对比 → 安装检查</td><td>失败 20 → 4；安装通过</td></tr><tr><th scope="row">第 2 轮<br><span class="muted mono">1.2 分</span></th><td>剩 4 个失败，分在两组互不相交的文件里（data-catalog；model-zoo 和 packaging）。</td><td>一个 split 修复组，两个请求同时修（只花一次 author 尝试）→ 全量对比 → 安装 → 选定 → 交付</td><td>修复组 19.3 分；对比又出 17 个失败；后三步没触发</td></tr><tr><th scope="row">第 3 轮<br><span class="muted mono">0.6 分</span></th><td>这 17 个里 16 个正是第 1 轮那批环境性失败：合并产生了新的工作树，准备好的产物又丢了。</td><td>重新准备 → 沿用 baseline → 全量对比 → 安装 → 选定 → 交付；对比不过就单独再跑一次安装检查取证</td><td>只剩 1 个失败；安装通过</td></tr><tr><th scope="row">第 4 轮<br><span class="muted mono">1.1 分</span></th><td>90 个 check 过了 89 个，只剩 model-zoo 场景里的 1 个断言。</td><td>一个定向 repair（model-zoo + config-lazy）→ 保存 → 重新准备 → 全量对比 → 安装 → 选定 → 交付</td><td>修复 5.9 分；90 / 90 通过；交付</td></tr></tbody></table></div></div><div class="ex"><span class="h">detectron2 这次</span><div>两轮半花在同一个环境问题上：每换一次候选，预编译产物就丢一次</div><div>这是 controller 自己判断出来并绕过去的，不是程序规则</div></div></div><div class="step"><div class="idx">5</div><div class="what"><div class="t"><span>check_installation</span><span class="who w-ctrl">或主线受托</span></div><p>在全新的虚拟环境里按 owner 的步骤构建、安装、冒烟；第一步失败就停。永远在 worker 本机顺序执行。它排在第一次对比之后，所以不在程序写死的那一段里。</p></div><div class="ex"><span class="h">detectron2 这次</span><div>每次 1.4 分，3 步全过</div></div></div><div class="step"><div class="idx">6</div><div class="what"><div class="t"><span>select_candidate → deliver</span><span class="who w-ctrl">何时交、要求多高</span><span class="who w-hard">状态怎么定</span></div><p><code>deliver</code> 要求当前代码有一次全量对比。<code>require</code> 是 controller 给自己设的门槛：<code>best_reachable</code> 表示只要还有工具能补的缺口就不交。最终状态由程序按验收报告给出：<code>succeeded</code>（没有缺口）、<code>completed_with_gaps</code>（没有失败，但有证据缺口）、<code>delivered_with_failures</code>（带着失败交付）。</p></div><div class="ex"><span class="h">detectron2 这次</span><div><code>completed_with_gaps</code></div><div>缺口：2 个原版测试函数在转换时离开了验收</div></div></div><div class="step"><div class="idx">7</div><div class="what"><div class="t"><span>交付之后</span><span class="who w-hard">程序</span><span class="who w-agent">host 汇报</span></div><p>结果在仓库里的一个本地分支上，仓库旁边另有一份单提交的独立拷贝和一个本地报告页；不 push、不 merge。交付后再把留在验收之外的原版测试在交付的代码上重放一遍，只报告，不改状态。host 最后汇报状态、缺口和位置。</p></div><div class="ex"><span class="h">detectron2 这次</span><div>重放 2.1 分</div><div>host 在作业结束后读到最终状态并汇报</div></div></div></div></div>
   
