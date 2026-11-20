@@ -1,0 +1,1074 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<meta name="description" content="NextTransformer 自动研究竞技场 Arena v2 的设计图解：四个信任区的架构、22 个 Gym 接口操作的研究流程、固定的研究算力账本、数据边界，以及从 Arena v1 到 v2 的改进。">
+<title>Arena v2 设计图解</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%231c5cab'/%3E%3Cpath d='M4 11V5l8 6V5' fill='none' stroke='white' stroke-width='1.6'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500;700&family=Space+Grotesk:wght@500;600;700&display=swap">
+<style>
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; }
+img { max-width: 100%; }
+[hidden] { display: none !important; }
+:root { color-scheme: light; }
+
+/* 布局：规格书式的单栏长页。顶部分节导航，主图是按信任区着色的架构图，点选节点看权限；其后每节一个机制。 */
+:root {
+  --bg: #F3F5F7;
+  --surface: #FFFFFF;
+  --surface-2: #E9EDF1;
+  --ink: #15202B;
+  --ink-2: #44515E;
+  --ink-3: #5F6B77;
+  --line: #D5DCE3;
+  --accent: #5746C9;          /* v2 与 Gym */
+  --accent-tint: #ECEAFB;
+  --zone-a: #2A78D6;  --zone-a-tint: #E6F0FB;   /* Agent 容器 */
+  --zone-b: #6250D6;  --zone-b-tint: #ECEAFB;   /* 宿主机 Gym */
+  --zone-c: #EB6834;  --zone-c-tint: #FDEEE7;   /* 沙箱 Worker */
+  --zone-d: #1BAF7A;  --zone-d-tint: #E3F6EE;   /* 交付之后 */
+  --warn: #8A5700;    --warn-tint: #FBF1DC;  --warn-line: #E5C98A;
+  --bar: #586675;     --on-bar: #FFFFFF;
+  --font-display: "Space Grotesk", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-body: "Inter", "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --font-mono: "JetBrains Mono", "Noto Sans SC", "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #12161B; --surface: #1A2027; --surface-2: #232B34;
+    --ink: #E8ECF0; --ink-2: #B4BEC8; --ink-3: #8F9BA7; --line: #323C47;
+    --accent: #A49BF2; --accent-tint: #2A2750;
+    --zone-a: #3987E5; --zone-a-tint: #15273D;
+    --zone-b: #9085E9; --zone-b-tint: #25224A;
+    --zone-c: #E26A38; --zone-c-tint: #38221A;
+    --zone-d: #1FAE7C; --zone-d-tint: #12332A;
+    --warn: #E3B659; --warn-tint: #352B13; --warn-line: #6B5520;
+    --bar: #9AA9B8; --on-bar: #12161B;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #12161B; --surface: #1A2027; --surface-2: #232B34;
+  --ink: #E8ECF0; --ink-2: #B4BEC8; --ink-3: #8F9BA7; --line: #323C47;
+  --accent: #A49BF2; --accent-tint: #2A2750;
+  --zone-a: #3987E5; --zone-a-tint: #15273D;
+  --zone-b: #9085E9; --zone-b-tint: #25224A;
+  --zone-c: #E26A38; --zone-c-tint: #38221A;
+  --zone-d: #1FAE7C; --zone-d-tint: #12332A;
+  --warn: #E3B659; --warn-tint: #352B13; --warn-line: #6B5520;
+  --bar: #9AA9B8; --on-bar: #12161B;
+  color-scheme: dark;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink);
+  font-family: var(--font-body); font-size: 16px; line-height: 1.75;
+  -webkit-font-smoothing: antialiased;
+}
+body::before {
+  content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px);
+  z-index: 10; background: var(--bg);
+}
+.wrap {
+  max-width: 1080px; margin-inline: auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+h1, h2, h3, h4 { font-family: var(--font-display); text-wrap: balance; margin: 0; line-height: 1.25; }
+h1 { font-size: clamp(32px, 5.2vw, 48px); font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: clamp(24px, 3.2vw, 30px); font-weight: 700; }
+h3 { font-size: 18px; font-weight: 600; }
+h4 { font-size: 13px; font-weight: 600; letter-spacing: 0.06em; color: var(--ink-3); font-family: var(--font-body); }
+p { margin: 0; }
+a { color: var(--accent); text-underline-offset: 3px; }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+code, .mono { font-family: var(--font-mono); font-size: 0.86em; overflow-wrap: anywhere; }
+code { background: var(--surface-2); padding: 0.08em 0.36em; border-radius: 4px; }
+.num { font-variant-numeric: tabular-nums; }
+code.nw, th code { white-space: nowrap; overflow-wrap: normal; }
+.swipe { display: none; }
+@media (max-width: 820px) { .swipe { display: inline; } }
+.lede { max-width: 42em; color: var(--ink-2); }
+.scroll-x { overflow-x: auto; }
+
+/* 页头 */
+header.top { padding-block: 44px 28px; }
+.kicker { font-size: 13px; letter-spacing: 0.08em; color: var(--ink-3); font-weight: 500; margin-bottom: 10px; }
+header.top .lede { margin-top: 16px; font-size: 17px; }
+.contrast { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-top: 28px; }
+.contrast > div { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; min-width: 0; }
+.contrast .v2 { border-color: var(--accent); }
+.ver { display: inline-block; font-family: var(--font-display); font-weight: 600; font-size: 15px; margin-bottom: 6px; }
+.ver small { font-family: var(--font-body); font-weight: 400; color: var(--ink-3); font-size: 13px; margin-left: 8px; }
+.contrast p { color: var(--ink-2); font-size: 15px; }
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 4px 28px; margin: 28px 0 0; padding-top: 18px; border-top: 1px solid var(--line); }
+.facts div { min-width: 0; }
+.facts dt { font-size: 12px; letter-spacing: 0.06em; color: var(--ink-3); }
+.facts dd { margin: 0 0 10px; font-size: 14.5px; line-height: 1.6; }
+
+/* 导航 */
+nav.sections { background: var(--bg); border-block: 1px solid var(--line); z-index: 5; }
+nav.sections ul { list-style: none; margin: 0; padding: 10px 0; display: flex; flex-wrap: wrap; gap: 6px 4px; }
+nav.sections a { display: block; padding: 4px 12px; border-radius: 999px; font-size: 14px; color: var(--ink-2); text-decoration: none; }
+nav.sections a:hover { background: var(--surface-2); color: var(--ink); }
+@media (min-width: 820px) { nav.sections { position: sticky; top: env(safe-area-inset-top, 0px); } }
+
+/* 分节 */
+section { padding-block: 52px 8px; scroll-margin-top: 56px; }
+section .wrap > .lede { margin-top: 12px; }
+.block { margin-top: 28px; }
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 28px; }
+.cols > * { min-width: 0; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 20px; min-width: 0; }
+ul.plain { margin: 8px 0 0; padding-left: 1.15em; }
+ul.plain li { margin-block: 4px; }
+ul.plain li::marker { color: var(--ink-3); }
+.note { font-size: 14px; color: var(--ink-3); margin-top: 10px; }
+.callout { background: var(--warn-tint); border: 1px solid var(--warn-line); border-radius: 10px; padding: 16px 20px; font-size: 15px; }
+.callout strong { color: var(--warn); }
+
+/* 架构图 */
+figure { margin: 0; }
+figcaption { font-size: 14px; color: var(--ink-3); margin-top: 10px; max-width: 52em; }
+.arch-box { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
+svg.arch { display: block; width: 100%; min-width: 760px; height: auto; font-family: var(--font-body); }
+.arch .zone { stroke-width: 1; stroke-dasharray: 5 4; }
+.arch .zone.za { fill: var(--zone-a-tint); stroke: var(--zone-a); }
+.arch .zone.zb { fill: var(--zone-b-tint); stroke: var(--zone-b); }
+.arch .zone.zc { fill: var(--zone-c-tint); stroke: var(--zone-c); }
+.arch .zone.zd { fill: var(--zone-d-tint); stroke: var(--zone-d); }
+.arch .zlabel { font-size: 12.5px; font-weight: 600; fill: var(--ink-2); letter-spacing: 0.03em; }
+.arch .node { cursor: pointer; outline: none; }
+.arch .node .box { fill: var(--surface); stroke-width: 1.5; }
+.arch .node.za .box { stroke: var(--zone-a); }
+.arch .node.zb .box { stroke: var(--zone-b); }
+.arch .node.zc .box { stroke: var(--zone-c); }
+.arch .node.zd .box { stroke: var(--zone-d); }
+.arch .node:hover .box { stroke-width: 2.5; }
+.arch .node[aria-pressed="true"] .box { stroke-width: 3.5; }
+.arch .node:focus-visible .box { stroke-width: 3.5; stroke-dasharray: 6 3; }
+.arch .ntitle { font-size: 14px; font-weight: 600; fill: var(--ink); }
+.arch .nsub { font-size: 11px; fill: var(--ink-2); }
+.arch .edge { stroke: var(--ink-2); stroke-width: 1.5; fill: none; }
+.arch .ahead { fill: var(--ink-2); }
+.arch .elabel { font-size: 11.5px; font-weight: 500; fill: var(--ink-2); }
+
+.panel { margin-top: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 20px; }
+.panel-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.zchip { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-2); border: 1px solid var(--line); border-radius: 999px; padding: 1px 10px 1px 8px; white-space: nowrap; }
+.zchip i { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+.zchip[data-zone="a"] i, .legend [data-zone="a"] i { background: var(--zone-a); }
+.zchip[data-zone="b"] i, .legend [data-zone="b"] i { background: var(--zone-b); }
+.zchip[data-zone="c"] i, .legend [data-zone="c"] i { background: var(--zone-c); }
+.zchip[data-zone="d"] i, .legend [data-zone="d"] i { background: var(--zone-d); }
+.panel-role { margin-top: 10px; color: var(--ink-2); max-width: 52em; }
+.panel-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px 32px; margin-top: 16px; }
+.panel-cols > div { min-width: 0; }
+.panel-cols ul { margin: 6px 0 0; padding-left: 1.15em; font-size: 15px; }
+.panel-cols li { margin-block: 3px; }
+.legend { list-style: none; padding: 0; margin: 20px 0 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px 24px; font-size: 14.5px; }
+.legend li { display: grid; grid-template-columns: 12px 1fr; gap: 10px; align-items: start; min-width: 0; }
+.legend i { width: 12px; height: 12px; border-radius: 3px; margin-top: 7px; }
+.legend b { font-weight: 600; }
+.legend span { color: var(--ink-2); }
+
+/* 生命周期 */
+ol.steps { list-style: none; counter-reset: step; margin: 28px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+ol.steps > li { counter-increment: step; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px 20px; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+ol.steps > li h3::before { content: counter(step); display: inline-grid; place-items: center; width: 26px; height: 26px; margin-right: 10px; border-radius: 50%; background: var(--surface-2); color: var(--ink-2); font-size: 14px; font-variant-numeric: tabular-nums; }
+ol.steps > li.after { grid-column: 1 / -1; }
+ol.steps > li.after p { max-width: 52em; }
+ol.steps > li.after h3::before { background: var(--zone-d-tint); }
+ol.steps p { font-size: 15px; color: var(--ink-2); }
+.ops { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.ops li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 14px; }
+.tag { font-size: 11.5px; line-height: 1.5; padding: 0 7px; border-radius: 999px; border: 1px solid var(--line); color: var(--ink-2); white-space: nowrap; }
+.tag.cost { border-color: var(--accent); color: var(--ink); background: var(--accent-tint); }
+.tagkey { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 16px; font-size: 14px; color: var(--ink-2); }
+
+/* 预算 */
+.budget-hero { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 28px; align-items: start; }
+.budget-hero > * { min-width: 0; }
+.bignum { font-family: var(--font-display); font-weight: 700; font-size: clamp(34px, 6vw, 52px); line-height: 1.1; letter-spacing: -0.01em; }
+.bignum small { display: block; font-family: var(--font-body); font-size: 15px; font-weight: 400; color: var(--ink-2); letter-spacing: 0; margin-top: 8px; }
+.formula { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; margin: 18px 0 0; font-size: 14.5px; }
+.formula dt { font-family: var(--font-mono); font-size: 13.5px; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.formula dd { margin: 0; color: var(--ink-2); }
+.chart h3 { font-size: 15px; }
+.plot { position: relative; margin-top: 12px; padding-top: 30px; }
+.plot .gridlines { position: absolute; inset: 30px 0 26px 0; pointer-events: none; }
+.plot .gridlines i { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--line); }
+.plot .ref { position: absolute; top: 4px; bottom: 26px; width: 2px; margin-left: -1px; background: var(--accent); z-index: 0; }
+.plot .ref span { position: absolute; top: -4px; right: 8px; white-space: nowrap; font-size: 13px; color: var(--ink); font-weight: 500; }
+.plot .rows { position: relative; z-index: 1; display: flex; flex-direction: column; gap: 14px; padding-block: 10px 12px; }
+.plot .rname { font-size: 13.5px; color: var(--ink-2); line-height: 1.5; margin-bottom: 4px; background: var(--surface); display: inline-block; position: relative; z-index: 3; padding-right: 6px; }
+.plot .bar { height: 22px; background: var(--bar); border-radius: 0 4px 4px 0; display: flex; align-items: center; justify-content: flex-end; padding-right: 8px; color: var(--on-bar); font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; position: relative; z-index: 1; }
+.plot .axis { position: relative; height: 26px; border-top: 1px solid var(--line); font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.plot .axis span { position: absolute; top: 4px; transform: translateX(-50%); white-space: nowrap; }
+.plot .axis span:first-child { transform: none; }
+.plot .axis span:last-child { transform: translateX(-100%); }
+.flow { list-style: none; margin: 14px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; counter-reset: q; }
+.flow li { counter-increment: q; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); padding: 14px 16px; min-width: 0; font-size: 14.5px; color: var(--ink-2); }
+.flow li b { display: block; color: var(--ink); font-family: var(--font-display); font-size: 16px; margin-bottom: 4px; }
+.flow li b::before { content: counter(q) "　"; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+
+/* 表格 */
+table { border-collapse: collapse; width: 100%; font-size: 15px; }
+th, td { text-align: left; vertical-align: top; padding: 12px 14px; border-top: 1px solid var(--line); }
+thead th { border-top: 0; font-size: 13px; letter-spacing: 0.05em; color: var(--ink-3); font-weight: 600; white-space: nowrap; }
+tbody th { font-weight: 600; }
+.tablebox { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 4px 6px; }
+.tablebox.scroll-x table { min-width: 640px; }
+td.dash { color: var(--ink-3); }
+.pill { display: inline-block; font-size: 12.5px; line-height: 1.6; padding: 0 9px; border-radius: 999px; border: 1px solid var(--line); color: var(--ink-2); white-space: nowrap; }
+.pill.done { border-color: var(--zone-d); background: var(--zone-d-tint); color: var(--ink); }
+.pill.plan { border-color: var(--accent); background: var(--accent-tint); color: var(--ink); }
+.pill.open { border-color: var(--warn-line); background: var(--warn-tint); color: var(--ink); }
+
+/* v1 → v2 对比表：窄屏时按行堆叠 */
+table.cmp tbody th { width: 8.5em; }
+table.cmp td { width: 42%; }
+table.cmp td.v2c { background: var(--accent-tint); }
+table.cmp thead th.v2h { color: var(--ink); }
+@media (max-width: 760px) {
+  table.cmp thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  table.cmp, table.cmp tbody, table.cmp tr, table.cmp th, table.cmp td { display: block; width: auto; }
+  table.cmp tr { border-top: 1px solid var(--line); padding-block: 12px; }
+  table.cmp tbody th, table.cmp td { border-top: 0; padding: 4px 10px; }
+  table.cmp tbody th { font-family: var(--font-display); font-size: 16px; }
+  table.cmp td::before { content: attr(data-label); display: block; font-size: 12px; letter-spacing: 0.06em; color: var(--ink-3); }
+  table.cmp td.v2c { border-radius: 8px; padding-block: 8px; margin-top: 6px; }
+}
+.three { list-style: none; counter-reset: t; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+.three li { min-width: 0; border-top: 2px solid var(--ink); padding-top: 12px; }
+.three b { display: block; font-family: var(--font-display); font-size: 17px; margin-bottom: 4px; }
+.three span { color: var(--ink-2); font-size: 15px; }
+
+.entry dl { display: grid; grid-template-columns: 6.5em 1fr; gap: 4px 14px; margin: 12px 0 0; font-size: 14.5px; }
+.entry dt { color: var(--ink-3); }
+.entry dd { margin: 0; min-width: 0; }
+.entry .pill { margin-left: 8px; vertical-align: 2px; }
+
+.timeline { list-style: none; margin: 14px 0 0; padding: 0; }
+.timeline li { display: grid; grid-template-columns: 7.2em 1fr; gap: 14px; padding-block: 8px; border-top: 1px solid var(--line); font-size: 15px; }
+.timeline time { font-family: var(--font-mono); font-size: 13px; color: var(--ink-3); padding-top: 3px; white-space: nowrap; }
+.timeline div { min-width: 0; }
+
+pre { margin: 12px 0 0; padding: 14px 16px; background: var(--surface-2); border-radius: 8px; overflow-x: auto; font-family: var(--font-mono); font-size: 13px; line-height: 1.6; }
+.sources { columns: 2 320px; column-gap: 32px; margin: 16px 0 0; padding-left: 1.15em; font-size: 14.5px; }
+.sources li { break-inside: avoid; margin-block: 4px; }
+footer { margin-top: 56px; padding-block: 24px 48px; border-top: 1px solid var(--line); font-size: 13.5px; color: var(--ink-3); }
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <p class="kicker">NextTransformer · 自动研究竞技场</p>
+    <h1>Arena v2 设计图解</h1>
+    <p class="lede">竞技场让 LLM agent 自己搜索语言模型架构，再在同一套训练协议下比 CORE-22 分数。v1 用规则和披露卡约束研究过程。v2 把研究过程放进一个 Gym：agent 在封闭容器里通过 22 个接口操作做实验，研究算力从固定额度里扣，最终训练交给可信的调度器。</p>
+
+    <div class="contrast">
+      <div>
+        <span class="ver">Arena v1<small>基于信任</small></span>
+        <p>agent 拿到仓库和任务说明，自己训练、自己选型、自己跑正式训练，最后用一张披露卡说明过程。</p>
+      </div>
+      <div class="v2">
+        <span class="ver">Arena v2<small>由 Gym 执行</small></span>
+        <p>agent 只交模型源码和配置。训练、计费、打分、验证和最终训练，都由 agent 接触不到的服务完成。</p>
+      </div>
+    </div>
+
+    <dl class="facts">
+      <div><dt>依据</dt><dd>仓库 main 分支 <code>1a0828a</code>，提交日期 2026-11-20（UTC+8）</dd></div>
+      <div><dt>协议标识</dt><dd>仍是 <code>arena-v1</code>，v2 规则页尚未发布</dd></div>
+      <div><dt>Gym 代码</dt><dd>已在 <code>gym/</code>，随附的 profile 是合成数据</dd></div>
+      <div><dt>首轮实验</dt><dd>Opus、GLM、DeepSeek 三个会话，计划中，暂无成绩</dd></div>
+    </dl>
+  </div>
+</header>
+
+<nav class="sections" aria-label="页面分节">
+  <div class="wrap">
+    <ul>
+      <li><a href="#architecture">架构</a></li>
+      <li><a href="#lifecycle">研究流程</a></li>
+      <li><a href="#budget">算力账本</a></li>
+      <li><a href="#data">数据边界</a></li>
+      <li><a href="#candidate">候选包与隔离</a></li>
+      <li><a href="#v1-v2">v1 → v2 改进</a></li>
+      <li><a href="#plan">首轮实验</a></li>
+      <li><a href="#status">现状与限制</a></li>
+      <li><a href="#sources">来源</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+
+<section id="architecture">
+  <div class="wrap">
+    <h2>架构：四个信任区</h2>
+    <p class="lede">v2 的核心是把「谁能碰到什么」画清楚。Agent 能联网、能写代码，但拿不到 GPU、数据和检查点。候选代码只在沙箱里跑。验证和最终训练在 Agent 退出之后进行。</p>
+
+    <figure class="block">
+      <div class="arch-box scroll-x">
+        <svg class="arch" viewBox="0 0 1000 488" role="img" aria-label="Arena v2 架构：Agent 容器通过 JSON 调用访问宿主机上的 Gym HTTP API；API 管理状态库、执行槽和签名证据；执行槽把任务派发给沙箱 worker，worker 只读数据；Agent 退出后，独立验证器核对回执与签名证据，放行后由可信终训调度器从头训练，产出正式记录。">
+          <defs>
+            <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path class="ahead" d="M0,0 L10,5 L0,10 z"/>
+            </marker>
+          </defs>
+
+          <rect class="zone za" x="16" y="36" width="220" height="262" rx="12"/>
+          <rect class="zone zb" x="276" y="36" width="424" height="262" rx="12"/>
+          <rect class="zone zc" x="740" y="36" width="244" height="262" rx="12"/>
+          <rect class="zone zd" x="16" y="322" width="968" height="150" rx="12"/>
+          <text class="zlabel" x="30" y="60">① Agent 容器</text>
+          <text class="zlabel" x="290" y="60">② 宿主机 Gym</text>
+          <text class="zlabel" x="754" y="60">③ 沙箱 Worker</text>
+          <text class="zlabel" x="146" y="348">④ 交付之后 · 可信流程</text>
+
+          <line class="edge" x1="220" y1="108" x2="291" y2="108" marker-end="url(#ah)"/>
+          <text class="elabel" x="256" y="100" text-anchor="middle">调用</text>
+          <line class="edge" x1="126" y1="138" x2="126" y2="207" marker-end="url(#ah)"/>
+          <text class="elabel" x="134" y="177">写回执</text>
+          <line class="edge" x1="352" y1="138" x2="352" y2="207" marker-end="url(#ah)"/>
+          <text class="elabel" x="360" y="177">签名</text>
+          <line class="edge" x1="488" y1="139" x2="488" y2="207" marker-start="url(#ah)" marker-end="url(#ah)"/>
+          <text class="elabel" x="496" y="177">预留 · 结算</text>
+          <line class="edge" x1="624" y1="138" x2="624" y2="207" marker-end="url(#ah)"/>
+          <text class="elabel" x="632" y="177">入队</text>
+          <line class="edge" x1="684" y1="238" x2="755" y2="238" marker-end="url(#ah)"/>
+          <text class="elabel" x="720" y="230" text-anchor="middle">派发</text>
+          <line class="edge" x1="862" y1="208" x2="862" y2="139" marker-end="url(#ah)"/>
+          <text class="elabel" x="870" y="177">只读</text>
+          <line class="edge" x1="352" y1="268" x2="352" y2="375" marker-end="url(#ah)"/>
+          <text class="elabel" x="360" y="315">HMAC 校验</text>
+          <line class="edge" x1="488" y1="268" x2="488" y2="375" marker-end="url(#ah)"/>
+          <text class="elabel" x="496" y="315">冻结的源码与配置</text>
+          <path class="edge" d="M126,268 V406 H291" marker-end="url(#ah)"/>
+          <text class="elabel" x="134" y="315">回执</text>
+          <line class="edge" x1="412" y1="406" x2="451" y2="406" marker-end="url(#ah)"/>
+          <text class="elabel" x="432" y="398" text-anchor="middle">放行</text>
+          <line class="edge" x1="632" y1="406" x2="755" y2="406" marker-end="url(#ah)"/>
+          <text class="elabel" x="694" y="398" text-anchor="middle">从头训练</text>
+
+          <g class="node za" data-node="agent" tabindex="0" role="button" aria-pressed="true" aria-label="Claude Code">
+            <rect class="box" x="32" y="78" width="188" height="60" rx="8"/>
+            <text class="ntitle" x="44" y="104">Claude Code</text>
+            <text class="nsub" x="44" y="123">shell · 互联网 · gym MCP</text>
+          </g>
+          <g class="node za" data-node="receipt" tabindex="0" role="button" aria-pressed="false" aria-label="submission.json 回执">
+            <rect class="box" x="32" y="208" width="188" height="60" rx="8"/>
+            <text class="ntitle" x="44" y="234">submission.json</text>
+            <text class="nsub" x="44" y="253">三个字段的回执</text>
+          </g>
+          <g class="node zb" data-node="api" tabindex="0" role="button" aria-pressed="false" aria-label="Gym HTTP API">
+            <rect class="box" x="292" y="78" width="392" height="60" rx="8"/>
+            <text class="ntitle" x="304" y="104">Gym HTTP API</text>
+            <text class="nsub" x="304" y="123">POST /v1/call · 22 个操作 · 每个 trial 一个独立服务</text>
+          </g>
+          <g class="node zb" data-node="evidence" tabindex="0" role="button" aria-pressed="false" aria-label="签名证据">
+            <rect class="box" x="292" y="208" width="120" height="60" rx="8"/>
+            <text class="ntitle" x="304" y="234">签名证据</text>
+            <text class="nsub" x="304" y="253">退出时生成</text>
+          </g>
+          <g class="node zb" data-node="state" tabindex="0" role="button" aria-pressed="false" aria-label="状态库">
+            <rect class="box" x="428" y="208" width="120" height="60" rx="8"/>
+            <text class="ntitle" x="440" y="234">状态库</text>
+            <text class="nsub" x="440" y="253">源码·检查点·预算</text>
+          </g>
+          <g class="node zb" data-node="slot" tabindex="0" role="button" aria-pressed="false" aria-label="执行槽">
+            <rect class="box" x="564" y="208" width="120" height="60" rx="8"/>
+            <text class="ntitle" x="576" y="234">执行槽 ×1</text>
+            <text class="nsub" x="576" y="253">一次一个数值任务</text>
+          </g>
+          <g class="node zc" data-node="data" tabindex="0" role="button" aria-pressed="false" aria-label="数据">
+            <rect class="box" x="756" y="78" width="212" height="60" rx="8"/>
+            <text class="ntitle" x="768" y="104">数据</text>
+            <text class="nsub" x="768" y="123">训练前缀 · 验证分片 06542</text>
+          </g>
+          <g class="node zc" data-node="worker" tabindex="0" role="button" aria-pressed="false" aria-label="隔离 Worker">
+            <rect class="box" x="756" y="208" width="212" height="60" rx="8"/>
+            <text class="ntitle" x="768" y="234">隔离 Worker</text>
+            <text class="nsub" x="768" y="253">bwrap / landlock · CPU 或 GPU</text>
+          </g>
+          <g class="node zd" data-node="verifier" tabindex="0" role="button" aria-pressed="false" aria-label="独立验证器">
+            <rect class="box" x="292" y="376" width="120" height="60" rx="8"/>
+            <text class="ntitle" x="304" y="402">独立验证器</text>
+            <text class="nsub" x="304" y="421">无网络</text>
+          </g>
+          <g class="node zd" data-node="final" tabindex="0" role="button" aria-pressed="false" aria-label="可信终训调度">
+            <rect class="box" x="452" y="376" width="180" height="60" rx="8"/>
+            <text class="ntitle" x="464" y="402">可信终训调度</text>
+            <text class="nsub" x="464" y="421">8 / 16 / 32 GPU · 全新初始化</text>
+          </g>
+          <g class="node zd" data-node="record" tabindex="0" role="button" aria-pressed="false" aria-label="正式记录">
+            <rect class="box" x="756" y="376" width="212" height="60" rx="8"/>
+            <text class="ntitle" x="768" y="402">正式记录</text>
+            <text class="nsub" x="768" y="421">CORE-22 · 第 46,875 次更新</text>
+          </g>
+        </svg>
+      </div>
+      <figcaption><span class="swipe">图比屏幕宽，可以左右滑动。</span>一次研究 trial 里的组件和它们之间的通路。虚线框是信任区，箭头上的词是这条通路上发生的事。点选任一节点，下方显示它的职责和权限。</figcaption>
+    </figure>
+
+    <div class="panel" id="node-panel" aria-live="polite"></div>
+
+    <ul class="legend">
+      <li data-zone="a"><i></i><div><b>① Agent 容器</b><br><span>能联网、有 shell，但不持有任何训练资源。</span></div></li>
+      <li data-zone="b"><i></i><div><b>② 宿主机 Gym</b><br><span>唯一的控制面，管实验、资源、数据、源码和预算。</span></div></li>
+      <li data-zone="c"><i></i><div><b>③ 沙箱 Worker</b><br><span>候选代码唯一会被执行的地方。</span></div></li>
+      <li data-zone="d"><i></i><div><b>④ 交付之后</b><br><span>验证与最终训练，Agent 退出后才开始。</span></div></li>
+    </ul>
+  </div>
+</section>
+
+<section id="lifecycle">
+  <div class="wrap">
+    <h2>研究流程：从接入到正式成绩</h2>
+    <p class="lede">Agent 一侧的全部动作就是这 22 个操作。MCP 工具和 Python 的 <code>GymClient</code> 走同一个 HTTP 接口，共用凭据、错误码和预算账户。</p>
+
+    <ol class="steps">
+      <li>
+        <h3>接入</h3>
+        <p>容器里的 <code>/run/gym-auth/credential.json</code> 给出 <code>endpoint</code>、<code>token</code> 和 <code>session_id</code>。之后每次调用都是带 Bearer token 的 JSON 请求，发到 <code>POST /v1/call</code>。</p>
+      </li>
+      <li>
+        <h3>了解搜索空间</h3>
+        <p>先读接口 schema、候选契约和 profile 的固定值，再看已发布的历史实验和批准的参考源码。</p>
+        <ul class="ops">
+          <li><code>describe_space</code></li>
+          <li><code>get_resources</code></li>
+          <li><code>list_components</code> <code>read_reference</code></li>
+          <li><code>list_experiments</code> <code>read_experiment</code></li>
+        </ul>
+      </li>
+      <li>
+        <h3>提交候选</h3>
+        <p>上传一个只含源码的 ZIP。Gym 只查结构和字段类型，不导入代码。源码或配置一变，就是一个新的不可变候选。</p>
+        <ul class="ops">
+          <li><code>submit_candidate</code> <span class="tag">幂等键</span></li>
+          <li><code>list_candidates</code> <code>get_candidate</code></li>
+        </ul>
+      </li>
+      <li>
+        <h3>预检</h3>
+        <p>先看静态的 FLOPs 和参数量，再跑要计费的数值检查。校准一次可以比较 1–32 组完整配置，不训练。</p>
+        <ul class="ops">
+          <li><code>inspect_cost</code></li>
+          <li><code>calibrate_candidate</code> <span class="tag">幂等键</span></li>
+          <li><code>debug_candidate</code> <span class="tag">幂等键</span> <span class="tag cost">扣额度</span></li>
+          <li><code>validate_candidate</code> <span class="tag">幂等键</span> <span class="tag cost">扣额度</span></li>
+        </ul>
+      </li>
+      <li>
+        <h3>实验</h3>
+        <p>先报价，再按报价训练到一个绝对目标步数。可以从本服务返回的检查点续训。训练多久、跑几个候选，由 agent 自己定。</p>
+        <ul class="ops">
+          <li><code>quote_experiment</code></li>
+          <li><code>run_experiment</code> <span class="tag">幂等键</span> <span class="tag cost">扣额度</span></li>
+          <li><code>get_job</code> <code>get_result</code> <code>read_events</code></li>
+          <li><code>cancel_job</code> <span class="tag">幂等键</span></li>
+          <li><code>get_budget</code></li>
+        </ul>
+      </li>
+      <li>
+        <h3>冻结</h3>
+        <p>用最终 profile 做完整验证。<code>admitted</code> 为真、账户没有未结算的预留、没有活动任务，才能冻结一个候选，然后把回执写进 <code>/workspace/submission.json</code>。</p>
+        <ul class="ops">
+          <li><code>validate_candidate</code>（最终 profile）</li>
+          <li><code>finalize</code> <span class="tag">幂等键</span></li>
+          <li><code>get_submission</code></li>
+        </ul>
+      </li>
+      <li class="after">
+        <h3>交付之后</h3>
+        <p>Agent 退出时，Harbor hook 停止研究、结算任务并生成签名证据。独立验证器核对回执。可信调度器从全新初始化开始最终训练，审计并导出之后才有 CORE-22 成绩。这一步没有 agent 可调用的操作。</p>
+      </li>
+    </ol>
+    <div class="tagkey">
+      <span><span class="tag">幂等键</span> 需要 1–128 字符的 <code>idempotency_key</code>；输入不变时重试用原键</span>
+      <span><span class="tag cost">扣额度</span> 从会话的研究 FLOPs 额度里扣</span>
+    </div>
+  </div>
+</section>
+
+<section id="budget">
+  <div class="wrap">
+    <h2>算力账本：一个额度，用完即停</h2>
+    <p class="lede">v1 的研究算力不设上限，只要求披露。v2 给每个研究会话一个固定的 FLOPs 额度，训练、评估、数值检查和失败的尝试都从里面扣，不按候选分配。</p>
+
+    <div class="budget-hero block">
+      <div>
+        <p class="bignum num">1.96 × 10²⁰ FLOPs<small>每个模型的一次研究会话。三个模型合计 5.88 × 10²⁰，最终正式训练另计。</small></p>
+        <dl class="formula">
+          <dt>20</dt><dd>次实验的容量（v1 第二阶段有 17 次尝试，含取消和重试）</dd>
+          <dt>× 2,000</dt><dd>次更新</dd>
+          <dt>× 1,048,576</dt><dd>token / 更新</dd>
+          <dt>× 4.672 × 10⁹</dt><dd>FLOPs / token，即协议的算力锚点</dd>
+        </dl>
+        <p class="note">这只是额度的换算方法，不要求跑 20 次，也不要求每次跑 2,000 步。</p>
+      </div>
+      <figure class="chart card">
+        <h3>v2 的额度和 v1 实际花掉的研究算力</h3>
+        <p class="note" style="margin-top:2px">单位：10²⁰ FLOPs</p>
+        <div class="plot" role="img" aria-label="条形图，单位 10 的 20 次方 FLOPs。v1 研究由 NextT-Gym 计量为 1.94；加上移植核对和四节点检查后估算为 2.05；v2 每会话额度线在 1.96。">
+          <div class="gridlines"><i style="left:0"></i><i style="left:20%"></i><i style="left:40%"></i><i style="left:60%"></i><i style="left:80%"></i><i style="left:100%"></i></div>
+          <div class="ref" style="left:78.4%"><span>v2 每会话额度 1.96</span></div>
+          <div class="rows">
+            <div>
+              <div class="rname">v1 研究，NextT-Gym 计量，37 次运行</div>
+              <div class="bar" style="width:77.6%" title="AttnRes-Canon 的研究阶段：1.94 × 10²⁰ FLOPs，701.72 GPU 小时">1.94</div>
+            </div>
+            <div>
+              <div class="rname">加上移植核对和四节点检查（估算）</div>
+              <div class="bar" style="width:82%" title="约 2.05 × 10²⁰ FLOPs，比 1.96 × 10²⁰ 高约 5%">2.05</div>
+            </div>
+          </div>
+          <div class="axis"><span style="left:0">0</span><span style="left:20%">0.5</span><span style="left:40%">1.0</span><span style="left:60%">1.5</span><span style="left:80%">2.0</span><span style="left:100%">2.5</span></div>
+        </div>
+        <figcaption>v1 条目 AttnRes-Canon 的披露卡数据。v1 的检查没有全部计量，连检查一起算超出约 5%。在 v2 里检查也走同一个账本。</figcaption>
+      </figure>
+    </div>
+
+    <div class="block">
+      <h3>一次数值操作怎么记账</h3>
+      <ol class="flow">
+        <li><b>报价</b><code>quote_experiment</code> 给出费用上界。报价绑定源码、profile、运行时、检查点、执行位置和目标步数，五分钟后过期，只能执行一次。此时不预留额度。</li>
+        <li><b>预留</b><code>run_experiment</code> 在同一个 SQLite 事务里预留报价上界并创建任务。GPU 忙时任务带着预留排队，不扣数值费用，也不回退到 CPU。</li>
+        <li><b>执行</b>每次数值操作前先持久化操作意图并得到控制器确认。worker 用唯一的计费标识报告完成。</li>
+        <li><b>结算</b>按实际工作量结算。验证指标由可信代码根据预测和标签计算，不接受候选自报的分数。</li>
+      </ol>
+    </div>
+
+    <div class="cols block">
+      <div>
+        <h3>出问题时</h3>
+        <div class="tablebox" style="margin-top:12px">
+          <table>
+            <thead><tr><th>情况</th><th>账本处理</th></tr></thead>
+            <tbody>
+              <tr><th>已知的数值失败</th><td>扣本次操作的保守上界，报告 <code>numerical_failure</code></td></tr>
+              <tr><th>取消</th><td>在已结算的数值边界停下</td></tr>
+              <tr><th>worker 未知失败</th><td>预留保留，任务进入 <code>reconciliation</code>。管理员确认 worker 已停后，扣掉剩余的保守预留；不退款，重复请求不重复扣</td></tr>
+              <tr><th>额度耗尽</th><td>停止工作。最终训练的额度耗尽时报告 <code>budget_stopped</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div>
+        <h3>不在这个额度里的</h3>
+        <ul class="plain">
+          <li>Agent 的模型调用。首轮实验不设费用上限，只记录 token 和实际费用；配置里的 <code>agent.max_budget_usd</code> 是可选项。</li>
+          <li>网络搜索和容器内的 shell CPU，由 Harbor 或供应商另行限制。</li>
+          <li>静态形状审计（<code>inspect_cost</code>、校准），不消耗数值研究 FLOPs。</li>
+          <li>最终正式训练，使用独立的有限额度。</li>
+        </ul>
+        <p class="note">排期参考：路线图按 v1 搜索 549.7 加移植核对 42.1 共 591.8 GPU 小时，留 20% 余量，估每个模型约 710 GPU 小时，同类 8 卡环境约 89 小时。GPU 小时不是额外的硬上限。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="data">
+  <div class="wrap">
+    <h2>数据边界：研究能看到哪些反馈</h2>
+    <p class="lede">v1 靠规则要求 agent 不用保留数据选型。v2 里 agent 根本接触不到数据文件，能得到的反馈只有 Gym 返回的结果。</p>
+
+    <div class="tablebox scroll-x block">
+      <table>
+        <thead><tr><th>集合</th><th>数据</th><th>Arena v1 的规则</th><th>Arena v2 的 Gym</th></tr></thead>
+        <tbody>
+          <tr>
+            <th>训练</th>
+            <td>锁定版本的 ClimbMix，固定的分片顺序和分词器</td>
+            <td>agent 自己在正式数据流上跑研究模式，或围绕 <code>build_model</code> 写训练循环</td>
+            <td>按序前缀，到分片 06541 为止。只能通过 Gym 训练；前缀耗尽后适配器拒绝继续读</td>
+          </tr>
+          <tr>
+            <th>选型反馈</th>
+            <td>dev 划分 <code>shard_06541</code>；验证分片 <code>shard_06542</code></td>
+            <td>用训练损失或 dev 划分选型。验证分片保留给正式运行，不得用于选择</td>
+            <td>最后一个分片 <code>shard_06542</code> 提供选型反馈；接口里的 <code>dev_*</code> 名称是它的旧别名</td>
+          </tr>
+          <tr>
+            <th>测试</th>
+            <td>CORE-22</td>
+            <td>保留给正式运行，不得用于选择。披露卡的 <code>selectionSignal</code> 由 <code>arena --check</code> 校验</td>
+            <td>研究期间对新候选不可用。冻结并从头完成最终训练后才有分数；最终排名只用它</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout block">
+      <p><strong>仓库里有两种说法。</strong>路线图仍写着研究使用 dev 分片 <code>shard_06541</code>，<code>shard_06542</code> 和 CORE-22 都不参与选型。Gym 的设计文档和 <code>gym/src/nexttransformer_gym/data.py</code> 则把 <code>shard_06542</code> 作为研究反馈集，只把 CORE-22 留作测试（提交 <code>a1bc276</code>，11 月 5 日）。上表的 v2 一列按 Gym 的实现填写，这一点需要在 v2 规则定稿时统一。</p>
+    </div>
+    <p class="note">这条边界限制的是新候选能得到的反馈。已发布的历史 CORE 结果和公开网络信息 agent 仍然可以读到，设计文档明确说不保证 agent 从未接触公开基准。</p>
+  </div>
+</section>
+
+<section id="candidate">
+  <div class="wrap">
+    <h2>候选包与隔离</h2>
+    <p class="lede">Agent 的研究产物是一个原生插件加一份模型配置。研究用的 worker 和最终训练加载同一份源码，中间没有表达式语言或源码转换。</p>
+
+    <div class="cols block">
+      <div>
+        <h3>候选包（契约 <code>reference_plugin_v1</code>）</h3>
+<pre>proposal.json        方法名、父候选、假设
+architecture.json    原生 ModelConfig 字段和插件 options
+plugin/&lt;method&gt;/method.json
+plugin/&lt;method&gt;/__init__.py
+plugin/&lt;method&gt;/…    可选的本地 Python 模块</pre>
+        <ul class="plain">
+          <li>ZIP 和解压后内容各不超过 1 MiB，最多 32 个 UTF-8 文本文件。</li>
+          <li>每个会话最多保留 128 个候选，候选不可变。</li>
+          <li>原生 hook 有 <code>model</code>、<code>mixer</code>、<code>ffn</code>、<code>block</code>；<code>model</code> hook 必须继承 <code>ReferenceLM</code>。</li>
+          <li>宽度、头数、上下文长度、词表和 scale 由 profile 固定，显式填写时必须一致。</li>
+          <li>拒收：权重、二进制、依赖安装器、训练脚本、符号链接、路径穿越，以及写在配置里的优化器设置、数据路径和命令覆盖。</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Worker 隔离后端</h3>
+        <div class="tablebox" style="margin-top:12px">
+          <table>
+            <thead><tr><th>后端</th><th>隔离方式</th></tr></thead>
+            <tbody>
+              <tr><th><code>bwrap</code><br><span class="pill">默认</span></th><td>全新的 bubblewrap 用户、挂载、PID 和网络命名空间。CUDA worker 只拿到选定的 NVIDIA 设备</td></tr>
+              <tr><th><code>landlock</code></th><td>Landlock 路径规则，加用户、网络、IPC 和 UTS 命名空间。用于禁止挂载的宿主机，例如非特权 Kubernetes Pod。隔离弱于 bwrap：CUDA worker 保留宿主 PID 命名空间，能打开所有 NVIDIA 设备节点</td></tr>
+              <tr><th><code>none</code></th><td>不隔离，只用于可信候选。启动时打印警告</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="note">后端由运维选择，Gym 不会自动切换。隔离的 worker 只能读运行时库、平台代码、批准的数据，以及当前任务的检查点和输出。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="v1-v2">
+  <div class="wrap">
+    <h2>v1 → v2：改进了什么</h2>
+    <ol class="three">
+      <li><b>约束从「规则加披露」变成「接口加账本」</b><span>v1 的规则只能在提交时检查卡片和 PR 的改动范围。v2 的 Gym 在每次调用时检查 schema、权限和预算，不合规的请求直接被拒绝。</span></li>
+      <li><b>研究成本从披露变成控制</b><span>v1 的规则自己写明，预算不受控，研究者之间的比较只是描述性的。v2 让每个模型用同一个 harness、同一份快照、同一个额度。</span></li>
+      <li><b>正式结果从自报变成可信流程产出</b><span>v1 由参赛者在自己的 fork 上跑正式训练，默认 <code class="nw">self-reported</code>。v2 的冻结、验证和最终训练都不经过 agent。</span></li>
+    </ol>
+
+    <div class="tablebox block">
+      <table class="cmp">
+        <thead><tr><th>维度</th><th>Arena v1 · 基于信任</th><th class="v2h">Arena v2 · 由 Gym 执行</th></tr></thead>
+        <tbody>
+          <tr>
+            <th>研究环境</th>
+            <td data-label="ARENA V1">把任务说明和一份仓库交给 agent。agent 在自己的机器上用 <code>nexttransformer.train --smoke-steps N</code> 或自写训练循环做实验。</td>
+            <td class="v2c" data-label="ARENA V2">Harbor 格式的任务。agent 在封闭容器里，没有仓库检出、GPU 和检查点，只能通过 Gym 的 22 个操作做实验。</td>
+          </tr>
+          <tr>
+            <th>研究算力</th>
+            <td data-label="ARENA V1">任意规模、任意数量，只要求披露。GPU 小时没计量时可以填 <code>null</code>。</td>
+            <td class="v2c" data-label="ARENA V2">每会话固定 1.96 × 10²⁰ FLOPs，自动计量。训练、评估、检查和失败的尝试一起扣，用完即停。</td>
+          </tr>
+          <tr>
+            <th>保留数据</th>
+            <td data-label="ARENA V1">规则禁止用验证分片和 CORE-22 选型，执行靠自觉和披露。</td>
+            <td class="v2c" data-label="ARENA V2">agent 接触不到数据文件。新候选的 CORE-22 分数要到冻结并完成最终训练后才产生。</td>
+          </tr>
+          <tr>
+            <th>候选形式</th>
+            <td data-label="ARENA V1">fork 里的插件目录，加校准配置、算力证明集、测试和模型卡。<code>arena --scope</code> 把 PR 的改动分成允许、需审查和禁止三类。</td>
+            <td class="v2c" data-label="ARENA V2">一个不超过 1 MiB 的源码 ZIP。上传时不导入代码，结构不合规直接拒收。插件契约与 v1 相同，所以研究和终训用同一份源码。</td>
+          </tr>
+          <tr>
+            <th>提交物</th>
+            <td data-label="ARENA V1">提案 issue 预注册，然后提一个 PR：插件、配置、算力证明、测试、模型卡、运行记录、审计、运行说明和披露卡。</td>
+            <td class="v2c" data-label="ARENA V2"><code>finalize</code> 冻结一个候选，交付一份三字段的回执。源码和配置留在 Gym 里，不从 agent 的工作区导出。</td>
+          </tr>
+          <tr>
+            <th>正式训练</th>
+            <td data-label="ARENA V1">参赛者自己在 fork 上用 8、16 或 32 张 GPU 跑 <code class="nw">--formal</code>，再自己审计和导出。</td>
+            <td class="v2c" data-label="ARENA V2">可信调度器在提交通过验证后，用独立额度从全新初始化开始训练。提交后 profile 有变化就拒绝启动。</td>
+          </tr>
+          <tr>
+            <th>核验</th>
+            <td data-label="ARENA V1">维护者默认不重跑。靠锁定的数据、固定的种子、公开的检查点和完整披露让结论可以被检验。</td>
+            <td class="v2c" data-label="ARENA V2">HMAC 签名的证据，加一个没有网络的独立验证器容器。验证指标由可信代码计算。</td>
+          </tr>
+          <tr>
+            <th>过程披露</th>
+            <td data-label="ARENA V1">手写披露卡：LLM、框架、人类参与等级 L0–L3、候选数、GPU 小时、选择信号。</td>
+            <td class="v2c" data-label="ARENA V2">算力账本由 Gym 记录，研究轨迹由 Harbor 收集，研究成本自动披露。</td>
+          </tr>
+          <tr>
+            <th>研究者比较</th>
+            <td data-label="ARENA V1">每个条目的算力、框架和人类参与程度都不同，只能并列展示。</td>
+            <td class="v2c" data-label="ARENA V2">等算力对比：Opus、GLM、DeepSeek 都用 Claude Code 加 Gym MCP，各 1.96 × 10²⁰ FLOPs。计划做按研究者排名的排行榜。</td>
+          </tr>
+          <tr>
+            <th>代码隔离</th>
+            <td data-label="ARENA V1">首个 v1 条目的研究在没有进程隔离的可信 agent 代码下进行，agent 的检出里有 <code>results/</code>，训练进程读得到验证分片。</td>
+            <td class="v2c" data-label="ARENA V2">候选代码只在 bwrap 或 landlock 沙箱里运行，读不到控制器状态和凭据，没有宿主网络。</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="cols block">
+      <div>
+        <h3>没有变的部分</h3>
+        <ul class="plain">
+          <li>参考训练协议 <code>nextt-reference-50b-v1</code>：49.152B 输入 token，46,875 次更新，每次 1,048,576 token，seed 42，训练成本在每 token 4.672 GFLOPs 的 ±1% 以内。</li>
+          <li>排名方式：只用第 46,875 次更新时实测的 CORE 分数，这条规则在 11 月 6 日已经加进 v1。</li>
+          <li>原生插件契约。一个新架构仍然是一个插件目录。</li>
+          <li>正式运行从头开始，研究阶段的权重永远不带进去。</li>
+          <li>允许查文献和上网。</li>
+        </ul>
+      </div>
+      <div>
+        <h3>时间线</h3>
+        <ol class="timeline">
+          <li><time>10-09 – 10-14</time><div>Circle Loop 的研究和正式训练，早于协议，后来标为 <code>legacy</code></div></li>
+          <li><time>10-30 – 11-02</time><div>AttnRes-Canon 的研究，使用私有的 NextT-Gym 原型</div></li>
+          <li><time>11-01</time><div>仓库开源</div></li>
+          <li><time>11-03</time><div>AttnRes-Canon 预注册并启动正式训练</div></li>
+          <li><time>11-04</time><div>预注册改用提案 issue；仓库内的 Harbor Gym 服务首次提交</div></li>
+          <li><time>11-05</time><div>Gym 用原生插件替换表达式 DSL；路线图写入 Gym 计划</div></li>
+          <li><time>11-06</time><div>竞技场条目只按 CORE 排名；增加可选的 worker 隔离后端</div></li>
+          <li><time>11-07</time><div>等算力研究计划和结果展示示例页</div></li>
+          <li><time>11-16</time><div>研究任务可以使用一组本机 GPU</div></li>
+        </ol>
+        <p class="note">日期均为 2026 年，来自提交记录和两张披露卡。</p>
+      </div>
+    </div>
+
+    <div class="block">
+      <h3>v1 留下的两张披露卡</h3>
+      <div class="cols" style="margin-top:14px">
+        <div class="card entry">
+          <h3>Circle Loop <span class="pill">legacy</span></h3>
+          <dl>
+            <dt>研究者</dt><dd>ChatGPT、Codex，无研究框架；人类参与 L3（人主导想法）</dd>
+            <dt>研究</dt><dd>3 个候选，4 次正式启动，其中 3 次失败；GPU 小时未计量</dd>
+            <dt>选择信号</dt><dd>用到了验证 BPB 和部分 CORE 任务，这在 v1 规则里是保留信号</dd>
+            <dt>结果</dt><dd class="num">CORE 28.97，Dense 基线 33.10。未发布检查点和日志</dd>
+          </dl>
+        </div>
+        <div class="card entry">
+          <h3>AttnRes-Canon <span class="pill done">complete</span></h3>
+          <dl>
+            <dt>研究者</dt><dd>Claude Opus（<code>claude-opus-5-5</code>）研究，Codex 审查代码；人类参与 L1（仅运维）</dd>
+            <dt>研究</dt><dd class="num">12 个候选，2 次正式启动；研究 701.72 GPU 小时，正式训练 1,433.34 GPU 小时</dd>
+            <dt>选择信号</dt><dd>只用 dev 划分上的 BPB</dd>
+            <dt>结果</dt><dd class="num">CORE 35.99，比 Dense 基线高 2.90。<code class="nw">self-reported</code></dd>
+          </dl>
+        </div>
+      </div>
+      <p class="note" style="max-width:56em">AttnRes-Canon 的卡片记下了 v1 做法的几个缺口：研究用的 NextT-Gym 是私有开发提交，不在上游 main；agent 代码没有进程隔离；训练进程读得到验证分片；连检查一起算，研究算力比等算力额度多了约 5%。v2 的仓库内 Gym、沙箱 worker 和统一账本分别对应这几项。</p>
+    </div>
+  </div>
+</section>
+
+<section id="plan">
+  <div class="wrap">
+    <h2>首轮实验：三个模型，同一个额度</h2>
+    <p class="lede">目标是比较各模型在相同研究算力内自主找到的结构和收益，最终提交按同一个正式训练协议验证。</p>
+
+    <div class="tablebox scroll-x block">
+      <table>
+        <thead><tr><th>模型</th><th>Harness</th><th>研究额度</th><th>最终候选</th><th>已用 FLOPs</th><th>最终 CORE</th><th>状态</th></tr></thead>
+        <tbody>
+          <tr><th>Opus</th><td>Claude Code + Gym MCP</td><td class="num">1.96 × 10²⁰</td><td class="dash">—</td><td class="dash">—</td><td class="dash">—</td><td><span class="pill plan">计划中</span></td></tr>
+          <tr><th>GLM</th><td>Claude Code + Gym MCP</td><td class="num">1.96 × 10²⁰</td><td class="dash">—</td><td class="dash">—</td><td class="dash">—</td><td><span class="pill plan">计划中</span></td></tr>
+          <tr><th>DeepSeek</th><td>Claude Code + Gym MCP</td><td class="num">1.96 × 10²⁰</td><td class="dash">—</td><td class="dash">—</td><td class="dash">—</td><td><span class="pill plan">计划中</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">空着的格子表示还没有测量，不是 0。只有完成并通过审计的正式运行才进入最终排名。</p>
+
+    <div class="cols block">
+      <div>
+        <h3>对所有模型固定</h3>
+        <ul class="plain">
+          <li>同一份代码和参考资料快照</li>
+          <li>ClimbMix 数据顺序、分词器、2,048-token 上下文</li>
+          <li>seed 42，每步 1,048,576 token，原优化器和学习率协议</li>
+          <li>模型版本和客户端版本，开跑前固定</li>
+        </ul>
+      </div>
+      <div>
+        <h3>由模型自己决定</h3>
+        <ul class="plain">
+          <li>初始架构和对照方法</li>
+          <li>候选数量和每次实验的长度</li>
+          <li>搜索和淘汰策略</li>
+        </ul>
+        <p class="note">不预设训练步数或搜索轮数。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="status">
+  <div class="wrap">
+    <h2>现状与限制</h2>
+    <p class="lede">README 写的上线时间是 2026 年 11 月 14 日前。截至本页依据的提交，各部分的状态如下。</p>
+
+    <div class="tablebox scroll-x block">
+      <table>
+        <thead><tr><th>部分</th><th>状态</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><th>Gym 服务、HTTP 与 MCP 接口、候选契约、隔离、签名验证</th><td><span class="pill done">已在 main</span></td><td><code>gym/src/</code> 下约 5,700 行 Python，带测试</td></tr>
+          <tr><th>Harbor 任务 <code>architecture-research</code></th><td><span class="pill done">已在 main</span></td><td>随附的 profile 是标注明确的合成数据（宽度 32、上下文 8、词表 64），不是 ClimbMix</td></tr>
+          <tr><th>多 GPU 的研究任务</th><td><span class="pill done">已在 main</span></td><td>11 月 16 日加入。一个任务可以用运维配置的一组本机 GPU</td></tr>
+          <tr><th>等算力的三模型实验</th><td><span class="pill plan">计划中</span></td><td>还没有会话开始</td></tr>
+          <tr><th>结果展示页</th><td><span class="pill plan">仅示例</span></td><td><code>arena-example.html</code> 用 v1 的历史数据演示版式</td></tr>
+          <tr><th><code>arena-v2</code> 规则和披露卡字段</th><td><span class="pill open">未发布</span></td><td><code>nexttransformer/arena.py</code> 里 <code>VERSION = "arena-v1"</code>。v1 规则写明任何规则改动都会产生 <code>arena-v2</code></td></tr>
+          <tr><th>按研究者排名的排行榜、自我改进的研究循环</th><td><span class="pill open">已预告</span></td><td>概览页列为接下来的内容，仓库里还没有设计文档</td></tr>
+          <tr><th>生产验收</th><td><span class="pill open">待办</span></td><td>ClimbMix 和 tokenizer 清单、CUDA 运行时一致性、资源配额、最终准入、显式终训调度、完整 CORE-22 评估</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="block">
+      <h3>设计文档自己列出的限制</h3>
+      <ul class="plain" style="max-width:52em">
+        <li>支持范围是一台本机，每份服务状态同时只跑一个数值任务，一次只运行一个研究 trial。远程调度和并行的独立数值任务不在范围内。</li>
+        <li>原生 Python 与计费、评分代码在同一个进程里。命名空间隔离不能证明系统能抵御恶意 monkeypatch、伪造的 worker 消息或隐藏计算，当前路径假设候选代码遵守协议。</li>
+        <li>静态审计追踪的是所选的原生执行路径，不覆盖所有依赖数据的分支。</li>
+        <li>测试夹具的正式 BPB、CORE 和排名保持 <code>null</code>。开发测试不运行完整的 49.152B-token 协议。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="sources">
+  <div class="wrap">
+    <h2>来源</h2>
+    <p class="lede">以下文件均在 <a href="https://github.com/Interactive-Active-AI/NextTransformer">Interactive-Active-AI/NextTransformer</a> 的 main 分支。</p>
+    <ul class="sources">
+      <li><a href="https://github.com/Interactive-Active-AI/NextTransformer/blob/main/gym/DESIGN.md"><code>gym/DESIGN.md</code></a>：Gym 的架构、职责和限制</li>
+      <li><a href="https://github.com/Interactive-Active-AI/NextTransformer/blob/main/gym/README.md"><code>gym/README.md</code></a>：接口、候选格式、隔离后端</li>
+      <li><a href="https://github.com/Interactive-Active-AI/NextTransformer/blob/main/gym/tasks/architecture-research/instruction.md"><code>gym/tasks/architecture-research/</code></a>：交给 agent 的任务指令和 Harbor 配置</li>
+      <li><a href="https://github.com/Interactive-Active-AI/NextTransformer/blob/main/gym/src/nexttransformer_gym/data.py"><code>gym/src/nexttransformer_gym/data.py</code></a>：训练和验证数据的划分</li>
+      <li><a href="https://github.com/Interactive-Active-AI/NextTransformer/blob/main/docs/src/content/docs/roadmap.md"><code>docs/…/roadmap.md</code></a>：Arena v2 路线图和实验计划</li>
+      <li><a href="https://github.com/Interactive-Active-AI/NextTransformer/blob/main/docs/src/content/docs/arena/rules.md"><code>docs/…/arena/rules.md</code></a>：Arena Protocol v1 规则</li>
+      <li><a href="https://github.com/Interactive-Active-AI/NextTransformer/blob/main/docs/src/content/docs/arena/task.md"><code>docs/…/arena/task.md</code></a>：v1 的任务说明</li>
+      <li><a href="https://github.com/Interactive-Active-AI/NextTransformer/blob/main/docs/src/content/docs/arena/overview.md"><code>docs/…/arena/overview.md</code></a>：竞技场概览和 v2 预告</li>
+      <li><a href="https://github.com/Interactive-Active-AI/NextTransformer/blob/main/nexttransformer/arena.py"><code>nexttransformer/arena.py</code></a>：v1 的卡片校验和改动范围检查</li>
+      <li><a href="https://github.com/Interactive-Active-AI/NextTransformer/tree/main/results/arena"><code>results/arena/</code></a>：两张 v1 披露卡</li>
+      <li><a href="https://github.com/Interactive-Active-AI/NextTransformer/blob/main/website/app/arena-example.tsx"><code>website/app/arena-example.tsx</code></a>：结果展示示例</li>
+    </ul>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">非官方整理，依据仓库文档和代码写成。仓库更新后，本页内容可能过时。</div>
+</footer>
+
+<script>
+(function () {
+  var ZONES = {
+    a: '① Agent 容器',
+    b: '② 宿主机 Gym',
+    c: '③ 沙箱 Worker',
+    d: '④ 交付之后'
+  };
+  var NODES = {
+    agent: {
+      zone: 'a', name: 'Claude Code',
+      role: 'Harbor 0.24.0（任务格式 1.4）拉起的容器，里面运行原生 Claude Code。Gym 不增加 Agent 子类、模型代理或独立的推理循环。',
+      canTitle: '能做的', can: [
+        '使用 shell 工具和互联网',
+        '通过 <code>gym</code> MCP 工具或 <code>GymClient</code> 调用 Gym',
+        '读已发布的历史实验、模型配置和批准的参考源码',
+        '只读挂载自己的凭据目录和签名证据目录'
+      ],
+      cannotTitle: '拿不到的', cannot: [
+        '仓库检出和 Git 历史',
+        '训练状态和检查点目录',
+        'GPU 设备',
+        '验证器凭据和 Docker socket',
+        '其他会话的私有实验'
+      ]
+    },
+    receipt: {
+      zone: 'a', name: 'submission.json',
+      role: 'Agent 的全部交付物。<code>finalize</code> 成功后，把服务器返回的标识写进 <code>/workspace/submission.json</code>，由 Harbor 收走。',
+      canTitle: '内容', can: [
+        '<code>session_id</code>',
+        '<code>submission_id</code>',
+        '<code>candidate_hash</code>'
+      ],
+      cannotTitle: '它不代表', cannot: [
+        '模型质量。reward 为 1 只表示交付有效',
+        '最终训练已经开始。冻结和验证都不会启动训练',
+        '源码归档。完整源码和配置留在 Gym 的状态库里'
+      ]
+    },
+    api: {
+      zone: 'b', name: 'Gym HTTP API',
+      role: '每个 trial 在宿主机上起一个独立服务，带私有状态和各自的 Agent、验证器凭据。端口由操作系统在 Docker 网桥地址上分配。所有操作都走带认证的 <code>POST /v1/call</code>。',
+      canTitle: '每次调用都检查', can: [
+        '输入 schema（<code>describe_space.operation_schemas</code> 是唯一定义）',
+        '权限：会话只能读自己的私有实验',
+        '预算规则',
+        '幂等键：同一个键对应不同输入会报 <code>conflict</code>'
+      ],
+      cannotTitle: '拒绝接受', cannot: [
+        'shell 命令和远程 SSH 任务',
+        '环境变量覆盖和数据路径',
+        '更换 trainer',
+        '任意文件系统路径（参考资料只能按 ID 读）'
+      ]
+    },
+    evidence: {
+      zone: 'b', name: '签名证据',
+      role: 'Agent 退出时，Harbor hook 停止研究、结算数值任务，由仍在运行的服务生成经 HMAC 认证的证据。Harbor 同时收集 Agent 容器内真实进程状态的快照。',
+      canTitle: '证明什么', can: [
+        '回执里的提交确实由这个 trial 的服务冻结',
+        '账户已经结算',
+        'trial 的绑定关系'
+      ],
+      cannotTitle: '谁能改', cannot: [
+        'Agent 只能只读挂载证据目录',
+        '验证器只持有自己的凭据'
+      ]
+    },
+    state: {
+      zone: 'b', name: '状态库',
+      role: 'Gym 保留完整的候选源码和配置，所以最终训练不依赖 Agent 的工作区。预算账户用 SQLite 事务维护，FLOPs 在接口上用十进制字符串表示。',
+      canTitle: '保存的内容', can: [
+        '候选源码与配置：每会话最多 128 个，不可变',
+        '检查点：模型、优化器、RNG、路由、数据缓冲、调度、阶段和累计训练状态',
+        '预算账户：额度、已用、预留、可用',
+        '任务、结果和事件'
+      ],
+      cannotTitle: '约束', cannot: [
+        '续训要求候选、profile、运行时的哈希完全一致',
+        '改过源码或配置的新候选不能沿用父候选的检查点',
+        '最终训练不复用研究检查点'
+      ]
+    },
+    slot: {
+      zone: 'b', name: '执行槽',
+      role: '每份服务状态同时只执行一个数值任务。一个任务可以使用运维预先配置的一组本机 GPU，训练用数据并行加梯度累积，全局 batch 固定。',
+      canTitle: 'Agent 能选的', can: [
+        'profile 上限内的绝对目标步数 <code>target_update</code>',
+        '单卡分配时，可以指定一张已分配的 GPU',
+        '从哪个检查点续训'
+      ],
+      cannotTitle: '不会发生', cannot: [
+        'GPU 忙时回退到 CPU：任务带着预留排队，不扣数值费用',
+        '并行的独立数值任务',
+        '远程调度'
+      ]
+    },
+    worker: {
+      zone: 'c', name: '隔离 Worker',
+      role: '候选代码在宿主机的 worker 进程里运行，这是它唯一会被执行的地方。worker 检查导入、原生语义、形状和数值行为。验证指标由可信代码根据预测和标签计算。',
+      canTitle: '能读的', can: [
+        '运行时库和平台代码',
+        '批准的数据',
+        '当前任务的检查点和输出',
+        'bwrap 下只有选定的 NVIDIA 设备'
+      ],
+      cannotTitle: '读不到的', cannot: [
+        '控制器状态和凭据',
+        '宿主网络',
+        'CPU 检查不接收 GPU 设备'
+      ]
+    },
+    data: {
+      zone: 'c', name: '数据',
+      role: '管理员在研究前固定数据清单、分片顺序、tokenizer 和执行 profile。只有 worker 能读数据文件。',
+      canTitle: '研究阶段', can: [
+        '训练：按序的 ClimbMix 前缀，到分片 06541 为止',
+        '验证：最后一个分片 <code>shard_06542.parquet</code>，提供选型反馈'
+      ],
+      cannotTitle: '研究阶段没有', cannot: [
+        '新候选的 CORE-22 分数',
+        '前缀耗尽后继续读训练数据'
+      ]
+    },
+    verifier: {
+      zone: 'd', name: '独立验证器',
+      role: '一个单独的 Harbor 容器，只挂载自己的凭据，不能访问网络。它把 Agent 的回执和经 HMAC 认证的证据、trial 绑定关系对一遍。',
+      canTitle: '检查', can: [
+        '回执里的 <code>session_id</code>、<code>submission_id</code>、<code>candidate_hash</code> 与服务端证据一致',
+        '证据的 HMAC 认证',
+        'trial 绑定'
+      ],
+      cannotTitle: '不做', cannot: [
+        '不启动最终训练',
+        '不评价模型质量'
+      ]
+    },
+    final: {
+      zone: 'd', name: '可信终训调度',
+      role: '只有可信的控制器命令（<code>prepare-final</code>、<code>launch-final</code>）才能分配独立额度并启动最终训练。准备流程创建独立的 Git 快照并保留原生插件，审计准入，不修改源仓库。',
+      canTitle: '启动条件', can: [
+        '提交已通过验证',
+        '有一个独立的有限额度',
+        '通过准入的最终 profile 在提交后没有变化'
+      ],
+      cannotTitle: '执行方式', cannot: [
+        '从全新初始化开始，不复用研究检查点',
+        '单节点 8、16 或 32 张已分配的 GPU',
+        '每个 rank 拿到有限的额度份额，异常结束不退还不确定工作量的费用'
+      ]
+    },
+    record: {
+      zone: 'd', name: '正式记录',
+      role: '只有成功的原生审计和导出才能产生兼容官方协议的记录。发布到上游仍然是独立的流程。',
+      canTitle: '排名用的', can: [
+        'CORE-22，第 46,875 次更新时的实测值',
+        '不做插值，不完整的运行不排名'
+      ],
+      cannotTitle: '只展示不排名', cannot: [
+        '验证 BPB',
+        '训练指标'
+      ]
+    }
+  };
+
+  var panel = document.getElementById('node-panel');
+  var nodes = document.querySelectorAll('.arch .node');
+
+  function list(items) {
+    return '<ul>' + items.map(function (t) { return '<li>' + t + '</li>'; }).join('') + '</ul>';
+  }
+  function show(id) {
+    var n = NODES[id];
+    if (!n) return;
+    panel.innerHTML =
+      '<div class="panel-head"><span class="zchip" data-zone="' + n.zone + '"><i></i>' + ZONES[n.zone] + '</span><h3>' + n.name + '</h3></div>' +
+      '<p class="panel-role">' + n.role + '</p>' +
+      '<div class="panel-cols"><div><h4>' + n.canTitle + '</h4>' + list(n.can) + '</div>' +
+      '<div><h4>' + n.cannotTitle + '</h4>' + list(n.cannot) + '</div></div>';
+    nodes.forEach(function (el) {
+      el.setAttribute('aria-pressed', el.getAttribute('data-node') === id ? 'true' : 'false');
+    });
+  }
+  nodes.forEach(function (el) {
+    el.addEventListener('click', function () { show(el.getAttribute('data-node')); });
+    el.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); show(el.getAttribute('data-node')); }
+    });
+  });
+  show('agent');
+})();
+</script>
+</body>
+</html>
