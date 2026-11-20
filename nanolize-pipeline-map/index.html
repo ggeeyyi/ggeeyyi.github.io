@@ -1,0 +1,961 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<meta name="description" content="nanolize 的端到端流程：host agent、作业、controller、工具、author、test designer 和 verifier 按时间顺序展开，标出每一步由谁决定；以 2026-11-19 的 detectron2 运行为例。另有 controller 能调的全部工具和它们之间的依赖。对象：main @ 21d8a28e。">
+<title>nanolize 流程全图</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%231c5cab'/%3E%3Cpath d='M4 11V5l8 6V5' fill='none' stroke='white' stroke-width='1.6'/%3E%3C/svg%3E">
+<style>
+  :root { color-scheme: light; }
+  html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+  body { margin: 0; }
+  [hidden] { display: none !important; }
+</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500;700&family=Space+Grotesk:wght@500;700&display=swap">
+<style>
+  :root {
+    --bg: #f3f5f7; --surface: #ffffff; --sunken: #e8ecf0; --ink: #15202b; --muted: #566573; --line: #d5dce3;
+    --accent: #0f5ea8; --par-line: #8fb4dc; --par-bg: #f4f8fd;
+    --w-hard: #a9b6c3; --w-hard-ink: #46586a; --w-ctrl: #a98cf5; --w-ctrl-ink: #6340c9;
+    --w-agent: #3cc48f; --w-agent-ink: #0d7a53; --w-owner: #f0b429; --w-owner-ink: #8a5d00; --on-series: #0d141b;
+    --good: #0d7a53; --bad: #b3372a;
+    --font-display: "Space Grotesk", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    --font-body: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, "Noto Sans SC", "PingFang SC", "Microsoft YaHei", monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f151b; --surface: #172029; --sunken: #1f2a35; --ink: #e4eaf0; --muted: #97a5b2; --line: #2b3743;
+      --accent: #6fb1f2; --par-line: #3f6893; --par-bg: #131c26;
+      --w-hard: #8695a4; --w-hard-ink: #b4c0cc; --w-ctrl: #9a7df0; --w-ctrl-ink: #bda8ff;
+      --w-agent: #2fae7d; --w-agent-ink: #6bdcae; --w-owner: #d99a17; --w-owner-ink: #f2c261;
+      --good: #6bdcae; --bad: #f08a7c;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f151b; --surface: #172029; --sunken: #1f2a35; --ink: #e4eaf0; --muted: #97a5b2; --line: #2b3743;
+    --accent: #6fb1f2; --par-line: #3f6893; --par-bg: #131c26;
+    --w-hard: #8695a4; --w-hard-ink: #b4c0cc; --w-ctrl: #9a7df0; --w-ctrl-ink: #bda8ff;
+    --w-agent: #2fae7d; --w-agent-ink: #6bdcae; --w-owner: #d99a17; --w-owner-ink: #f2c261;
+    --good: #6bdcae; --bad: #f08a7c;
+    color-scheme: dark;
+  }
+  body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 1rem; line-height: 1.7; }
+  .wrap {
+    max-width: 76rem; margin-inline: auto;
+    padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 2.5rem 4rem; display: grid; gap: 3rem;
+  }
+  section, header.page { display: grid; gap: 1.1rem; min-width: 0; }
+  h1, h2, h3, h4, p, ul, ol, dl, dd, figure { margin: 0; }
+  h1, h2, h3, h4 { font-family: var(--font-display); text-wrap: balance; line-height: 1.25; }
+  h1 { font-size: clamp(1.7rem, 4.2vw, 2.35rem); font-weight: 700; letter-spacing: -0.01em; }
+  h2 { font-size: 1.4rem; font-weight: 700; padding-top: 0.4rem; }
+  h3 { font-size: 1.05rem; font-weight: 700; }
+  h4 { font-size: 0.9375rem; font-weight: 700; }
+  p, li, dd, td { overflow-wrap: anywhere; }
+  a { color: var(--accent); }
+  code { font-family: var(--font-mono); font-size: 0.84em; background: var(--sunken); padding: 0.08em 0.36em; border-radius: 4px; }
+  .eyebrow { font-family: var(--font-mono); font-size: 0.8125rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: 0.25rem 1.1rem; }
+  .part { font-family: var(--font-mono); font-size: 0.8125rem; color: var(--accent); letter-spacing: 0.04em; }
+  .lead { font-size: 1.0625rem; max-width: 46em; }
+  .sub { color: var(--muted); max-width: 52em; font-size: 0.9375rem; }
+  .body { max-width: 52em; }
+  ul.plain { padding-left: 1.2em; display: grid; gap: 0.45rem; max-width: 54em; }
+  ul.tight { padding-left: 1.15em; display: grid; gap: 0.25rem; font-size: 0.9063rem; }
+
+  nav.toc { display: flex; flex-wrap: wrap; gap: 0.4rem 0.5rem; }
+  nav.toc a { font-size: 0.875rem; text-decoration: none; padding: 0.25rem 0.75rem; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink); }
+  nav.toc a:hover { border-color: var(--accent); color: var(--accent); }
+
+  .stats { display: grid; gap: 0.7rem; grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr)); }
+  .stat { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 0.7rem 0.9rem; display: grid; gap: 0.1rem; }
+  .stat .v { font-family: var(--font-display); font-size: 1.45rem; font-weight: 700; line-height: 1.2; }
+  .stat .k { font-size: 0.8125rem; color: var(--muted); }
+
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 1rem 1.1rem 1.1rem; display: grid; gap: 0.8rem; min-width: 0; align-content: start; }
+  .cards { display: grid; gap: 0.9rem; grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); }
+  .cards.wide { grid-template-columns: repeat(auto-fit, minmax(22rem, 1fr)); }
+  .card p, .card li { font-size: 0.9375rem; }
+  .card .n { font-family: var(--font-mono); font-size: 0.8125rem; color: var(--muted); }
+
+  .who { display: inline-block; font-size: 0.78rem; line-height: 1.5; padding: 0 0.5rem; border-radius: 999px; white-space: nowrap; border: 1px solid transparent; font-weight: 500; }
+  .who.w-hard { background: color-mix(in srgb, var(--w-hard) 30%, transparent); color: var(--w-hard-ink); border-color: var(--w-hard); }
+  .who.w-ctrl { background: color-mix(in srgb, var(--w-ctrl) 24%, transparent); color: var(--w-ctrl-ink); border-color: var(--w-ctrl); }
+  .who.w-agent { background: color-mix(in srgb, var(--w-agent) 22%, transparent); color: var(--w-agent-ink); border-color: var(--w-agent); }
+  .who.w-owner { background: color-mix(in srgb, var(--w-owner) 24%, transparent); color: var(--w-owner-ink); border-color: var(--w-owner); }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 0.4rem 0.5rem; align-items: center; }
+  .legend .hint { font-size: 0.8125rem; color: var(--muted); margin-right: 0.25rem; }
+  .lg { font: inherit; font-size: 0.8438rem; color: var(--ink); display: inline-flex; align-items: center; gap: 0.45rem;
+        padding: 0.25rem 0.7rem; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); }
+  button.lg { cursor: pointer; }
+  button.lg:hover { border-color: var(--accent); }
+  button.lg[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+  button.lg:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .sw { width: 0.8rem; height: 0.8rem; border-radius: 3px; flex: none; }
+  .sw.w-hard { background: var(--w-hard); } .sw.w-ctrl { background: var(--w-ctrl); }
+  .sw.w-agent { background: var(--w-agent); } .sw.w-owner { background: var(--w-owner); }
+  .sw.w-follow { background: repeating-linear-gradient(135deg, var(--w-ctrl) 0 3px, var(--w-hard) 3px 6px); }
+  .sw.w-ghost { background: transparent; border: 1.5px dashed var(--muted); }
+  .sw.w-wait { background: var(--sunken); border: 1px solid var(--line); }
+
+  .scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .swipe { display: none; font-size: 0.8125rem; color: var(--muted); }
+  @media (max-width: 64rem) { .swipe { display: block; } }
+  figure { display: grid; gap: 0.7rem; min-width: 0; }
+  figcaption { font-size: 0.875rem; color: var(--muted); max-width: 58em; }
+
+  svg.fig { display: block; width: 100%; height: auto; color: var(--ink); font-family: var(--font-body); }
+  svg.fig text { fill: var(--ink); }
+  svg.fig .t-lane { font-size: 12px; font-weight: 700; font-family: var(--font-display); }
+  svg.fig .t-lane2 { font-size: 10.5px; fill: var(--muted); }
+  svg.fig .t-phase { font-size: 11px; fill: var(--muted); }
+  svg.fig .t-phase.strong { fill: var(--ink); font-weight: 700; }
+  svg.fig .t-axis { font-size: 10.5px; fill: var(--muted); font-family: var(--font-mono); }
+  svg.fig .t-note { font-size: 10.5px; fill: var(--muted); }
+  svg.fig .t-dur { font-size: 9.5px; fill: var(--muted); font-family: var(--font-mono); }
+  svg.fig .grid { stroke: var(--line); stroke-width: 1; stroke-dasharray: 2 4; }
+  svg.fig .rule { stroke: var(--line); stroke-width: 1; }
+  svg.fig .bracket { fill: none; stroke: var(--muted); stroke-width: 1; opacity: 0.75; }
+  svg.fig .bracket.ctrl { stroke: var(--w-ctrl-ink); opacity: 1; }
+  svg.fig .link { fill: none; stroke: currentColor; stroke-width: 1.3; stroke-dasharray: 4 3; }
+  svg.fig .arrow { fill: none; stroke: currentColor; stroke-width: 1.3; }
+  svg.fig .lanebg { fill: var(--surface); stroke: var(--line); stroke-width: 1; }
+  .blk rect { stroke-width: 0; }
+  .blk text { font-size: 10.5px; font-weight: 500; fill: var(--on-series); pointer-events: none; }
+  .blk.w-hard rect { fill: var(--w-hard); } .blk.w-ctrl rect { fill: var(--w-ctrl); }
+  .blk.w-agent rect { fill: var(--w-agent); } .blk.w-owner rect { fill: var(--w-owner); }
+  .blk.w-follow rect { fill: url(#hatch-follow); }
+  .blk.w-wait rect { fill: var(--sunken); stroke: var(--line); stroke-width: 1; }
+  .blk.w-wait text { fill: var(--muted); }
+  .blk.w-ghost rect { fill: none; stroke: var(--muted); stroke-width: 1.2; stroke-dasharray: 3 3; }
+  .blk.w-ghost text { fill: var(--muted); }
+  .blk { transition: opacity 0.15s; cursor: default; }
+  .blk:hover rect { stroke: var(--ink); stroke-width: 1.5; }
+  .focusable[data-focus] .blk { opacity: 0.15; }
+  .focusable[data-focus="hard"] .blk.w-hard, .focusable[data-focus="ctrl"] .blk.w-ctrl, .focusable[data-focus="ctrl"] .blk.w-follow,
+  .focusable[data-focus="agent"] .blk.w-agent, .focusable[data-focus="owner"] .blk.w-owner { opacity: 1; }
+  #tip { position: fixed; z-index: 20; max-width: 22rem; padding: 0.5rem 0.7rem; border-radius: 8px; font-size: 0.8438rem; line-height: 1.55;
+         background: var(--ink); color: var(--bg); pointer-events: none; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25); white-space: pre-line; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 0.9063rem; }
+  th, td { text-align: left; vertical-align: top; padding: 0.5rem 0.7rem; border-bottom: 1px solid var(--line); }
+  thead th { font-size: 0.8125rem; font-weight: 500; color: var(--muted); white-space: nowrap; }
+  tbody th[scope="row"] { font-weight: 700; }
+  table .grp th { font-family: var(--font-display); font-size: 0.875rem; color: var(--accent); background: var(--sunken); border-bottom: none; padding-block: 0.35rem; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  td.mono, .mono { font-family: var(--font-mono); font-size: 0.84em; }
+  .muted { color: var(--muted); }
+  details > summary { cursor: pointer; font-size: 0.9063rem; color: var(--accent); }
+  details[open] > summary { margin-bottom: 0.6rem; }
+
+  /* the step ladder: one row per step of a stage */
+  .stage { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  .stage > header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.3rem 0.9rem; padding: 0.8rem 1.1rem; border-bottom: 1px solid var(--line); background: var(--par-bg); }
+  .stage > header .no { font-family: var(--font-mono); font-size: 0.8125rem; color: var(--accent); }
+  .stage > header .when { font-family: var(--font-mono); font-size: 0.8125rem; color: var(--muted); margin-left: auto; }
+  .stage > .intro { padding: 0.8rem 1.1rem 0; font-size: 0.9375rem; max-width: 60em; }
+  .steps { display: grid; }
+  .step { display: grid; grid-template-columns: 2.1rem minmax(0, 1fr) minmax(0, 17rem); gap: 0.2rem 0.9rem; padding: 0.8rem 1.1rem; border-top: 1px solid var(--line); align-items: start; }
+  .steps > .step:first-child { border-top: none; }
+  .step .idx { font-family: var(--font-mono); font-size: 0.8125rem; color: var(--muted); padding-top: 0.15rem; }
+  .step .what { display: grid; gap: 0.3rem; min-width: 0; }
+  .step .what .t { font-weight: 700; display: flex; flex-wrap: wrap; gap: 0.3rem 0.5rem; align-items: center; }
+  .step .what p, .step .what li { font-size: 0.9063rem; }
+  .step .ex { font-size: 0.8438rem; color: var(--muted); border-left: 2px solid var(--line); padding-left: 0.7rem; display: grid; gap: 0.2rem; align-content: start; }
+  .step .ex b { color: var(--ink); font-weight: 700; }
+  .step .ex .h { font-family: var(--font-mono); font-size: 0.75rem; letter-spacing: 0.04em; }
+  @media (max-width: 52rem) { .step { grid-template-columns: 1.6rem minmax(0, 1fr); } .step .ex { grid-column: 2; } }
+  .fan { display: flex; flex-wrap: wrap; gap: 0.3rem 0.4rem; align-items: center; font-size: 0.8438rem; }
+  .fan .x { font-family: var(--font-mono); font-weight: 500; }
+  .two { display: grid; gap: 0.9rem; grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr)); align-items: start; }
+
+  /* tools */
+  .toolsview { display: grid; gap: 1.6rem; }
+  .tgroup { display: grid; gap: 0.5rem; }
+  .tag.t-hard { border-color: var(--w-hard); color: var(--w-hard-ink); background: color-mix(in srgb, var(--w-hard) 22%, transparent); }
+  .tag.t-ctrl { border-color: var(--w-ctrl); color: var(--w-ctrl-ink); background: color-mix(in srgb, var(--w-ctrl) 18%, transparent); }
+  .stack { display: grid; gap: 1.1rem; }
+  .tgrid { display: grid; gap: 0.6rem; grid-template-columns: repeat(auto-fill, minmax(17.5rem, 1fr)); }
+  .tool { font: inherit; text-align: left; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 0.65rem 0.8rem; display: grid; gap: 0.3rem; align-content: start; min-width: 0; cursor: pointer; }
+  .tool:hover { border-color: var(--accent); }
+  .tool:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .tool .nm { font-family: var(--font-mono); font-size: 0.875rem; font-weight: 500; overflow-wrap: anywhere; }
+  .tool .ds { font-size: 0.8438rem; color: var(--muted); }
+  .tool .tags { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+  .tag { font-size: 0.72rem; padding: 0 0.42rem; border-radius: 4px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; line-height: 1.55; }
+  .tag.sess { border-color: var(--w-agent); color: var(--w-agent-ink); }
+  .tag.cond { border-style: dashed; }
+  .tag.hid { background: var(--sunken); }
+  .tool.sel { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+  .toolsview[data-sel] .tool { opacity: 0.32; }
+  .toolsview[data-sel] .tool.sel, .toolsview[data-sel] .tool.pre, .toolsview[data-sel] .tool.post { opacity: 1; }
+  .tool.pre { border-color: var(--w-owner); box-shadow: inset 3px 0 0 var(--w-owner); }
+  .tool.post { border-color: var(--w-agent); box-shadow: inset 3px 0 0 var(--w-agent); }
+  .tool.hidden-tool { background: var(--sunken); }
+  #tool-panel { position: sticky; top: 0.5rem; z-index: 5; background: var(--surface); border: 1px solid var(--ink); border-radius: 10px; padding: 0.8rem 1rem; display: grid; gap: 0.45rem; font-size: 0.9063rem; box-shadow: 0 6px 18px rgba(0,0,0,0.12); }
+  #tool-panel .nm { font-family: var(--font-mono); font-weight: 500; font-size: 1rem; }
+  #tool-panel dl { display: grid; grid-template-columns: max-content 1fr; gap: 0.2rem 0.8rem; margin: 0; }
+  #tool-panel dt { color: var(--muted); font-size: 0.8125rem; white-space: nowrap; }
+  #tool-panel dd { margin: 0; }
+  #tool-panel ul { margin: 0; padding-left: 1.1em; }
+  #tool-panel .close { justify-self: end; font: inherit; font-size: 0.8125rem; color: var(--accent); background: none; border: none; cursor: pointer; padding: 0; }
+  @media (max-width: 40rem) { #tool-panel dl { grid-template-columns: 1fr; } #tool-panel { position: static; } }
+  svg.fig .st rect { fill: var(--surface); stroke: var(--ink); stroke-width: 1.3; }
+  svg.fig .st text { font-size: 12px; font-weight: 700; }
+  svg.fig .st .s2 { font-size: 10px; font-weight: 400; fill: var(--muted); }
+  svg.fig .tl { font-family: var(--font-mono); font-size: 10.5px; }
+  svg.fig .tl.c { fill: var(--w-ctrl-ink); } svg.fig .tl.h { fill: var(--w-hard-ink); } svg.fig .tl.m { fill: var(--muted); }
+  svg.fig .edge { stroke: var(--muted); stroke-width: 1.2; fill: none; }
+  svg.fig .edge.strong { stroke: currentColor; stroke-width: 1.5; }
+  svg.fig .edge.back { stroke-dasharray: 4 3; }
+  svg.fig .elabel { font-size: 10px; fill: var(--muted); }
+  footer { font-size: 0.8438rem; color: var(--muted); border-top: 1px solid var(--line); padding-top: 1rem; display: grid; gap: 0.4rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="page">
+  <div class="eyebrow"><span>对象：main @ 21d8a28e</span><span>2026-11-20</span><span>例子：detectron2 核心（pair + parallel，Fable 5.2）</span></div>
+  <h1>nanolize 流程全图</h1>
+  <p class="lead">nanolize 把一个仓库里选中的功能重新实现一遍，再用原版的行为验收。这页按时间顺序把一次运行从头走到尾：host agent 做准备并提交作业，程序冻结合同，author 写首版，controller 带着修到交付。每一步都标出它是谁决定的。例子是 2026-11-19 跑完的 detectron2 核心：两个作业同时跑，开了 parallel 模式。</p>
+  <nav class="toc" aria-label="目录">
+    <a href="#roles">角色</a><a href="#timeline">整次运行的时间线</a><a href="#s1">① host 准备</a><a href="#s2">② 提交</a>
+    <a href="#s3">③ 冻结 ∥ 写首版</a><a href="#s4">④ 对比、修复、交付</a><a href="#round">controller 的一轮</a>
+    <a href="#who">谁说了算</a><a href="#tools">工具目录</a><a href="#deps">工具依赖</a>
+  </nav>
+  <div class="stats">
+    <div class="stat"><span class="v">127.6 分</span><span class="k">交付的那对作业，从提交到交付</span></div>
+    <div class="stat"><span class="v">90 / 90</span><span class="k">check 通过，安装检查通过；状态 completed_with_gaps</span></div>
+    <div class="stat"><span class="v">61</span><span class="k">次模型调用（两对作业合计）：author 18、designer 21、reviewer 12、controller 10</span></div>
+    <div class="stat"><span class="v">6 轮</span><span class="k">controller 决定（main job 4 轮，draft job 2 轮）</span></div>
+    <div class="stat"><span class="v">12 万</span><span class="k">token 的交付代码，原仓库 64 万的 18.8%</span></div>
+    <div class="stat"><span class="v">$156.5</span><span class="k">交付那对作业的模型费用；host 另 $37.8，被取消的一对 $126.3</span></div>
+  </div>
+</header>
+
+<section id="gist">
+  <h2>先说结论</h2>
+  <div class="cards wide">
+    <div class="card"><span class="n">1　谁能决定“下一步做什么”</span>
+      <p>作业内部只有两个：<b>程序</b>（代码里叫 mainline，一条固定顺序）和 <b>controller</b>。host 只在作业之外活动；author、test designer、test reviewer 只决定自己会话里写什么，不能启动任何工具或会话。</p></div>
+    <div class="card"><span class="n">2　controller 上场很晚</span>
+      <p>默认要等<b>第一次全量对比出了结果</b>，controller 才第一次被问。之前的冻结、写首版、导入草稿、第一次对比都是程序写死的。parallel 模式把它提前到“封存之后、每次写首版之前”。</p></div>
+    <div class="card"><span class="n">3　并行在工具内部，不在工具之间</span>
+      <p>一个作业同一时刻只跑一个会改变作业状态的工具。并行是一个工具调用内部同时开多个会话或多个 check。唯一的例外是 pair：两个作业各跑各的。</p></div>
+  </div>
+  <div class="legend"><span class="hint">全页统一的颜色</span>
+    <span class="lg"><span class="sw w-hard"></span>程序写死：代码里的固定顺序或规则</span>
+    <span class="lg"><span class="sw w-ctrl"></span>controller 决定：它这一轮点名要调的</span>
+    <span class="lg"><span class="sw w-agent"></span>其他 agent 决定：host、author、test designer、test reviewer 的判断</span>
+    <span class="lg"><span class="sw w-owner"></span>owner 设置：入口命令里的开关和上限</span>
+  </div>
+</section>
+
+<section id="roles">
+  <span class="part">第一部分　WORKFLOW</span>
+  <h2>角色：谁启动谁，谁看得到什么</h2>
+  <p class="body">图里左边是作业之外的人和 agent，中间虚线框是 nanolize 的代码，右边是代码启动的模型会话。注意两点：<b>verifier 是程序，不是模型角色</b>（代码里唯一评审测试的模型角色叫 test reviewer）；controller 和 author 之间不直接对话，都经过 worker。</p>
+  <div class="card"><figure><div class="scroll"><svg class="fig" viewBox="0 0 1100 400" role="img" style="min-width:860px" aria-label="角色关系：用户把命令交给 host agent，host 通过 MCP 把 manifest 和设置交给 nanolize 程序；程序里的作业 worker 启动 controller、author、test designer 和 test reviewer 的会话，verifier 是程序的一部分"><defs><pattern id="hatch-follow" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="7" height="7" style="fill:var(--w-hard)"/><rect width="3.5" height="7" style="fill:var(--w-ctrl)"/></pattern><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker><marker id="arr-m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:var(--muted)"/></marker></defs><rect x="290" y="14" width="360" height="372" rx="12" style="fill:none;stroke:var(--line)" stroke-width="1.5" stroke-dasharray="6 4"/><text x="306" y="34" style="font-size:11px;fill:var(--muted)">nanolize 程序（代码，不是模型）</text><rect x="20" y="44" width="200" height="60" rx="8" style="fill:var(--surface);stroke:currentColor" stroke-width="1.5"/><rect x="20" y="44" width="6" height="60" rx="3" style="fill:var(--surface)"/><text x="36" y="66" style="font-size:13px;font-weight:700">用户（owner）</text><text x="36" y="84" style="font-size:11px;fill:var(--muted)">输入命令和选项；可随时取消</text><rect x="20" y="176" width="200" height="96" rx="8" style="fill:var(--surface);stroke:var(--w-agent-ink)" stroke-width="1.5"/><rect x="20" y="176" width="6" height="96" rx="3" style="fill:var(--w-agent)"/><text x="36" y="198" style="font-size:13px;font-weight:700">host agent</text><text x="36" y="216" style="font-size:11px;fill:var(--muted)">用户自己的 Claude Code 会话</text><text x="36" y="232" style="font-size:11px;fill:var(--muted)">+ nanolize 插件的 skill</text><text x="36" y="248" style="font-size:11px;fill:var(--muted)">不受沙箱限制，能读整个仓库</text><rect x="308" y="50" width="324" height="56" rx="8" style="fill:var(--surface);stroke:var(--w-hard-ink)" stroke-width="1.5"/><rect x="308" y="50" width="6" height="56" rx="3" style="fill:var(--w-hard)"/><text x="324" y="72" style="font-size:13px;font-weight:700">review 服务</text><text x="324" y="90" style="font-size:11px;fill:var(--muted)">收 manifest 和设置；提交时创建作业</text><rect x="308" y="146" width="324" height="96" rx="8" style="fill:var(--surface);stroke:var(--w-hard-ink)" stroke-width="1.5"/><rect x="308" y="146" width="6" height="96" rx="3" style="fill:var(--w-hard)"/><text x="324" y="168" style="font-size:13px;font-weight:700">作业 worker · mainline</text><text x="324" y="186" style="font-size:11px;fill:var(--muted)">按固定顺序给出“下一步工具调用”</text><text x="324" y="202" style="font-size:11px;fill:var(--muted)">一次只跑一个会改状态的工具</text><text x="324" y="218" style="font-size:11px;fill:var(--muted)">controller 不回答时由它兜底</text><rect x="308" y="282" width="324" height="90" rx="8" style="fill:var(--surface);stroke:var(--w-hard-ink)" stroke-width="1.5"/><rect x="308" y="282" width="6" height="90" rx="3" style="fill:var(--w-hard)"/><text x="324" y="304" style="font-size:13px;font-weight:700">verifier</text><text x="324" y="322" style="font-size:11px;fill:var(--muted)">原版 baseline、跑 check、逐项对比</text><text x="324" y="338" style="font-size:11px;fill:var(--muted)">测试和期望输出只在这一侧</text><text x="324" y="354" style="font-size:11px;fill:var(--muted)">author 和 controller 都拿不到</text><rect x="838" y="30" width="254" height="92" rx="8" style="fill:var(--surface);stroke:var(--w-ctrl-ink)" stroke-width="1.5"/><rect x="838" y="30" width="6" height="92" rx="3" style="fill:var(--w-ctrl)"/><text x="854" y="52" style="font-size:13px;font-weight:700">controller</text><text x="854" y="70" style="font-size:11px;fill:var(--muted)">每轮一个新会话，只读</text><text x="854" y="86" style="font-size:11px;fill:var(--muted)">看不到源码和测试，只看合同、</text><text x="854" y="102" style="font-size:11px;fill:var(--muted)">知识、历史和失败摘要</text><rect x="838" y="154" width="254" height="92" rx="8" style="fill:var(--surface);stroke:var(--w-agent-ink)" stroke-width="1.5"/><rect x="838" y="154" width="6" height="92" rx="3" style="fill:var(--w-agent)"/><text x="854" y="176" style="font-size:13px;font-weight:700">author</text><text x="854" y="194" style="font-size:11px;fill:var(--muted)">implement · repair · optimize · reviewer</text><text x="854" y="210" style="font-size:11px;fill:var(--muted)">空工作区起步；可查阅借给它的原版源码</text><text x="854" y="226" style="font-size:11px;fill:var(--muted)">看不到任何测试</text><rect x="838" y="278" width="254" height="92" rx="8" style="fill:var(--surface);stroke:var(--w-agent-ink)" stroke-width="1.5"/><rect x="838" y="278" width="6" height="92" rx="3" style="fill:var(--w-agent)"/><text x="854" y="300" style="font-size:13px;font-weight:700">test designer · test reviewer</text><text x="854" y="318" style="font-size:11px;fill:var(--muted)">只在冻结阶段出现</text><text x="854" y="334" style="font-size:11px;fill:var(--muted)">在原版的私有副本里读源码和测试、写测试</text><text x="854" y="350" style="font-size:11px;fill:var(--muted)">看不到候选代码</text><path class="arrow" d="M120 104 L120 174" marker-end="url(#arr)"/><text x="112" y="144" text-anchor="end" style="font-size:10.5px;fill:var(--muted)">命令 + 选项</text><path class="arrow" d="M220 206 L306 86" marker-end="url(#arr)"/><text x="256" y="114" text-anchor="end" style="font-size:10.5px;fill:var(--muted)">MCP 工具：</text><text x="262" y="129" text-anchor="end" style="font-size:10.5px;fill:var(--muted)">manifest、</text><text x="252" y="144" text-anchor="end" style="font-size:10.5px;fill:var(--muted)">设置、提交</text><path class="arrow" d="M220 250 L306 222" marker-end="url(#arr)" stroke-dasharray="4 3"/><text x="226" y="292" text-anchor="start" style="font-size:10.5px;fill:var(--muted)">只观察状态；</text><text x="226" y="307" text-anchor="start" style="font-size:10.5px;fill:var(--muted)">可取消重交</text><path class="arrow" d="M470 106 L470 144" marker-end="url(#arr)"/><text x="478" y="130" text-anchor="start" style="font-size:10.5px;fill:var(--muted)">创建作业</text><path class="arrow" d="M470 242 L470 280" marker-end="url(#arr)"/><text x="478" y="266" text-anchor="start" style="font-size:10.5px;fill:var(--muted)">调用跑 check 的工具</text><path class="arrow" d="M632 194 H700 M700 60 V342" stroke-width="2"/><circle cx="700" cy="194" r="3.5" fill="currentColor"/><path class="arrow" d="M700 60 L836 60" marker-end="url(#arr)"/><text x="768" y="54" text-anchor="middle" style="font-size:10.5px;fill:var(--muted)">这一轮的上下文</text><path class="arrow" d="M836 94 L702 94" marker-end="url(#arr)"/><text x="768" y="88" text-anchor="middle" style="font-size:10.5px;fill:var(--muted)">一串工具调用</text><path class="arrow" d="M700 184 L836 184" marker-end="url(#arr)"/><text x="768" y="178" text-anchor="middle" style="font-size:10.5px;fill:var(--muted)">合同 + 知识 + 反馈</text><path class="arrow" d="M836 218 L702 218" marker-end="url(#arr)"/><text x="768" y="212" text-anchor="middle" style="font-size:10.5px;fill:var(--muted)">草稿文件</text><path class="arrow" d="M700 308 L836 308" marker-end="url(#arr)"/><text x="768" y="302" text-anchor="middle" style="font-size:10.5px;fill:var(--muted)">leaf + 原版副本</text><path class="arrow" d="M836 342 L702 342" marker-end="url(#arr)"/><text x="768" y="336" text-anchor="middle" style="font-size:10.5px;fill:var(--muted)">测试文件 / 裁决</text><text x="700" y="362" text-anchor="middle" style="font-size:10.5px;fill:var(--muted)">会话都由 worker 启动，</text><text x="700" y="377" text-anchor="middle" style="font-size:10.5px;fill:var(--muted)">彼此不直接对话</text></svg></div><p class="swipe">左右滑动查看 →</p>
+    <figcaption>箭头上是交接的内容。左边框条的颜色：灰 = 程序，紫 = controller，绿 = 其他 agent。</figcaption></figure></div>
+  <div class="card"><div class="scroll"><table style="min-width:60rem">
+    <thead><tr><th>角色</th><th>谁启动</th><th>数量</th><th>看得到什么</th><th>产出</th><th>它能决定什么</th></tr></thead>
+    <tbody><tr><th scope="row">host agent<br><span class="who w-agent">模型会话</span></th><td>用户输入入口命令</td><td>一个会话，贯穿全程</td><td>整个仓库（不受限）</td><td>功能清单 manifest、check、环境配方、提交</td><td>保留哪些功能、哪些算必需、怎么检查、怎么准备环境；无人值守时还包括出错后怎么绕</td></tr><tr><th scope="row">作业 worker · mainline<br><span class="who w-hard">程序</span></th><td>提交之后由 review 服务启动</td><td>每个作业一个进程</td><td>作业的全部状态</td><td>按固定顺序调用工具；记录每一步</td><td>冻结的顺序、首版按层怎么写、第一次对比；controller 不回答时的每一步</td></tr><tr><th scope="row">controller<br><span class="who w-ctrl">模型会话</span></th><td>程序的循环（每到需要决定的地方问一次）</td><td>每轮一个新会话；本例 6 轮</td><td>合同、知识库、操作历史、失败摘要；看不到源码、测试、原始输出</td><td>一个 JSON：最多 24 个工具调用 + 理由 + 可选的委托</td><td>修什么、怎么拆、几个 author、何时对比、选哪个候选、何时交付</td></tr><tr><th scope="row">author<br><span class="who w-agent">模型会话</span></th><td>run_agent、run_parallel_agents、run_workspace_agents 这三个工具</td><td>每次调用一个会话；一个组最多 20 个</td><td>自己的工作区；本次调用涉及的原版源码（只读借阅）；看不到测试</td><td>草稿文件（保存后才成为候选）</td><td>代码怎么写。不能决定流程</td></tr><tr><th scope="row">test designer<br><span class="who w-agent">模型会话</span></th><td>design_leaf_tests 工具内部</td><td>每个需要测试的 leaf 一个，同时开</td><td>原版的私有副本：源码和已有测试；看不到候选</td><td>测试文件、场景文件</td><td>测试写什么。写出来能不能用由程序的门和试跑决定</td></tr><tr><th scope="row">test reviewer<br><span class="who w-agent">模型会话</span></th><td>design_leaf_tests 工具内部，试跑之后</td><td>每 8 个文件一个，同时开</td><td>原版副本 + 待评审的测试文件；不能运行</td><td>每个文件一个裁决：接受 / 否决 + 理由</td><td>接受还是否决。否决后只给 designer 一次修改机会（程序规则）</td></tr><tr><th scope="row">verifier<br><span class="who w-hard">程序</span></th><td>capture_baseline、compare_behavior、run_checks、check_installation</td><td>check 可以多个同时跑</td><td>原版、测试、期望输出、候选</td><td>baseline、对比报告、失败摘要</td><td>通过与否完全按规则算：退出码 → 逐用例 → 输出摘要</td></tr></tbody></table></div>
+    <p class="sub">本例没开任务评估（<code>tasks=off</code>），所以没有 examiner、solver、judge 这三个角色。所有角色用同一个模型（本例 Fable 5.2，effort high）。会话都跑在沙箱里：作业状态目录、原版仓库、别的会话的记录对它们不可见。</p>
+  </div>
+</section>
+
+<section id="timeline">
+  <h2>整次运行的时间线（按真实时间）</h2>
+  <p class="body">先看全貌。横轴是从 host 启动起的分钟数；每个作业两行：上面一行是工具调用，下面是模型会话，上下叠放的细条是同时在跑的会话。颜色是“谁决定启动它”。这次运行有两对作业：第一对跑了 63 分钟后被 host 自己取消重交，第二对走到交付。</p>
+  <div class="card tips focusable" id="fig-scale">
+    <div class="legend" data-for="fig-scale"><span class="hint">颜色 = 谁决定这一步（点一下只看一类）</span><button type="button" class="lg" data-kind="hard" aria-pressed="false"><span class="sw w-hard"></span>程序写死</button><button type="button" class="lg" data-kind="ctrl" aria-pressed="false"><span class="sw w-ctrl"></span>controller 决定</button><button type="button" class="lg" data-kind="agent" aria-pressed="false"><span class="sw w-agent"></span>其他 agent 决定</button><span class="lg"><span class="sw w-follow"></span>主线照固定顺序做，controller 放行</span><span class="lg"><span class="sw w-wait"></span>等待</span></div>
+    <figure><div class="scroll"><svg class="fig" viewBox="0 0 1180 504" role="img" aria-label="detectron2 这次运行按真实时间画出的时间线：host、两对作业各自的工具调用和模型会话"><defs><pattern id="hatch-follow" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="7" height="7" style="fill:var(--w-hard)"/><rect width="3.5" height="7" style="fill:var(--w-ctrl)"/></pattern><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker><marker id="arr-m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:var(--muted)"/></marker></defs><line class="grid" x1="150.0" y1="26" x2="150.0" y2="498"/><text class="t-axis" x="150.0" y="18" text-anchor="middle">host 启动</text><line class="grid" x1="215.4" y1="26" x2="215.4" y2="498"/><text class="t-axis" x="215.4" y="18" text-anchor="middle">+15 分</text><line class="grid" x1="280.9" y1="26" x2="280.9" y2="498"/><text class="t-axis" x="280.9" y="18" text-anchor="middle">+30 分</text><line class="grid" x1="346.3" y1="26" x2="346.3" y2="498"/><text class="t-axis" x="346.3" y="18" text-anchor="middle">+45 分</text><line class="grid" x1="411.7" y1="26" x2="411.7" y2="498"/><text class="t-axis" x="411.7" y="18" text-anchor="middle">+60 分</text><line class="grid" x1="477.2" y1="26" x2="477.2" y2="498"/><text class="t-axis" x="477.2" y="18" text-anchor="middle">+75 分</text><line class="grid" x1="542.6" y1="26" x2="542.6" y2="498"/><text class="t-axis" x="542.6" y="18" text-anchor="middle">+90 分</text><line class="grid" x1="608.0" y1="26" x2="608.0" y2="498"/><text class="t-axis" x="608.0" y="18" text-anchor="middle">+105 分</text><line class="grid" x1="673.4" y1="26" x2="673.4" y2="498"/><text class="t-axis" x="673.4" y="18" text-anchor="middle">+120 分</text><line class="grid" x1="738.9" y1="26" x2="738.9" y2="498"/><text class="t-axis" x="738.9" y="18" text-anchor="middle">+135 分</text><line class="grid" x1="804.3" y1="26" x2="804.3" y2="498"/><text class="t-axis" x="804.3" y="18" text-anchor="middle">+150 分</text><line class="grid" x1="869.7" y1="26" x2="869.7" y2="498"/><text class="t-axis" x="869.7" y="18" text-anchor="middle">+165 分</text><line class="grid" x1="935.2" y1="26" x2="935.2" y2="498"/><text class="t-axis" x="935.2" y="18" text-anchor="middle">+180 分</text><line class="grid" x1="1000.6" y1="26" x2="1000.6" y2="498"/><text class="t-axis" x="1000.6" y="18" text-anchor="middle">+195 分</text><line class="grid" x1="1066.0" y1="26" x2="1066.0" y2="498"/><text class="t-axis" x="1066.0" y="18" text-anchor="middle">+210 分</text><line class="grid" x1="1131.5" y1="26" x2="1131.5" y2="498"/><text class="t-axis" x="1131.5" y="18" text-anchor="middle">+225 分</text><text class="t-lane" x="0" y="49.0">host agent</text><text class="t-lane2" x="0" y="63.0">Claude Code + 插件</text><g class="blk w-hard" data-tip="读 skill（+0.0 → +3.2 分）
+读入口 skill（nanolize → nanolize-run → simplify-code）、开运行面板。
+步骤由 skill 的文字规定"><rect x="150.0" y="36.0" width="13.1" height="18.0" rx="3"/></g><g class="blk w-hard" data-tip="发现（+3.2 → +6.3 分）
+discover_evidence、discover_capabilities、prepare_graphify：
+由程序扫描仓库，host 只负责按 skill 的顺序调用"><rect x="164.1" y="36.0" width="12.4" height="18.0" rx="3"/></g><g class="blk w-agent" data-tip="理解代码 · 写 manifest（+6.3 → +21.9 分）
+host 自己读代码，决定保留哪些功能、哪些必须、怎么检查、怎么准备环境，写成 manifest。
+这一段是 host agent 的判断，约 15.6 分钟"><rect x="177.6" y="36.0" width="67.0" height="18.0" rx="3"/></g><g class="blk w-hard" data-tip="校验（+21.9 → +28.4 分）
+propose_contract、plan_capabilities、audit_check_scope、task_doctor：
+程序校验 manifest、算出 leaf 和 scope"><rect x="245.6" y="36.0" width="27.2" height="18.0" rx="3"/><text x="259.2" y="48.8" text-anchor="middle">校验</text></g><g class="blk w-hard" data-tip="试跑（+28.4 → +32.9 分）
+try_runners（三个 runner 各试一次）、check_installation（原版能否安装）"><rect x="273.8" y="36.0" width="18.6" height="18.0" rx="3"/><text x="283.1" y="48.8" text-anchor="middle">试跑</text></g><g class="blk w-hard" data-tip="提交（+32.9 → +34.7 分）
+start_execution_review → submit_execution_review：
+unattended=on 时没有人工评审，host 直接提交；pair=on 所以一次提交变成两个作业"><rect x="293.4" y="36.0" width="7.1" height="18.0" rx="3"/></g><g class="blk w-wait" data-tip="看着作业跑（+34.7 → +97.6 分）
+host 只观察，不干预作业内部"><rect x="301.5" y="36.0" width="273.3" height="18.0" rx="3"/><text x="438.1" y="48.8" text-anchor="middle">看着作业跑</text></g><g class="blk w-agent" data-tip="取消重交（+97.6 → +99.9 分）
+第一对作业封存时报 baseline 不可用（manifest 里有混合 check）。
+host 自己决定：取消两个作业、改 manifest、重新提交。作业没有崩溃"><rect x="575.8" y="36.0" width="8.9" height="18.0" rx="3"/></g><g class="blk w-wait" data-tip="看着作业跑（+99.9 → +227.8 分）
+host 只观察，不干预作业内部"><rect x="585.6" y="36.0" width="557.2" height="18.0" rx="3"/><text x="864.2" y="48.8" text-anchor="middle">看着作业跑</text></g><g class="blk w-hard" data-tip="收尾（+227.8 → +229.1 分）
+读最终状态、汇报 run_id / job id / 交付目录"><rect x="1143.9" y="36.0" width="4.4" height="18.0" rx="3"/></g><line class="rule" x1="0" y1="80.0" x2="1180" y2="80.0"/><text class="t-phase strong" x="0" y="96.0">第一对作业（被 host 取消）</text><text class="t-lane" x="0" y="121.0">main job</text><g class="blk w-hard" data-tip="create_workspace（建 workspace）
++35.7 分 · 用时 0.3 分 · 结果 created
+程序写死：固定顺序里的一步，没有问 controller"><rect x="305.7" y="108.0" width="1.6" height="18.0" rx="3"/></g><g class="blk w-hard" data-tip="prepare_environment（准备环境）
++36.0 分 · 用时 0.0 分 · 结果 passed
+程序写死：固定顺序里的一步，没有问 controller
+目标：原版 的工作树"><rect x="306.9" y="108.0" width="1.6" height="18.0" rx="3"/></g><g class="blk w-hard" data-tip="prepare_environment（准备环境）
++36.0 分 · 用时 0.0 分 · 结果 passed
+程序写死：固定顺序里的一步，没有问 controller
+目标：候选 的工作树"><rect x="307.1" y="108.0" width="1.6" height="18.0" rx="3"/></g><g class="blk w-hard" data-tip="capture_baseline（抓 baseline）
++36.1 分 · 用时 9.6 分 · 结果 ready
+程序写死：固定顺序里的一步，没有问 controller
+在原版上跑了 46 个 check"><rect x="307.3" y="108.0" width="41.1" height="18.0" rx="3"/></g><g class="blk w-hard" data-tip="design_leaf_tests（设计 leaf 测试）
++45.6 分 · 用时 30.2 分 · 结果 done
+程序写死：固定顺序里的一步，没有问 controller"><rect x="348.9" y="108.0" width="131.3" height="18.0" rx="3"/><text x="414.5" y="120.8" text-anchor="middle">设计 leaf 测试</text></g><g class="blk w-hard" data-tip="capture_baseline（抓 baseline）
++75.8 分 · 用时 17.1 分 · 结果 unverified
+程序写死：固定顺序里的一步，没有问 controller
+在原版上跑了 89 个 check"><rect x="480.8" y="108.0" width="73.8" height="18.0" rx="3"/><text x="517.7" y="120.8" text-anchor="middle">抓 baseline</text></g><g class="blk w-hard" data-tip="seal_contract（封存合同）
++93.0 分 · 用时 0.3 分 · 结果 done
+程序写死：固定顺序里的一步，没有问 controller"><rect x="555.7" y="108.0" width="1.6" height="18.0" rx="3"/></g><g class="blk w-wait" data-tip="import_draft（等待并导入草稿）
++93.4 分 · 用时 4.5 分 · 结果 None
+程序写死：固定顺序里的一步，没有问 controller
+其中 0.0 分钟在等草稿作业"><rect x="557.2" y="108.0" width="18.9" height="18.0" rx="3"/></g><g class="blk w-hard" data-tip="test designer 会话 · generalized_rcnn_71859e83
++45.7 → +58.5 分（12.7 分钟）· 24 轮对话 · $5.64"><rect x="349.5" y="131.0" width="54.9" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test designer 会话 · data_transforms_8967f4a5
++45.7 → +55.2 分（9.4 分钟）· 17 轮对话 · $5.21"><rect x="349.5" y="138.5" width="40.6" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test designer 会话 · runtime_utils_6c9046d5
++45.7 → +54.9 分（9.2 分钟）· 22 轮对话 · $4.24"><rect x="349.5" y="146.0" width="39.6" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test designer 会话 · layers
++45.7 → +54.2 分（8.4 分钟）· 20 轮对话 · $4.51"><rect x="349.5" y="153.5" width="36.3" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test designer 会话 · export_torchscript_ceee9d66
++45.7 → +54.0 分（8.3 分钟）· 20 轮对话 · $3.97"><rect x="349.5" y="161.0" width="35.7" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test designer 会话 · model_zoo_b9ca42f9
++45.7 → +53.1 分（7.3 分钟）· 16 轮对话 · $2.94"><rect x="349.5" y="168.5" width="31.5" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test designer 会话 · packaging
++45.7 → +53.1 分（7.3 分钟）· 14 轮对话 · $3.15"><rect x="349.5" y="176.0" width="31.4" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test designer 会话 · predictor
++45.7 → +52.0 分（6.3 分钟）· 13 轮对话 · $2.72"><rect x="349.5" y="183.5" width="26.9" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test designer 会话 · data_catalog_4b9d42d1
++45.7 → +51.4 分（5.7 分钟）· 12 轮对话 · $2.48"><rect x="349.5" y="191.0" width="24.2" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test reviewer 会话 · review 5
++66.0 → +69.3 分（3.3 分钟）· 19 轮对话 · $2.80"><rect x="437.9" y="131.0" width="13.9" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test reviewer 会话 · review 4
++66.0 → +69.3 分（3.3 分钟）· 23 轮对话 · $3.23"><rect x="437.9" y="138.5" width="13.7" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test reviewer 会话 · review 2
++66.0 → +68.8 分（2.8 分钟）· 10 轮对话 · $2.00"><rect x="437.9" y="146.0" width="11.5" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test reviewer 会话 · review 1
++66.0 → +68.2 分（2.2 分钟）· 14 轮对话 · $2.18"><rect x="437.9" y="153.5" width="9.3" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test reviewer 会话 · review 6
++66.0 → +68.0 分（2.0 分钟）· 9 轮对话 · $1.20"><rect x="437.9" y="161.0" width="8.2" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test reviewer 会话 · review 3
++66.0 → +67.8 分（1.8 分钟）· 10 轮对话 · $1.30"><rect x="437.9" y="168.5" width="7.2" height="6.0" rx="2"/></g><text class="t-lane2" x="142" y="121.0" text-anchor="end">工具调用</text><text class="t-lane2" x="142" y="139.0" text-anchor="end">模型会话</text><text class="t-lane" x="0" y="227.5">draft job</text><g class="blk w-hard" data-tip="create_workspace（建 workspace）
++34.7 分 · 用时 0.3 分 · 结果 created
+程序写死：固定顺序里的一步，没有问 controller"><rect x="301.5" y="214.5" width="1.6" height="18.0" rx="3"/></g><g class="blk w-hard" data-tip="prepare_environment（准备环境）
++35.0 分 · 用时 0.0 分 · 结果 passed
+程序写死：固定顺序里的一步，没有问 controller
+目标：原版 的工作树"><rect x="302.7" y="214.5" width="1.6" height="18.0" rx="3"/></g><g class="blk w-hard" data-tip="prepare_environment（准备环境）
++35.0 分 · 用时 0.0 分 · 结果 passed
+程序写死：固定顺序里的一步，没有问 controller
+目标：候选 的工作树"><rect x="302.8" y="214.5" width="1.6" height="18.0" rx="3"/></g><g class="blk w-hard" data-tip="capture_baseline（抓 baseline）
++35.1 分 · 用时 2.2 分 · 结果 ready
+程序写死：固定顺序里的一步，没有问 controller
+在原版上跑了 46 个 check"><rect x="303.0" y="214.5" width="9.1" height="18.0" rx="3"/></g><g class="blk w-hard" data-tip="seal_contract（封存合同）
++37.4 分 · 用时 0.3 分 · 结果 done
+程序写死：固定顺序里的一步，没有问 controller"><rect x="312.9" y="214.5" width="1.6" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="run_parallel_agents（并行 author 组）
++40.9 分 · 用时 38.4 分 · 结果 done
+controller 第 1 轮点名要调的
+split 组，5 个请求：scope-1、scope-2、scope-3、scope-4、scope-5"><rect x="328.5" y="214.5" width="166.7" height="18.0" rx="3"/><text x="411.9" y="227.3" text-anchor="middle">并行 author 组</text></g><g class="blk w-ctrl" data-tip="run_agent（author 调用）
++79.3 分 · 用时 18.5 分 · 结果 None
+controller 第 1 轮点名要调的
+implement：整个选择范围"><rect x="495.9" y="214.5" width="80.2" height="18.0" rx="3"/><text x="536.0" y="227.3" text-anchor="middle">author 调用</text></g><g class="blk w-ctrl" data-tip="controller 会话 · round 1
++37.7 → +40.9 分（3.2 分钟）· 6 轮对话 · $1.70"><rect x="314.3" y="237.5" width="13.7" height="6.0" rx="2"/></g><g class="blk w-ctrl" data-tip="author 会话 · workspace-61d332ff7f84
++43.5 → +76.3 分（32.8 分钟）· 89 轮对话 · $19.95"><rect x="339.8" y="237.5" width="142.4" height="6.0" rx="2"/></g><g class="blk w-ctrl" data-tip="author 会话 · workspace-f6b6a7d0fdfe
++43.5 → +72.4 分（28.9 分钟）· 69 轮对话 · $15.56"><rect x="339.8" y="245.0" width="125.7" height="6.0" rx="2"/></g><g class="blk w-ctrl" data-tip="author 会话 · workspace-04efbe71533c
++43.5 → +64.6 分（21.1 分钟）· 50 轮对话 · $12.05"><rect x="339.8" y="252.5" width="91.4" height="6.0" rx="2"/></g><g class="blk w-ctrl" data-tip="author 会话 · workspace-66b6689eec9d
++43.5 → +78.3 分（34.8 分钟）· 79 轮对话 · $20.26"><rect x="339.8" y="260.0" width="151.1" height="6.0" rx="2"/></g><g class="blk w-ctrl" data-tip="author 会话 · workspace-58c7241fab3f
++43.5 → +60.2 分（16.7 分钟）· 44 轮对话 · $9.22"><rect x="339.8" y="267.5" width="72.3" height="6.0" rx="2"/></g><g class="blk w-ctrl" data-tip="author 会话 · main workspace
++79.3 → +79.3 分（0.0 分钟）· 0 轮对话 · $0.00"><rect x="496.1" y="237.5" width="1.6" height="6.0" rx="2"/></g><text class="t-lane2" x="142" y="227.5" text-anchor="end">工具调用</text><text class="t-lane2" x="142" y="245.5" text-anchor="end">模型会话</text><line class="rule" x1="0" y1="283.0" x2="1180" y2="283.0"/><text class="t-phase strong" x="0" y="299.0">第二对作业（交付）</text><text class="t-lane" x="0" y="324.0">main job</text><g class="blk w-hard" data-tip="create_workspace（建 workspace）
++100.8 分 · 用时 0.3 分 · 结果 created
+程序写死：固定顺序里的一步，没有问 controller"><rect x="589.8" y="311.0" width="1.6" height="18.0" rx="3"/></g><g class="blk w-hard" data-tip="prepare_environment（准备环境）
++101.1 分 · 用时 0.1 分 · 结果 passed
+程序写死：固定顺序里的一步，没有问 controller
+目标：原版 的工作树"><rect x="591.0" y="311.0" width="1.6" height="18.0" rx="3"/></g><g class="blk w-hard" data-tip="prepare_environment（准备环境）
++101.1 分 · 用时 0.0 分 · 结果 passed
+程序写死：固定顺序里的一步，没有问 controller
+目标：候选 的工作树"><rect x="591.2" y="311.0" width="1.6" height="18.0" rx="3"/></g><g class="blk w-hard" data-tip="capture_baseline（抓 baseline）
++101.2 分 · 用时 9.7 分 · 结果 ready
+程序写死：固定顺序里的一步，没有问 controller
+在原版上跑了 46 个 check"><rect x="591.4" y="311.0" width="41.6" height="18.0" rx="3"/></g><g class="blk w-hard" data-tip="design_leaf_tests（设计 leaf 测试）
++110.9 分 · 用时 27.5 分 · 结果 done
+程序写死：固定顺序里的一步，没有问 controller"><rect x="633.6" y="311.0" width="119.3" height="18.0" rx="3"/><text x="693.2" y="323.8" text-anchor="middle">设计 leaf 测试</text></g><g class="blk w-hard" data-tip="capture_baseline（抓 baseline）
++138.4 分 · 用时 14.5 分 · 结果 ready
+程序写死：固定顺序里的一步，没有问 controller
+在原版上跑了 90 个 check"><rect x="753.5" y="311.0" width="62.7" height="18.0" rx="3"/><text x="784.9" y="323.8" text-anchor="middle">抓 baseline</text></g><g class="blk w-hard" data-tip="seal_contract（封存合同）
++153.0 分 · 用时 0.4 分 · 结果 done
+程序写死：固定顺序里的一步，没有问 controller"><rect x="817.5" y="311.0" width="1.6" height="18.0" rx="3"/></g><g class="blk w-wait" data-tip="import_draft（等待并导入草稿）
++153.4 分 · 用时 24.7 分 · 结果 imported
+程序写死：固定顺序里的一步，没有问 controller
+其中 24.6 分钟在等草稿作业"><rect x="819.2" y="311.0" width="107.3" height="18.0" rx="3"/><text x="872.8" y="323.8" text-anchor="middle">等待并导入草稿</text></g><g class="blk w-hard" data-tip="compare_behavior（全量对比）
++178.3 分 · 用时 3.4 分 · 结果 regressed
+程序写死：固定顺序里的一步，没有问 controller
+20 个 check 失败（候选 candidate-1）"><rect x="927.7" y="311.0" width="14.1" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="prepare_environment（准备环境）
++183.1 分 · 用时 0.0 分 · 结果 passed
+controller 第 1 轮点名要调的
+目标：候选 的工作树"><rect x="948.6" y="311.0" width="1.6" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="capture_baseline（抓 baseline）
++183.1 分 · 用时 0.1 分 · 结果 ready
+controller 第 1 轮点名要调的
+沿用已有的 baseline，没有重跑"><rect x="948.7" y="311.0" width="1.6" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="compare_behavior（全量对比）
++183.2 分 · 用时 2.0 分 · 结果 regressed
+controller 第 1 轮点名要调的
+4 个 check 失败（候选 candidate-1）"><rect x="949.2" y="311.0" width="7.9" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="check_installation（安装检查）
++185.2 分 · 用时 1.4 分 · 结果 passed
+controller 第 1 轮点名要调的"><rect x="957.7" y="311.0" width="5.5" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="run_parallel_agents（并行 author 组）
++187.8 分 · 用时 19.3 分 · 结果 done
+controller 第 2 轮点名要调的
+split 组，2 个请求：data-catalog、model-zoo+packaging"><rect x="969.1" y="311.0" width="83.5" height="18.0" rx="3"/><text x="1010.8" y="323.8" text-anchor="middle">并行 author 组</text></g><g class="blk w-ctrl" data-tip="compare_behavior（全量对比）
++207.1 分 · 用时 3.5 分 · 结果 regressed
+controller 第 2 轮点名要调的
+17 个 check 失败（候选 candidate-4）"><rect x="1053.2" y="311.0" width="14.9" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="prepare_environment（准备环境）
++211.2 分 · 用时 0.0 分 · 结果 passed
+controller 第 3 轮点名要调的
+目标：候选 的工作树"><rect x="1071.2" y="311.0" width="1.6" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="capture_baseline（抓 baseline）
++211.2 分 · 用时 0.1 分 · 结果 ready
+controller 第 3 轮点名要调的
+沿用已有的 baseline，没有重跑"><rect x="1071.3" y="311.0" width="1.6" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="compare_behavior（全量对比）
++211.3 分 · 用时 1.9 分 · 结果 regressed
+controller 第 3 轮点名要调的
+1 个 check 失败（候选 candidate-4）"><rect x="1071.9" y="311.0" width="7.5" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="check_installation（安装检查）
++213.2 分 · 用时 1.4 分 · 结果 passed
+controller 第 3 轮点名要调的"><rect x="1080.0" y="311.0" width="5.5" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="run_agent（author 调用）
++215.8 分 · 用时 5.9 分 · 结果 completed
+controller 第 4 轮点名要调的
+repair：model-zoo、config-lazy"><rect x="1091.2" y="311.0" width="25.2" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="save_candidate（保存候选）
++221.7 分 · 用时 0.2 分 · 结果 done
+controller 第 4 轮点名要调的"><rect x="1117.0" y="311.0" width="1.6" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="prepare_environment（准备环境）
++221.9 分 · 用时 0.0 分 · 结果 passed
+controller 第 4 轮点名要调的
+目标：候选 的工作树"><rect x="1117.9" y="311.0" width="1.6" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="capture_baseline（抓 baseline）
++221.9 分 · 用时 0.1 分 · 结果 ready
+controller 第 4 轮点名要调的
+沿用已有的 baseline，没有重跑"><rect x="1118.1" y="311.0" width="1.6" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="compare_behavior（全量对比）
++222.1 分 · 用时 1.8 分 · 结果 checks_passed
+controller 第 4 轮点名要调的
+0 个 check 失败（候选 candidate-5）"><rect x="1118.7" y="311.0" width="7.3" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="check_installation（安装检查）
++223.9 分 · 用时 1.4 分 · 结果 passed
+controller 第 4 轮点名要调的"><rect x="1126.6" y="311.0" width="5.5" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="select_candidate（选定候选）
++225.3 分 · 用时 0.1 分 · 结果 selected
+controller 第 4 轮点名要调的"><rect x="1132.7" y="311.0" width="1.6" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="deliver（交付）
++225.4 分 · 用时 2.1 分 · 结果 completed_with_gaps
+controller 第 4 轮点名要调的"><rect x="1133.4" y="311.0" width="8.4" height="18.0" rx="3"/></g><g class="blk w-hard" data-tip="test designer 会话 · runtime_utils_6c9046d5
++111.0 → +121.4 分（10.4 分钟）· 21 轮对话 · $4.70"><rect x="634.2" y="334.0" width="44.8" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test designer 会话 · data_transforms_8967f4a5
++111.0 → +120.7 分（9.7 分钟）· 23 轮对话 · $5.54"><rect x="634.2" y="341.5" width="41.9" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test designer 会话 · layers
++111.0 → +119.7 分（8.7 分钟）· 14 轮对话 · $4.43"><rect x="634.2" y="349.0" width="37.3" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test designer 会话 · predictor
++111.0 → +119.2 分（8.2 分钟）· 21 轮对话 · $3.31"><rect x="634.2" y="356.5" width="35.3" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test designer 会话 · model_zoo_b9ca42f9
++111.0 → +119.2 分（8.2 分钟）· 16 轮对话 · $3.50"><rect x="634.2" y="364.0" width="35.2" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test designer 会话 · export_torchscript_ceee9d66
++111.0 → +119.0 分（8.0 分钟）· 24 轮对话 · $3.85"><rect x="634.2" y="371.5" width="34.2" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test designer 会话 · generalized_rcnn_71859e83
++111.0 → +118.7 分（7.7 分钟）· 16 轮对话 · $3.57"><rect x="634.2" y="379.0" width="33.1" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test designer 会话 · data_catalog_4b9d42d1
++111.0 → +118.3 分（7.3 分钟）· 13 轮对话 · $3.27"><rect x="634.2" y="386.5" width="31.2" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test designer 会话 · packaging
++111.0 → +117.2 分（6.2 分钟）· 13 轮对话 · $2.83"><rect x="634.2" y="394.0" width="26.7" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test reviewer 会话 · review 5
++128.1 → +132.1 分（4.0 分钟）· 21 轮对话 · $3.05"><rect x="708.8" y="334.0" width="17.1" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test reviewer 会话 · review 4
++128.1 → +131.2 分（3.1 分钟）· 16 轮对话 · $2.83"><rect x="708.8" y="341.5" width="13.1" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test reviewer 会话 · review 1
++128.1 → +131.2 分（3.0 分钟）· 17 轮对话 · $2.61"><rect x="708.8" y="349.0" width="12.8" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test reviewer 会话 · review 2
++128.1 → +130.8 分（2.7 分钟）· 16 轮对话 · $1.93"><rect x="708.8" y="356.5" width="11.3" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test reviewer 会话 · review 6
++128.1 → +130.1 分（2.0 分钟）· 9 轮对话 · $1.38"><rect x="708.8" y="364.0" width="8.3" height="6.0" rx="2"/></g><g class="blk w-hard" data-tip="test reviewer 会话 · review 3
++128.1 → +129.9 分（1.8 分钟）· 10 轮对话 · $1.52"><rect x="708.8" y="371.5" width="7.2" height="6.0" rx="2"/></g><g class="blk w-ctrl" data-tip="controller 会话 · round 1
++181.7 → +183.1 分（1.4 分钟）· 6 轮对话 · $1.24"><rect x="942.6" y="334.0" width="5.4" height="6.0" rx="2"/></g><g class="blk w-ctrl" data-tip="controller 会话 · round 2
++186.6 → +187.8 分（1.2 分钟）· 4 轮对话 · $1.06"><rect x="964.0" y="334.0" width="4.6" height="6.0" rx="2"/></g><g class="blk w-ctrl" data-tip="author 会话 · workspace-4dadf2f4feae
++188.9 → +206.4 分（17.5 分钟）· 39 轮对话 · $9.03"><rect x="974.1" y="334.0" width="75.8" height="6.0" rx="2"/></g><g class="blk w-ctrl" data-tip="author 会话 · workspace-972f5ced848e
++188.9 → +193.8 分（4.9 分钟）· 17 轮对话 · $2.83"><rect x="974.1" y="341.5" width="20.9" height="6.0" rx="2"/></g><g class="blk w-ctrl" data-tip="controller 会话 · round 3
++210.7 → +211.2 分（0.5 分钟）· 3 轮对话 · $0.88"><rect x="1068.9" y="334.0" width="1.9" height="6.0" rx="2"/></g><g class="blk w-ctrl" data-tip="controller 会话 · round 4
++214.7 → +215.8 分（1.1 分钟）· 5 轮对话 · $1.18"><rect x="1086.3" y="334.0" width="4.3" height="6.0" rx="2"/></g><g class="blk w-ctrl" data-tip="author 会话 · main workspace
++215.8 → +221.5 分（5.7 分钟）· 23 轮对话 · $3.08"><rect x="1091.5" y="334.0" width="24.2" height="6.0" rx="2"/></g><text class="t-lane2" x="142" y="324.0" text-anchor="end">工具调用</text><text class="t-lane2" x="142" y="342.0" text-anchor="end">模型会话</text><text class="t-lane" x="0" y="430.5">draft job</text><g class="blk w-hard" data-tip="create_workspace（建 workspace）
++99.9 分 · 用时 0.3 分 · 结果 created
+程序写死：固定顺序里的一步，没有问 controller"><rect x="585.7" y="417.5" width="1.6" height="18.0" rx="3"/></g><g class="blk w-hard" data-tip="prepare_environment（准备环境）
++100.1 分 · 用时 0.0 分 · 结果 passed
+程序写死：固定顺序里的一步，没有问 controller
+目标：原版 的工作树"><rect x="586.8" y="417.5" width="1.6" height="18.0" rx="3"/></g><g class="blk w-hard" data-tip="prepare_environment（准备环境）
++100.2 分 · 用时 0.0 分 · 结果 passed
+程序写死：固定顺序里的一步，没有问 controller
+目标：候选 的工作树"><rect x="587.0" y="417.5" width="1.6" height="18.0" rx="3"/></g><g class="blk w-hard" data-tip="capture_baseline（抓 baseline）
++100.2 分 · 用时 2.2 分 · 结果 ready
+程序写死：固定顺序里的一步，没有问 controller
+在原版上跑了 46 个 check"><rect x="587.2" y="417.5" width="9.1" height="18.0" rx="3"/></g><g class="blk w-hard" data-tip="seal_contract（封存合同）
++102.5 分 · 用时 0.3 分 · 结果 done
+程序写死：固定顺序里的一步，没有问 controller"><rect x="597.0" y="417.5" width="1.6" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="run_parallel_agents（并行 author 组）
++105.9 分 · 用时 38.0 分 · 结果 done
+controller 第 1 轮点名要调的
+split 组，5 个请求：scope-1、scope-2、scope-3、scope-4、scope-5"><rect x="612.1" y="417.5" width="165.0" height="18.0" rx="3"/><text x="694.6" y="430.3" text-anchor="middle">并行 author 组</text></g><g class="blk w-follow" data-tip="compare_behavior（全量对比）
++144.0 分 · 用时 3.2 分 · 结果 regressed
+controller 第 1 轮放行后，由主线的固定顺序接着做的
+40 个 check 失败（候选 candidate-6）"><rect x="778.1" y="417.5" width="13.3" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="prepare_environment（准备环境）
++150.2 分 · 用时 0.0 分 · 结果 passed
+controller 第 2 轮点名要调的
+目标：候选 的工作树"><rect x="805.1" y="417.5" width="1.6" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="capture_baseline（抓 baseline）
++150.2 分 · 用时 0.1 分 · 结果 ready
+controller 第 2 轮点名要调的
+沿用已有的 baseline，没有重跑"><rect x="805.1" y="417.5" width="1.6" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="compare_behavior（全量对比）
++150.2 分 · 用时 1.1 分 · 结果 regressed
+controller 第 2 轮点名要调的
+4 个 check 失败（候选 candidate-6）"><rect x="805.4" y="417.5" width="4.2" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="run_agent（author 调用）
++151.3 分 · 用时 26.0 分 · 结果 completed
+controller 第 2 轮点名要调的
+repair：整个选择范围"><rect x="810.2" y="417.5" width="113.0" height="18.0" rx="3"/><text x="866.7" y="430.3" text-anchor="middle">author 调用</text></g><g class="blk w-ctrl" data-tip="save_candidate（保存候选）
++177.4 分 · 用时 0.2 分 · 结果 done
+controller 第 2 轮点名要调的"><rect x="923.8" y="417.5" width="1.6" height="18.0" rx="3"/></g><g class="blk w-hard" data-tip="finish_draft（交出草稿）
++177.6 分 · 用时 0.1 分 · 结果 ready
+程序写死：固定顺序里的一步，没有问 controller"><rect x="924.7" y="417.5" width="1.6" height="18.0" rx="3"/></g><g class="blk w-ctrl" data-tip="controller 会话 · round 1
++102.8 → +105.9 分（3.1 分钟）· 5 轮对话 · $1.68"><rect x="598.4" y="440.5" width="13.2" height="6.0" rx="2"/></g><g class="blk w-ctrl" data-tip="author 会话 · workspace-0b1405c74f08
++108.5 → +136.1 分（27.6 分钟）· 55 轮对话 · $14.06"><rect x="623.3" y="440.5" width="119.7" height="6.0" rx="2"/></g><g class="blk w-ctrl" data-tip="author 会话 · workspace-90f26c630374
++108.5 → +128.5 分（20.0 分钟）· 50 轮对话 · $11.58"><rect x="623.3" y="448.0" width="86.9" height="6.0" rx="2"/></g><g class="blk w-ctrl" data-tip="author 会话 · workspace-289b45a338b4
++108.5 → +142.9 分（34.4 分钟）· 70 轮对话 · $19.65"><rect x="623.3" y="455.5" width="149.6" height="6.0" rx="2"/></g><g class="blk w-ctrl" data-tip="author 会话 · workspace-64918f447779
++108.5 → +138.7 分（30.2 分钟）· 73 轮对话 · $17.75"><rect x="623.3" y="463.0" width="131.1" height="6.0" rx="2"/></g><g class="blk w-ctrl" data-tip="author 会话 · workspace-75cbc55c0ee6
++108.5 → +125.8 分（17.2 分钟）· 49 轮对话 · $9.64"><rect x="623.3" y="470.5" width="74.7" height="6.0" rx="2"/></g><g class="blk w-ctrl" data-tip="controller 会话 · round 2
++147.2 → +150.2 分（3.0 分钟）· 9 轮对话 · $1.96"><rect x="792.1" y="440.5" width="12.5" height="6.0" rx="2"/></g><g class="blk w-ctrl" data-tip="author 会话 · main workspace
++151.4 → +177.2 分（25.8 分钟）· 76 轮对话 · $12.56"><rect x="810.4" y="440.5" width="112.1" height="6.0" rx="2"/></g><text class="t-lane2" x="142" y="430.5" text-anchor="end">工具调用</text><text class="t-lane2" x="142" y="448.5" text-anchor="end">模型会话</text></svg></div><p class="swipe">左右滑动查看 →</p>
+    <figcaption>灰色占了前半段：冻结和导入全是程序按固定顺序做的。紫色从 draft job 封存之后（parallel 模式）和 main job 第一次对比之后才出现。绿色只在 host 那一行：作业内部没有“其他 agent 决定流程”的地方。把鼠标放在任意一块上看它是什么。</figcaption></figure>
+  </div>
+</section>
+
+<section id="s1">
+  <h2>① host 准备：从一条命令到提交</h2>
+  <p class="body">入口是一条命令：<code>/nanolize:nanolize detectron2 agent=claude model=claude-fable-5-2 effort=high unattended=on parallel=on pair=on scope=core --cn</code>。host 是用户自己的 Claude Code 会话，它按 skill 的文字一步步做；步骤的顺序是写死的，但其中几步的内容全靠它判断。这一段没有并行。</p>
+  
+<details><summary>入口命令的选项（展开）</summary>
+<div class="scroll"><table style="min-width:44rem">
+<thead><tr><th>选项</th><th>默认</th><th>它改变什么</th></tr></thead><tbody>
+<tr><td class="mono">agent=codex|claude</td><td>host 自己的类型</td><td>作业里所有 runner（author、controller、test designer）用哪种 agent</td></tr>
+<tr><td class="mono">model= / effort=</td><td>claude-fable-5-2 / high</td><td>所有角色共用一个模型和推理强度</td></tr>
+<tr><td class="mono">unattended=on|off</td><td>off</td><td>on：host 自己提交、不停下问人</td></tr>
+<tr><td class="mono">scope=core|all</td><td>core</td><td>提交的选择范围；all 是全部功能</td></tr>
+<tr><td class="mono">pair=on|off</td><td>不给：程序自己判断</td><td>是否拆成 main job + draft job</td></tr>
+<tr><td class="mono">parallel=on|off</td><td>off</td><td>controller 能否自己切首版、开修复组和并排试版本；另放宽三个并发默认值</td></tr>
+<tr><td class="mono">tasks= / performance=</td><td>off / off</td><td>是否加任务评估、性能验收（各多出一批工具和会话）</td></tr>
+<tr><td class="mono">graphify=on|off</td><td>on</td><td>是否先抽代码图</td></tr>
+<tr><td class="mono">account= partition= qos=</td><td>host 自己找</td><td>check 发到哪个计算节点队列</td></tr>
+<tr><td class="mono">--cn</td><td>关</td><td>面板和进度用中文</td></tr>
+</tbody></table></div>
+<p class="sub">入口没有暴露的设置走默认值：策略 <code>controller</code>、author 尝试次数不限、<code>max_agents</code> 4、<code>speculation</code> 2、<code>widen</code> true。要改只能传更完整的 <code>controller_policy</code>（本例 host 按提示传了 <code>max_agents: 8</code>）。</p>
+</details>
+  <div class="stage"><header><span class="no">阶段 ①</span><h3>host 准备（run 页面的 01 发现、02 选范围）</h3><span class="when">本例 +0 → +33.4 分；host 全程 34 次 MCP 调用，$37.8</span></header><div class="steps"><div class="step"><div class="idx">1</div><div class="what"><div class="t"><span>解析参数，检查仓库，定工作目录</span><span class="who w-hard">skill 写死</span></div><p>仓库必须是干净的 Git 检出，源码和测试都已提交；不满足就停下说明原因，host 不会替你 stash 或 reset。工作目录固定建在仓库旁边的 <code>nanolize-runs/&lt;仓库名&gt;/</code>。</p></div><div class="ex" hidden></div></div><div class="step"><div class="idx">2</div><div class="what"><div class="t"><span>开运行面板</span><span class="who w-hard">skill 写死</span></div><p><code>start_run_dashboard</code>。之后每个步骤 host 都用 <code>record_run_progress</code> 报两次（开始、结束）。</p></div><div class="ex"><span class="h">detectron2 这次</span><div>+0.6 分</div></div></div><div class="step"><div class="idx">3</div><div class="what"><div class="t"><span>准备测试环境</span><span class="who w-hard">步骤写死</span><span class="who w-agent">host 判断细节</span></div><p><code>propose_test_environment</code> → <code>prepare_test_environment</code>，再把原版的测试命令跑一遍。装哪些依赖、每个 check 要不要联网、环境变量怎么设，是 host 的判断。</p></div><div class="ex"><span class="h">detectron2 这次</span><div>用了事先建好的环境（Python 3.11 + CPU 版 torch），没有新建</div></div></div><div class="step"><div class="idx">4</div><div class="what"><div class="t"><span>静态证据和代码图</span><span class="who w-hard">skill 写死，程序扫描</span></div><p><code>discover_evidence</code>、<code>discover_capabilities</code>；再用 graphify 抽一张只含代码的图，<code>import_understanding</code> 导入成草稿（<code>graphify=off</code> 可跳过）。这一步不调用模型。</p></div><div class="ex"><span class="h">detectron2 这次</span><div>+3.2 → +6.3 分</div></div></div><div class="step"><div class="idx">5</div><div class="what"><div class="t"><span>写功能清单 manifest</span><span class="who w-agent">host 判断</span></div><p>host 最重的一步。它自己读代码，把仓库切成 capability 树：每个功能是什么、父子关系、哪些是 <code>required</code>（必需的核心）、依赖谁、拥有哪些文件；再给每个 check 写命令、比较方式（<code>exit</code> 或 <code>output</code>）和它覆盖哪些 capability。程序只校验形式：至少一个 required、路径存在、依赖无环。</p></div><div class="ex"><span class="h">detectron2 这次</span><div><b>15.6 分钟</b></div><div>85 个 capability，62 个 check</div><div>目标：保留配置、数据结构、layers、R-CNN 家族、checkpoint、model zoo、predictor、TorchScript 导出</div></div></div><div class="step"><div class="idx">6</div><div class="what"><div class="t"><span>转成 graph-contract manifest</span><span class="who w-hard">程序转换</span><span class="who w-agent">host 补充</span></div><p><code>propose_contract</code>：每个 capability 标成 <code>external</code>（对外接口，列出名字）或 <code>internal</code>；依赖私有结构的原版测试被挪出验收，能恢复的写成 <code>test_nanolize_recovered_*.py</code> 提交进仓库（无人值守时 host 自己提交，否则先问人）。哪些数据文件原样携带（<code>carry</code>）、接口里补哪些名字，由 host 定。</p></div><div class="ex"><span class="h">detectron2 这次</span><div>112 个 carry 文件</div><div>11 个原版 check 留在验收之外</div></div></div><div class="step"><div class="idx">7</div><div class="what"><div class="t"><span>规划和审计</span><span class="who w-hard">程序</span></div><p><code>plan_capabilities</code> 算出选择范围和每个 check 的去留（retained / retired）；<code>audit_check_scope</code> 审计每个 leaf 有没有 check 覆盖。有缺口由 host 回去改 manifest。</p></div><div class="ex" hidden></div></div><div class="step"><div class="idx">8</div><div class="what"><div class="t"><span>体检、runner 设置、试跑</span><span class="who w-hard">skill 写死</span><span class="who w-agent">host 判断细节</span></div><p><code>task_doctor</code> 查前置条件；<code>agent=claude</code> 时写 runner 设置文件（模型、effort、沙箱要隐藏哪些目录）；<code>try_runners</code> 把三个 runner 各试一次；<code>check_installation</code> 在原版上验证安装步骤可行。安装检查怎么写是 host 的判断：不配的话交付状态最好只能到 <code>completed_with_gaps</code>。</p></div><div class="ex"><span class="h">detectron2 这次</span><div>3 个安装步骤：共享测试依赖、pip 安装、导入冒烟</div></div></div><div class="step"><div class="idx">9</div><div class="what"><div class="t"><span>把所有设置交给 review 服务</span><span class="who w-hard">skill 写死</span><span class="who w-owner">选项变成参数</span></div><p><code>start_execution_review(...)</code>：manifest、选择范围预设、runner 命令、controller 策略、leaf 测试策略、check 在哪跑、环境准备配方、安装检查。入口选项在这里变成参数：<code>parallel=on</code> → <code>controller_policy.parallel.enabled</code>，<code>pair=on</code> → <code>pair="on"</code>，<code>scope=core</code> → <code>scope_preset</code>。</p></div><div class="ex"><span class="h">detectron2 这次</span><div><code>parallel: {enabled: true, max_agents: 8}</code></div><div>check 发到计算节点</div><div>2 个准备配方：拷预编译的 C++ 扩展、链接配置目录</div></div></div><div class="step"><div class="idx">10</div><div class="what"><div class="t"><span>提交</span><span class="who w-owner">unattended 决定谁按</span></div><p>整个流程里<b>唯一的人工闸门</b>。有人值守：用户在页面上勾选要保留的功能，按 Submit。<code>unattended=on</code>：host 拿回执里的 <code>submit_code</code> 调 <code>submit_execution_review</code>，按 <code>scope=</code> 的预设提交。<code>core</code> 的含义是 required 的功能加上它们依赖和父节点的闭包。</p></div><div class="ex"><span class="h">detectron2 这次</span><div>+33.4 分提交</div><div>选中 21.7 万 token（仓库共 64 万）</div></div></div><div class="step"><div class="idx">11</div><div class="what"><div class="t"><span>之后只观察</span><span class="who w-hard">skill 写死</span><span class="who w-agent">出错时 host 判断</span></div><p>每隔几分钟 <code>run_dashboard_status</code>，向用户汇报阶段变化。host 被明令禁止写实现、改作业的工作树、把原版代码或测试递给 author。无人值守时出了错由 host 自己想办法绕，但不许关掉 check 或放宽验收。</p></div><div class="ex"><span class="h">detectron2 这次</span><div>第一对作业封存时报 baseline 不可用（manifest 里有混合 check）</div><div>host 自己决定：取消 → 改 manifest → 重交</div><div>代价 63 分钟、$126</div></div></div></div></div>
+</section>
+
+<section id="s2">
+  <h2>② 提交：一次请求变成两个作业</h2>
+  <p class="body">提交之后 host 退到一边，程序接手。这一步决定了后面的并行结构：一个作业还是两个，并行的上限是多少。</p>
+  <div class="stage"><header><span class="no">阶段 ②</span><h3>程序创建并启动作业</h3><span class="when">本例 +99.5 → +100.8 分（第二对）</span></header><div class="steps"><div class="step"><div class="idx">1</div><div class="what"><div class="t"><span>校验并冻结配置</span><span class="who w-hard">程序</span></div><p>重新规划选择范围；做 readiness 审计（controller 作业里只有两类必然失败的情况会拒绝提交：check 的输入不在提交里、check 把产品源码当成冻结输入）；写下作业的 <code>config.json</code>。</p></div><div class="ex" hidden></div></div><div class="step"><div class="idx">2</div><div class="what"><div class="t"><span>一个作业还是两个</span><span class="who w-hard">程序规则</span><span class="who w-owner">pair=on|off 可强制</span></div><p>同时满足才拆成两个：策略是 controller；owner 没说 off；选择范围 ≥ 20,000 原版 token（或 owner 说 on）；check 能发到计算节点，且不需要本机没有的 GPU；能做出一份和评审过的原版完全相同的第二克隆。</p>
+<div class="scroll"><table style="min-width:40rem">
+<thead><tr><th></th><th>main job</th><th>draft job</th></tr></thead><tbody>
+<tr><th scope="row">在哪个仓库上</th><td>用户的仓库</td><td>程序做的第二个克隆</td></tr>
+<tr><th scope="row">冻结</th><td>完整：baseline + knockout + 设计测试 + 再抓 baseline + 封存</td><td>轻：一次 baseline（不做 knockout）+ 封存</td></tr>
+<tr><th scope="row">check 在哪跑</th><td>强制在计算节点</td><td>本机</td></tr>
+<tr><th scope="row">安装检查、交付</th><td>有</td><td>没有，永不交付</td></tr>
+<tr><th scope="row">结束状态</th><td>交付状态之一</td><td><code>draft_ready</code></td></tr>
+</tbody></table></div></div><div class="ex"><span class="h">detectron2 这次</span><div>选中 21.7 万 token → 两个作业</div><div>main job 先启动，draft job 紧随其后</div></div></div><div class="step"><div class="idx">3</div><div class="what"><div class="t"><span>parallel 模式的设置</span><span class="who w-owner">owner 设置</span></div><p><code>max_agents</code>：一个并行组里同时几个 author（2–8，默认 4）。<code>speculation</code>：并排试几个版本（1–4，默认 2）。<code>widen</code>（默认 true）只改三个 owner 没指定的并发数：knockout 导出 4 → 8、check 同时跑 1 → min(CPU 配额, 8)、任务评估 2 → 4。test designer 的会话数不受它影响。<b>controller 不能开关这个模式，也改不了这些数。</b></p></div><div class="ex"><span class="h">detectron2 这次</span><div><code>max_agents: 8</code></div><div>knockout 8、check 8</div></div></div><div class="step"><div class="idx">4</div><div class="what"><div class="t"><span>启动 worker</span><span class="who w-hard">程序</span></div><p>作业的 worker 是本机上的一个进程，不是 Slurm 作业；只有成批的 check 被发到计算节点。动工之前先把 author、controller、test designer 三个 runner 各试调一次，再发一个空批次确认 check 落在哪种机器上。两个作业各有自己的仓库锁，所以能同时跑。</p></div><div class="ex"><span class="h">detectron2 这次</span><div>3 次试调各约 10 秒</div><div>探测批次 25 秒后开始</div></div></div></div></div>
+</section>
+
+<section id="s3">
+  <h2>③ 冻结 ∥ 写首版：两个作业同时进行</h2>
+  <p class="body">这是并行最多的一段。main job 在冻结合同：记录原版行为、给没有有效测试的 leaf 设计测试、封存。draft job 同时在另一个克隆上写第一版代码。两边互不可见：写代码的看不到测试，设计测试的看不到代码。下图一格是一份工作，上下叠放表示同时进行；左侧有绿色竖条的块是模型会话。</p>
+  <div class="card tips focusable" id="fig-a">
+    <div class="legend" data-for="fig-a"><span class="hint">颜色 = 谁决定这一步（点一下只看一类）</span><button type="button" class="lg" data-kind="hard" aria-pressed="false"><span class="sw w-hard"></span>程序写死</button><button type="button" class="lg" data-kind="ctrl" aria-pressed="false"><span class="sw w-ctrl"></span>controller 决定</button><span class="lg"><span class="sw w-follow"></span>主线照固定顺序做，controller 放行</span><span class="lg"><span class="sw w-ghost"></span>计划了但没执行</span><span class="lg"><span class="sw w-wait"></span>等待</span></div>
+    <figure><div class="scroll"><svg class="fig" viewBox="0 0 1124 426" role="img" aria-label="detectron2 运行里 main job 的冻结和 draft job 写首版同时进行：每格一份工作，上下叠放表示同时进行，颜色表示谁决定这一步" style="min-width:966px"><defs><pattern id="hatch-follow" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="7" height="7" style="fill:var(--w-hard)"/><rect width="3.5" height="7" style="fill:var(--w-ctrl)"/></pattern><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker><marker id="arr-m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:var(--muted)"/></marker></defs><text class="t-lane" x="0" y="54">main job</text><text class="t-lane2" x="0" y="68">冻结合同</text><path class="bracket " d="M334 35 V31 H630 V35"/><text class="t-phase " x="482.0" y="26" text-anchor="middle">design_leaf_tests · 27.5 分</text><g class="blk w-hard" data-tip="作业开始前把 author、controller、test designer 三个 runner 各试调一次（各约 10 秒），
+再发一个空的探测批次确认 check 在哪台机器上跑。
+
+程序写死：固定顺序里的一步，没有问 controller"><rect x="93.5" y="40" width="57.0" height="20" rx="4"/><text x="122.0" y="54" text-anchor="middle">试调用</text></g><text class="t-dur" x="122.0" y="71" text-anchor="middle">1.0 分</text><g class="blk w-hard" data-tip="create_workspace：建两个工作树（原版 / 候选）和作业分支，读入评审过的选择范围。
+
+程序写死：固定顺序里的一步，没有问 controller"><rect x="153.5" y="40" width="57.0" height="20" rx="4"/><text x="182.0" y="54" text-anchor="middle">建工作区</text></g><text class="t-dur" x="182.0" y="71" text-anchor="middle">16 秒</text><g class="blk w-hard" data-tip="prepare_environment ×2：在原版和候选的工作树里各跑一遍 owner 的准备配方
+（本例：把预编译的 C++ 扩展拷进去）。配方内容是 host 写的；什么时候跑由程序定。
+
+程序写死：固定顺序里的一步，没有问 controller"><rect x="213.5" y="40" width="57.0" height="20" rx="4"/><text x="242.0" y="54" text-anchor="middle">备环境</text></g><text class="t-dur" x="242.0" y="71" text-anchor="middle">5 秒</text><g class="blk w-hard" data-tip="capture_baseline：在原版上跑 46 个 check，每个重复 3 次确认稳定；
+再对已有测试的 leaf 做 knockout（在原版副本里禁用这个 leaf 的代码，看测它的 check 会不会挂）。
+结果：4 个选中的 leaf 没有有效测试 → 下一步要设计。
+
+程序写死：固定顺序里的一步，没有问 controller"><rect x="273.5" y="40" width="57.0" height="20" rx="4"/><text x="302.0" y="54" text-anchor="middle">抓基线</text></g><text class="t-dur" x="302.0" y="71" text-anchor="middle">9.7 分</text><g class="blk w-hard" data-tip="test designer 会话：给 leaf「model-zoo」写测试
+8.2 分钟 · 16 轮 · $3.50
+
+开几个会话：程序写死（每个需要测试的 leaf 一个）
+同时开几个：owner 的上限，parallel 模式下由程序放宽
+测试写成什么样：test designer 自己决定"><rect x="333.5" y="40" width="117.0" height="20" rx="4"/><rect x="333.5" y="40" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="394.0" y="54" text-anchor="middle">model-zoo</text></g><g class="blk w-hard" data-tip="test designer 会话：给 leaf「predictor」写测试
+8.2 分钟 · 21 轮 · $3.31
+
+开几个会话：程序写死（每个需要测试的 leaf 一个）
+同时开几个：owner 的上限，parallel 模式下由程序放宽
+测试写成什么样：test designer 自己决定"><rect x="333.5" y="63" width="117.0" height="20" rx="4"/><rect x="333.5" y="63" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="394.0" y="77" text-anchor="middle">predictor</text></g><g class="blk w-hard" data-tip="test designer 会话：给 leaf「layers」写测试
+8.7 分钟 · 14 轮 · $4.43
+
+开几个会话：程序写死（每个需要测试的 leaf 一个）
+同时开几个：owner 的上限，parallel 模式下由程序放宽
+测试写成什么样：test designer 自己决定"><rect x="333.5" y="86" width="117.0" height="20" rx="4"/><rect x="333.5" y="86" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="394.0" y="100" text-anchor="middle">layers</text></g><g class="blk w-hard" data-tip="test designer 会话：给 leaf「data-catalog」写测试
+7.3 分钟 · 13 轮 · $3.27
+
+开几个会话：程序写死（每个需要测试的 leaf 一个）
+同时开几个：owner 的上限，parallel 模式下由程序放宽
+测试写成什么样：test designer 自己决定"><rect x="333.5" y="109" width="117.0" height="20" rx="4"/><rect x="333.5" y="109" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="394.0" y="123" text-anchor="middle">data-catalog</text></g><g class="blk w-hard" data-tip="test designer 会话：给 leaf「export」写测试
+8.0 分钟 · 24 轮 · $3.85
+
+开几个会话：程序写死（每个需要测试的 leaf 一个）
+同时开几个：owner 的上限，parallel 模式下由程序放宽
+测试写成什么样：test designer 自己决定"><rect x="333.5" y="132" width="117.0" height="20" rx="4"/><rect x="333.5" y="132" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="394.0" y="146" text-anchor="middle">export</text></g><g class="blk w-hard" data-tip="test designer 会话：给 leaf「packaging」写测试
+6.2 分钟 · 13 轮 · $2.83
+
+开几个会话：程序写死（每个需要测试的 leaf 一个）
+同时开几个：owner 的上限，parallel 模式下由程序放宽
+测试写成什么样：test designer 自己决定"><rect x="333.5" y="155" width="117.0" height="20" rx="4"/><rect x="333.5" y="155" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="394.0" y="169" text-anchor="middle">packaging</text></g><g class="blk w-hard" data-tip="test designer 会话：给 leaf「runtime-utils」写测试
+10.4 分钟 · 21 轮 · $4.70
+
+开几个会话：程序写死（每个需要测试的 leaf 一个）
+同时开几个：owner 的上限，parallel 模式下由程序放宽
+测试写成什么样：test designer 自己决定"><rect x="333.5" y="178" width="117.0" height="20" rx="4"/><rect x="333.5" y="178" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="394.0" y="192" text-anchor="middle">runtime-utils</text></g><g class="blk w-hard" data-tip="test designer 会话：给 leaf「data-transforms」写测试
+9.7 分钟 · 23 轮 · $5.54
+
+开几个会话：程序写死（每个需要测试的 leaf 一个）
+同时开几个：owner 的上限，parallel 模式下由程序放宽
+测试写成什么样：test designer 自己决定"><rect x="333.5" y="201" width="117.0" height="20" rx="4"/><rect x="333.5" y="201" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="394.0" y="215" text-anchor="middle">data-transforms</text></g><g class="blk w-hard" data-tip="test designer 会话：给 leaf「rcnn」写测试
+7.7 分钟 · 16 轮 · $3.57
+
+开几个会话：程序写死（每个需要测试的 leaf 一个）
+同时开几个：owner 的上限，parallel 模式下由程序放宽
+测试写成什么样：test designer 自己决定"><rect x="333.5" y="224" width="117.0" height="20" rx="4"/><rect x="333.5" y="224" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="394.0" y="238" text-anchor="middle">rcnn</text></g><text class="t-dur" x="392.0" y="255" text-anchor="middle">10.4 分（最长的一个）</text><g class="blk w-hard" data-tip="程序在原版上试跑设计出来的测试：不通过的提案直接丢弃
+（本例 model-zoo 有 2 个提案在原版上不通过，被拒）。
+
+程序写死：固定顺序里的一步，没有问 controller"><rect x="453.5" y="40" width="57.0" height="20" rx="4"/><text x="482.0" y="54" text-anchor="middle">试跑</text></g><text class="t-dur" x="482.0" y="71" text-anchor="middle">6.7 分</text><g class="blk w-hard" data-tip="test reviewer 会话 1：检查设计出来的测试文件
+3.0 分钟 · 17 轮 · $2.61
+
+开几个：程序写死（按文件数分批）
+接受还是拒绝：test reviewer 自己决定"><rect x="513.5" y="40" width="57.0" height="20" rx="4"/><rect x="513.5" y="40" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="544.0" y="54" text-anchor="middle">评审 1</text></g><g class="blk w-hard" data-tip="test reviewer 会话 2：检查设计出来的测试文件
+2.7 分钟 · 16 轮 · $1.93
+
+开几个：程序写死（按文件数分批）
+接受还是拒绝：test reviewer 自己决定"><rect x="513.5" y="63" width="57.0" height="20" rx="4"/><rect x="513.5" y="63" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="544.0" y="77" text-anchor="middle">评审 2</text></g><g class="blk w-hard" data-tip="test reviewer 会话 3：检查设计出来的测试文件
+1.8 分钟 · 10 轮 · $1.52
+
+开几个：程序写死（按文件数分批）
+接受还是拒绝：test reviewer 自己决定"><rect x="513.5" y="86" width="57.0" height="20" rx="4"/><rect x="513.5" y="86" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="544.0" y="100" text-anchor="middle">评审 3</text></g><g class="blk w-hard" data-tip="test reviewer 会话 4：检查设计出来的测试文件
+3.1 分钟 · 16 轮 · $2.83
+
+开几个：程序写死（按文件数分批）
+接受还是拒绝：test reviewer 自己决定"><rect x="513.5" y="109" width="57.0" height="20" rx="4"/><rect x="513.5" y="109" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="544.0" y="123" text-anchor="middle">评审 4</text></g><g class="blk w-hard" data-tip="test reviewer 会话 5：检查设计出来的测试文件
+4.0 分钟 · 21 轮 · $3.05
+
+开几个：程序写死（按文件数分批）
+接受还是拒绝：test reviewer 自己决定"><rect x="513.5" y="132" width="57.0" height="20" rx="4"/><rect x="513.5" y="132" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="544.0" y="146" text-anchor="middle">评审 5</text></g><g class="blk w-hard" data-tip="test reviewer 会话 6：检查设计出来的测试文件
+2.0 分钟 · 9 轮 · $1.38
+
+开几个：程序写死（按文件数分批）
+接受还是拒绝：test reviewer 自己决定"><rect x="513.5" y="155" width="57.0" height="20" rx="4"/><rect x="513.5" y="155" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="544.0" y="169" text-anchor="middle">评审 6</text></g><text class="t-dur" x="542.0" y="186" text-anchor="middle">4.0 分</text><g class="blk w-hard" data-tip="程序做静态检查、knockout 预检，把通过的 44 个文件提交到原版上：
+35 个测试 + 9 个场景文件（303 个用例）被接受；3 个测试提案、1 个场景文件被拒。
+
+程序写死：固定顺序里的一步，没有问 controller"><rect x="573.5" y="40" width="57.0" height="20" rx="4"/><text x="602.0" y="54" text-anchor="middle">检查·提交</text></g><text class="t-dur" x="602.0" y="71" text-anchor="middle">6.2 分</text><g class="blk w-hard" data-tip="capture_baseline 第二次：新测试进了原版，baseline 要重抓。
+这次 90 个 check，同样重复 3 次 + leaf knockout（179 对 knockout，127 个行为性 kill）。
+结果：0 个选中的 leaf 没有有效测试。
+
+程序写死：固定顺序里的一步，没有问 controller"><rect x="633.5" y="40" width="117.0" height="20" rx="4"/><text x="692.0" y="54" text-anchor="middle">再抓基线（90 个 check）</text></g><text class="t-dur" x="692.0" y="71" text-anchor="middle">14.5 分</text><g class="blk w-hard" data-tip="seal_contract：检查 baseline 可用、导出验证包（253 个 verifier 文件），打第一个检查点。
+此后测试和 baseline 不再改。
+
+程序写死：固定顺序里的一步，没有问 controller"><rect x="753.5" y="40" width="57.0" height="20" rx="4"/><text x="782.0" y="54" text-anchor="middle">封存</text></g><text class="t-dur" x="782.0" y="71" text-anchor="middle">23 秒</text><g class="blk w-wait" data-tip="import_draft：main job 封存后就等 draft job。
+本例 draft job 正在修复，等了 24.7 分钟。
+
+程序写死：固定顺序里的一步，没有问 controller"><rect x="813.5" y="40" width="297.0" height="20" rx="4"/><text x="962.0" y="54" text-anchor="middle">等草稿作业交出首版（24.7 分）</text></g><text class="t-lane" x="0" y="309">draft job</text><text class="t-lane2" x="0" y="323">写首版</text><path class="bracket ctrl" d="M334 290 V286 H570 V290"/><text class="t-phase strong" x="452.0" y="281" text-anchor="middle">controller 第 1 轮的计划</text><path class="bracket ctrl" d="M574 290 V286 H1050 V290"/><text class="t-phase strong" x="812.0" y="281" text-anchor="middle">controller 第 2 轮的计划</text><g class="blk w-hard" data-tip="draft job 在仓库的第二个克隆上工作，和 main job 互不干扰。
+
+程序写死：固定顺序里的一步，没有问 controller"><rect x="93.5" y="295" width="57.0" height="20" rx="4"/><text x="122.0" y="309" text-anchor="middle">建工作区</text></g><text class="t-dur" x="122.0" y="326" text-anchor="middle">16 秒</text><g class="blk w-hard" data-tip="prepare_environment ×2（原版、候选）。
+
+程序写死：固定顺序里的一步，没有问 controller"><rect x="153.5" y="295" width="57.0" height="20" rx="4"/><text x="182.0" y="309" text-anchor="middle">备环境</text></g><text class="t-dur" x="182.0" y="326" text-anchor="middle">5 秒</text><g class="blk w-hard" data-tip="capture_baseline：只跑 46 个已有的 check，不做 leaf 测试验证、不设计测试，
+所以只要 2.2 分钟（main job 要 9.7 分钟）。
+
+程序写死：固定顺序里的一步，没有问 controller"><rect x="213.5" y="295" width="57.0" height="20" rx="4"/><text x="242.0" y="309" text-anchor="middle">抓基线</text></g><text class="t-dur" x="242.0" y="326" text-anchor="middle">2.2 分</text><g class="blk w-hard" data-tip="seal_contract：draft job 用自己这份较轻的合同。
+
+程序写死：固定顺序里的一步，没有问 controller"><rect x="273.5" y="295" width="57.0" height="20" rx="4"/><text x="302.0" y="309" text-anchor="middle">封存</text></g><text class="t-dur" x="302.0" y="326" text-anchor="middle">17 秒</text><g class="blk w-ctrl" data-tip="controller 第 1 轮（3.2 分钟）
+程序给它的默认做法是 run_agent（按 5 层一个接一个写）。
+它改成：一个 split 组同时写 5 个 scope，并给每个共享文件指定唯一的负责 scope。
+之后放行主线最多 20 步，到首次对比为止。
+
+parallel 模式下，写首版之前先问 controller（否则这一步由程序按层写）。"><rect x="333.5" y="295" width="57.0" height="20" rx="4"/><rect x="333.5" y="295" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="364.0" y="309" text-anchor="middle">轮 1</text></g><text class="t-dur" x="362.0" y="326" text-anchor="middle">3.2 分</text><g class="blk w-ctrl" data-tip="author 会话：写 scope-1（runtime-utils、config-yacs、config-lazy、layers）
+20.0 分钟 · 50 轮 · $11.58 · 新增 26 个文件
+
+怎么切、几个 author：controller 决定
+同时最多几个：owner 的 max_agents=8
+代码怎么写：author 自己决定"><rect x="393.5" y="295" width="117.0" height="20" rx="4"/><rect x="393.5" y="295" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="454.0" y="309" text-anchor="middle">scope-1</text></g><g class="blk w-ctrl" data-tip="author 会话：写 scope-2（structures、events、checkpoint、rotated-box-ops）
+27.6 分钟 · 55 轮 · $14.06 · 新增 14 个文件
+
+怎么切、几个 author：controller 决定
+同时最多几个：owner 的 max_agents=8
+代码怎么写：author 自己决定"><rect x="393.5" y="318" width="117.0" height="20" rx="4"/><rect x="393.5" y="318" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="454.0" y="332" text-anchor="middle">scope-2</text></g><g class="blk w-ctrl" data-tip="author 会话：写 scope-3（proposal-generation、deformable-conv、backbone-resnet-fpn、data-catalog、data-transforms）
+34.4 分钟 · 70 轮 · $19.65 · 新增 20 个文件
+
+怎么切、几个 author：controller 决定
+同时最多几个：owner 的 max_agents=8
+代码怎么写：author 自己决定"><rect x="393.5" y="341" width="117.0" height="20" rx="4"/><rect x="393.5" y="341" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="454.0" y="355" text-anchor="middle">scope-3</text></g><g class="blk w-ctrl" data-tip="author 会话：写 scope-4（detection-utils、roi-heads、generalized-rcnn、rotated-rcnn）
+30.2 分钟 · 73 轮 · $17.75 · 新增 15 个文件
+
+怎么切、几个 author：controller 决定
+同时最多几个：owner 的 max_agents=8
+代码怎么写：author 自己决定"><rect x="393.5" y="364" width="117.0" height="20" rx="4"/><rect x="393.5" y="364" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="454.0" y="378" text-anchor="middle">scope-4</text></g><g class="blk w-ctrl" data-tip="author 会话：写 scope-5（predictor、model-zoo、export-torchscript、testing-helpers、packaging）
+17.2 分钟 · 49 轮 · $9.64 · 新增 11 个文件
+
+怎么切、几个 author：controller 决定
+同时最多几个：owner 的 max_agents=8
+代码怎么写：author 自己决定"><rect x="393.5" y="387" width="117.0" height="20" rx="4"/><rect x="393.5" y="387" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="454.0" y="401" text-anchor="middle">scope-5</text></g><text class="t-dur" x="452.0" y="418" text-anchor="middle">38.0 分（含合并）</text><g class="blk w-follow" data-tip="compare_behavior（全量）：用 draft job 自己的 baseline 对比合并后的首版。
+40 个 check 失败，其中 36 个是同一个 ImportError（候选工作树丢了预编译扩展）。
+
+controller 在第 1 轮放行了主线，这一步是主线按固定顺序做的。"><rect x="513.5" y="295" width="57.0" height="20" rx="4"/><text x="542.0" y="309" text-anchor="middle">对比</text></g><text class="t-dur" x="542.0" y="326" text-anchor="middle">3.2 分</text><g class="blk w-ctrl" data-tip="controller 第 2 轮（3.0 分钟）
+判断：36 个失败是同一个 ImportError，可能是环境问题。
+计划：重新准备候选环境 → 沿用 baseline → 全量对比 → 若仍有失败，一个 repair author 做整体集成修复 → 保存 → 对比。"><rect x="573.5" y="295" width="57.0" height="20" rx="4"/><rect x="573.5" y="295" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="604.0" y="309" text-anchor="middle">轮 2</text></g><text class="t-dur" x="602.0" y="326" text-anchor="middle">3.0 分</text><g class="blk w-ctrl" data-tip="prepare_environment(target=candidate)：重新跑候选的准备配方。
+controller 点名调用。"><rect x="633.5" y="295" width="57.0" height="20" rx="4"/><text x="662.0" y="309" text-anchor="middle">备环境</text></g><text class="t-dur" x="662.0" y="326" text-anchor="middle">1 秒</text><g class="blk w-ctrl" data-tip="capture_baseline：指纹没变，直接沿用已有 baseline（没有重跑）。
+controller 点名调用。"><rect x="693.5" y="295" width="57.0" height="20" rx="4"/><text x="722.0" y="309" text-anchor="middle">基线</text></g><text class="t-dur" x="722.0" y="326" text-anchor="middle">4 秒</text><g class="blk w-ctrl" data-tip="compare_behavior（全量）：失败从 40 个降到 4 个——确实是环境问题。
+controller 点名调用。"><rect x="753.5" y="295" width="57.0" height="20" rx="4"/><text x="782.0" y="309" text-anchor="middle">对比</text></g><text class="t-dur" x="782.0" y="326" text-anchor="middle">1.1 分</text><g class="blk w-ctrl" data-tip="run_agent(role=repair)：一个 author 修剩下的 4 个失败。
+25.8 分钟 · 76 轮 · $12.56
+
+修什么、给谁修：controller 决定"><rect x="813.5" y="295" width="117.0" height="20" rx="4"/><rect x="813.5" y="295" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="874.0" y="309" text-anchor="middle">修复（1 个 author）</text></g><text class="t-dur" x="872.0" y="326" text-anchor="middle">26.0 分</text><g class="blk w-ctrl" data-tip="save_candidate：把草稿存成 candidate-7（集成检查、与原版重复度检查都在这里）。
+controller 点名调用。"><rect x="933.5" y="295" width="57.0" height="20" rx="4"/><text x="962.0" y="309" text-anchor="middle">保存</text></g><text class="t-dur" x="962.0" y="326" text-anchor="middle">12 秒</text><g class="blk w-ghost" data-tip="controller 计划里的最后一次对比没有执行：
+main job 已经封存，程序强制 draft job 立刻交出草稿。"><rect x="993.5" y="295" width="57.0" height="20" rx="4"/><text x="1022.0" y="309" text-anchor="middle">对比</text></g><g class="blk w-hard" data-tip="finish_draft：把当前候选封存为 main job 要导入的首版，作业以 draft_ready 结束。
+main job 一封存，程序就强制这一步（不等 controller）。
+
+程序写死：固定顺序里的一步，没有问 controller"><rect x="1053.5" y="295" width="57.0" height="20" rx="4"/><text x="1082.0" y="309" text-anchor="middle">交出草稿</text></g><text class="t-dur" x="1082.0" y="326" text-anchor="middle">9 秒</text><path class="link" d="M782.0 60.0 C782.0 177.5 1082.0 177.5 1082.0 293.0" marker-end="url(#arr)"/><text class="t-note" x="940.0" y="173.5" text-anchor="start">main 封存 → 强制交出</text></svg></div><p class="swipe">左右滑动查看 →</p>
+    <figcaption>main job 这一行全是灰色：整个冻结 controller 一次都没被问。代码里的说法是，封存之前从不被问的 agent，没法通过它的选择去影响测试。draft job 从封存之后变紫，是因为开了 parallel 模式。每块下面是真实用时。</figcaption></figure>
+  </div>
+  <div class="card"><h3>并行点一览：开几个、同时几个，分别由谁定</h3>
+<p class="sub">图里每一处上下叠放都对应下面一行。规律是：开几个由程序或 controller 定，同时跑几个是 owner 的上限，里面做什么是那个 agent 自己的事。controller 能影响的只有 author 这两行。</p>
+<div class="scroll"><table style="min-width:50rem"><thead><tr><th>并行点</th><th class="num">本例同时</th><th>开几个由谁定</th><th>同时几个由谁定</th><th>内容由谁定</th></tr></thead><tbody><tr><th scope="row">两个作业同时跑</th><td class="num">2</td><td><span class="who w-hard">程序规则</span> <span class="who w-owner">pair=</span></td><td>—</td><td>各自的 agent</td></tr><tr><th scope="row">baseline 和对比里的 check</th><td class="num">8</td><td><span class="who w-hard">全部保留的 check</span></td><td><span class="who w-owner">check_executor.workers；默认 1，widen 后 ≤ 8</span></td><td>check 是 host 写的</td></tr><tr><th scope="row">knockout 导出</th><td class="num">8</td><td><span class="who w-hard">每个 leaf 一个</span></td><td><span class="who w-owner">check_validation.max_workers；默认 4，widen 后 8</span></td><td>程序</td></tr><tr><th scope="row">test designer 会话</th><td class="num">9</td><td><span class="who w-hard">每个目标 leaf 一个</span></td><td><span class="who w-owner">runner_workers；没给就全部同时，最多 32</span></td><td>test designer</td></tr><tr><th scope="row">test reviewer 会话</th><td class="num">6</td><td><span class="who w-hard">每 8 个文件一个</span></td><td><span class="who w-owner">同上</span></td><td>test reviewer</td></tr><tr><th scope="row">写首版的 author 组</th><td class="num">5</td><td><span class="who w-ctrl">parallel=on</span> <span class="who w-hard">否则按层</span></td><td><span class="who w-owner">max_agents；2–8，默认 4；本例 8</span></td><td>author</td></tr><tr><th scope="row">修复的 author 组（下一节）</th><td class="num">2</td><td><span class="who w-ctrl">controller</span></td><td><span class="who w-owner">max_agents</span></td><td>author</td></tr></tbody></table></div></div>
+  <div class="stack">
+    <div class="stage"><header><span class="no">阶段 ③a</span><h3>main job：冻结合同</h3><span class="when">本例 53.5 分钟，全部由程序驱动</span></header><p class="intro">顺序固定：建工作区 → 准备环境 → 抓 baseline → 设计测试 → 再抓 baseline → 封存。封存之前没有检查点，中断了不能续跑。</p><div class="steps"><div class="step"><div class="idx">1</div><div class="what"><div class="t"><span>create_workspace</span><span class="who w-hard">程序写死</span></div><p>建两个工作树：原版（固定在评审过的提交上）和候选（在作业自己的分支上）。在原版上重算计划，必须和评审时一致。</p></div><div class="ex"><span class="h">detectron2 这次</span><div>16 秒</div></div></div><div class="step"><div class="idx">2</div><div class="what"><div class="t"><span>prepare_environment ×2</span><span class="who w-hard">何时跑</span><span class="who w-agent">配方是 host 写的</span></div><p>owner 配了环境配方才有这一步：先原版、后候选，在 worker 本机顺序执行。</p></div><div class="ex"><span class="h">detectron2 这次</span><div>5 秒：拷预编译扩展、链接配置目录</div></div></div><div class="step"><div class="idx">3</div><div class="what"><div class="t"><span>capture_baseline</span><span class="who w-hard">程序写死</span><span class="who w-owner">并发上限</span></div><p>程序在原版上记录“正确答案”：</p><ul class="tight"><li>给原版做指纹（树、check 定义、解释器、输入文件）；有相同指纹的旧 baseline 就直接沿用。</li><li>跑每个保留下来的 check；通过且够轻的重复 3 次确认结果稳定。同时跑几个：<code>check_executor.workers</code>（默认 1，widen 后最多 8）。</li><li><b>leaf 测试验证</b>：每个 check 先在干净导出里复现一遍（对照）；再给每个 leaf 做一个导出，把它独占的函数全改成抛异常（knockout），跑声明覆盖它的 check。一个 check 因行为而失败、再跑一次仍然如此，才算这个 leaf 的<b>有效测试</b>。同时几个导出：<code>check_validation.max_workers</code>（默认 4，widen 后 8）。</li><li>算出哪些 leaf 没有有效测试：它们就是下一步的设计目标。</li></ul></div><div class="ex"><span class="h">detectron2 这次</span><div><b>9.7 分</b>，46 个 check</div><div>7 个 check 在干净导出里复现不了</div><div>4 个选中的 leaf 没有有效测试</div></div></div><div class="step"><div class="idx">4</div><div class="what"><div class="t"><span>design_leaf_tests</span><span class="who w-hard">流程和会话数</span><span class="who w-agent">测试内容、裁决</span><span class="who w-owner">同时几个会话</span></div><p>一次调用内部按轮进行，不是按 leaf：</p><ul class="tight"><li><b>designer 会话</b>：每个目标 leaf 一个，同时开（owner 的 <code>runner_workers</code>，没给就每个目标一个，最多 32）。每个会话在原版的私有副本里读源码和已有测试、写 pytest 测试，可以自己试跑。</li><li><b>程序的静态门</b>：能解析、有断言、不用下划线开头的名字、不 mock、不联网、不起子进程。</li><li><b>原版上试跑</b>：必须通过、重复一致、够轻，并且 knockout 掉自己的 leaf 之后因行为而失败。没过的带着原因进下一轮，最多 2 轮。</li><li><b>reviewer 会话</b>：每 8 个文件一个，同时开；只读不跑，对每个文件给接受或否决。</li><li>被否决的给 designer <b>一次</b>修改机会，再评审一次；然后最终试跑，把通过的文件提交到原版上。</li></ul></div><div class="ex"><span class="h">detectron2 这次</span><div><b>27.5 分</b></div><div>9 个 designer 同时，10.4 分</div><div>试跑 6.7 分</div><div>6 个 reviewer 同时，4.0 分</div><div>最终检查和提交 6.2 分</div><div>接受 35 个测试 + 9 个场景文件（303 个用例）；拒 4 个</div></div></div><div class="step"><div class="idx">5</div><div class="what"><div class="t"><span>capture_baseline（第二次）</span><span class="who w-hard">程序写死</span></div><p>设计只要提交了文件就欠一次重抓：新测试进了原版，baseline 得重新记录，并用完整的 knockout 矩阵再验一遍。没还清之前封存会被拒绝。</p></div><div class="ex"><span class="h">detectron2 这次</span><div><b>14.5 分</b>，90 个 check</div><div>179 对 knockout，127 个行为性 kill</div><div>0 个 leaf 缺有效测试</div></div></div><div class="step"><div class="idx">6</div><div class="what"><div class="t"><span>seal_contract</span><span class="who w-hard">程序写死</span></div><p>确认 baseline 是当前的而且安全；算出 <b>verifier 拥有的文件</b>（全部测试、check 读的文件、测试配置、许可证、carry）；建一个<b>空的</b> authoring 工作区，里面只有合同和知识库；导出验证包；打第一个检查点。同时算出“封顶”：哪些缺口之后任何工具都补不上。<b>封存之后不再设计任何测试。</b></p></div><div class="ex"><span class="h">detectron2 这次</span><div>23 秒，253 个 verifier 文件</div><div>封顶：2 个原版测试函数无法验证 → 最好 completed_with_gaps</div></div></div></div></div>
+    <div class="stage"><header><span class="no">阶段 ③b</span><h3>draft job：写首版</h3><span class="when">本例 77.9 分钟</span></header><p class="intro">轻冻结之后马上开始写，所以和 main job 的设计测试重叠。</p><div class="steps"><div class="step"><div class="idx">1</div><div class="what"><div class="t"><span>轻冻结</span><span class="who w-hard">程序写死</span></div><p>create_workspace → prepare_environment ×2 → capture_baseline → seal_contract。配置里去掉了 leaf 测试策略，所以没有 knockout、没有 design_leaf_tests；check 在本机跑。</p></div><div class="ex"><span class="h">detectron2 这次</span><div>2.9 分（main job 的冻结 53.5 分）</div></div></div><div class="step"><div class="idx">2</div><div class="what"><div class="t"><span>切 scope、排层</span><span class="who w-hard">程序</span></div><p>共享原版文件的功能并成一组；每个 scope 最多 45,000 原版 token；每个 scope 记下它建立在哪些 scope 之上，由此排出层，同一层的 scope 互不依赖。host 和 controller 都不参与这个切分。</p></div><div class="ex"><span class="h">detectron2 这次</span><div>5 个 scope：3.7 万、3.2 万、4.4 万、4.0 万、2.3 万 token</div><div>依赖是一条 5 层的链</div></div></div><div class="step"><div class="idx">3</div><div class="what"><div class="t"><span>首版怎么写</span><span class="who w-ctrl">parallel=on</span><span class="who w-hard">否则按层</span></div><p><b>parallel=on</b>：封存之后，主线每要发起一次写首版的 author 调用，就先问 controller。它的回答就是切法：哪些 scope 同时写、哪些等别人、分几次调用。<b>parallel=off</b>：程序按层写，一层一个 scope 就 <code>run_agent</code>，一层多个就一个 split 组（最多同时 4 个 author）；此时 draft job 里根本没有 controller。controller 不回答或切法不合法时，也退回按层。</p></div><div class="ex"><span class="h">detectron2 这次</span><div><b>第 1 轮，3.2 分</b></div><div>程序的默认：5 层逐层写</div><div>controller 改成：一个 split 组同时写 5 个 scope，并给每个共享的 <code>__init__.py</code> 指定唯一负责的 scope</div><div>然后放行主线到第一次对比</div></div></div><div class="step"><div class="idx">4</div><div class="what"><div class="t"><span>run_parallel_agents（split）</span><span class="who w-ctrl">怎么切</span><span class="who w-owner">同时几个</span><span class="who w-agent">代码怎么写</span><span class="who w-hard">合并规则</span></div><p>每个请求一个新工作区，同时最多 <code>max_agents</code> 个 author 会话，互相看不到对方的代码。每个工作区的改动存成一个候选，然后合并成一个新的当前候选：两个请求改了同一路径时<b>靠前的请求保留</b>，丢了文件的请求由主线逐个重写。整个组只算一次 author 尝试。</p></div><div class="ex"><span class="h">detectron2 这次</span><div><b>38.0 分</b>（5 个会话 17–34 分）</div><div>83 个文件，无冲突</div></div></div><div class="step"><div class="idx">5</div><div class="what"><div class="t"><span>草稿自己的第一次对比</span><span class="who w-hard">主线，controller 已放行</span></div><p>主线自动保存、对比。用的是 draft job 自己的 baseline，也就是原版自带的 check，不含 main job 正在设计的测试。这次对比的结果不算证据，只为让 main job 导入后少修一点。</p></div><div class="ex"><span class="h">detectron2 这次</span><div>3.2 分</div><div>40 个 check 失败，36 个是同一个 ImportError</div></div></div><div class="step"><div class="idx">6</div><div class="what"><div class="t"><span>修复</span><span class="who w-ctrl">controller 决定</span></div><p>从第一次对比起，draft job 的每一步都由它的 controller 决定：修什么、修几轮。</p></div><div class="ex"><span class="h">detectron2 这次</span><div><b>第 2 轮，3.0 分</b></div><div>重新准备候选环境 → 对比：40 → 4 个失败</div><div>一个 repair author 整体修，26.0 分</div></div></div><div class="step"><div class="idx">7</div><div class="what"><div class="t"><span>finish_draft</span><span class="who w-hard">程序强制</span></div><p>main job 一封存，draft job 在下一步之间被强制交出当前候选，controller 这一轮剩下的调用作废。其他结束方式：候选通过了自己的对比；预算用完；controller 自己提前调用。</p></div><div class="ex"><span class="h">detectron2 这次</span><div>main job 在修复进行中封存</div><div>修复结束、保存后立刻交出；计划里的最后一次对比被跳过</div></div></div></div></div>
+  </div>
+</section>
+
+<section id="s4">
+  <h2>④ 导入之后：对比、修复、交付</h2>
+  <p class="body">从这里起只剩 main job。先是程序写死的两步（导入、第一次全量对比），然后 controller 一轮一轮地决定。下图每个紫色括号是 controller 一轮的计划；虚线框是计划里有、但因为前一步没达到条件而没执行的调用。</p>
+  <div class="card tips focusable" id="fig-b">
+    <div class="legend" data-for="fig-b"><span class="hint">颜色 = 谁决定这一步（点一下只看一类）</span><button type="button" class="lg" data-kind="hard" aria-pressed="false"><span class="sw w-hard"></span>程序写死</button><button type="button" class="lg" data-kind="ctrl" aria-pressed="false"><span class="sw w-ctrl"></span>controller 决定</button><span class="lg"><span class="sw w-ghost"></span>计划了但没执行</span></div>
+    <figure><div class="scroll"><svg class="fig" viewBox="0 0 1134 173" role="img" aria-label="detectron2 运行里 main job 导入草稿之后：一次固定的对比，然后 controller 的四轮计划，直到交付" style="min-width:975px"><defs><pattern id="hatch-follow" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="7" height="7" style="fill:var(--w-hard)"/><rect width="3.5" height="7" style="fill:var(--w-ctrl)"/></pattern><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker><marker id="arr-m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:var(--muted)"/></marker></defs><text class="t-lane" x="0" y="54">main job</text><path class="bracket ctrl" d="M196 35 V31 H482 V35"/><text class="t-phase strong" x="339.0" y="26" text-anchor="middle">controller 第 1 轮的计划</text><path class="bracket ctrl" d="M486 35 V31 H946 V35"/><text class="t-phase strong" x="716.0" y="26" text-anchor="middle">controller 第 2 轮的计划</text><g class="blk w-hard" data-tip="import_draft：把 draft job 交出的首版（83 个文件）存成本作业的 candidate-1。
+不调用 author；按保存候选的规则检查（集成、与原版重复度）。
+
+程序写死：固定顺序里的一步，没有问 controller"><rect x="79.5" y="40" width="55.0" height="20" rx="4"/><text x="107.0" y="54" text-anchor="middle">导入</text></g><text class="t-dur" x="107.0" y="71" text-anchor="middle">15 秒</text><g class="blk w-hard" data-tip="compare_behavior（全量）：candidate-1 对比原版 baseline（90 个 check）。
+20 个 check 失败。
+
+导入后的第一次对比仍是固定顺序里的一步；
+它之后 controller 才第一次被询问。
+
+程序写死：固定顺序里的一步，没有问 controller"><rect x="137.5" y="40" width="55.0" height="20" rx="4"/><text x="165.0" y="54" text-anchor="middle">对比</text></g><text class="t-dur" x="165.0" y="71" text-anchor="middle">3.4 分</text><g class="blk w-ctrl" data-tip="controller 第 1 轮（1.4 分钟，$1.24）
+看到的：20 个失败里 16 个是两种相同的报错（缺编译产物、model_zoo 找不到配置）。
+判断：候选工作树是在导入之前准备的，先别花 author。
+计划：重新准备候选环境 → 沿用 baseline → 全量对比 → 安装检查。"><rect x="195.5" y="40" width="55.0" height="20" rx="4"/><rect x="195.5" y="40" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="225.0" y="54" text-anchor="middle">轮 1</text></g><text class="t-dur" x="223.0" y="71" text-anchor="middle">1.4 分</text><g class="blk w-ctrl" data-tip="prepare_environment(target=candidate)：重新跑候选的准备配方。
+
+controller 第 1 轮点名调用"><rect x="253.5" y="40" width="55.0" height="20" rx="4"/><text x="281.0" y="54" text-anchor="middle">备环境</text></g><text class="t-dur" x="281.0" y="71" text-anchor="middle">1 秒</text><g class="blk w-ctrl" data-tip="capture_baseline：指纹没变，直接沿用已有 baseline（没有重跑）。
+
+controller 第 1 轮点名调用"><rect x="311.5" y="40" width="55.0" height="20" rx="4"/><text x="339.0" y="54" text-anchor="middle">基线</text></g><text class="t-dur" x="339.0" y="71" text-anchor="middle">7 秒</text><g class="blk w-ctrl" data-tip="compare_behavior（全量，90 个 check）。
+结果：失败 20 → 4 个
+
+controller 第 1 轮点名调用"><rect x="369.5" y="40" width="55.0" height="20" rx="4"/><text x="397.0" y="54" text-anchor="middle">对比</text></g><text class="t-dur" x="397.0" y="71" text-anchor="middle">2.0 分</text><g class="blk w-ctrl" data-tip="check_installation：在全新的隔离环境里构建、安装、冒烟。
+结果：3 步全过
+
+controller 第 1 轮点名调用"><rect x="427.5" y="40" width="55.0" height="20" rx="4"/><text x="455.0" y="54" text-anchor="middle">安装检查</text></g><text class="t-dur" x="455.0" y="71" text-anchor="middle">1.4 分</text><g class="blk w-ctrl" data-tip="controller 第 2 轮（1.2 分钟，$1.06）
+看到的：重新准备后 16 个失败自己消失，还剩 4 个，分在两组互不相交的文件里。
+计划：一个 split 修复组，两个请求同时修 → 全量对比 → 安装检查 → 选定 → 交付（要求 best_reachable）。
+前一步不成功，后面的就不执行。"><rect x="485.5" y="40" width="55.0" height="20" rx="4"/><rect x="485.5" y="40" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="515.0" y="54" text-anchor="middle">轮 2</text></g><text class="t-dur" x="513.0" y="71" text-anchor="middle">1.2 分</text><g class="blk w-ctrl" data-tip="repair author：修 data-catalog
+4.9 分钟 · 17 轮 · $2.83
+
+拆成几个请求、各修哪些 check：controller 决定
+两个请求各在一个新 workspace 里同时进行，结束后程序把改动合并成一个新候选"><rect x="543.5" y="40" width="171.0" height="20" rx="4"/><rect x="543.5" y="40" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="631.0" y="54" text-anchor="middle">data-catalog</text></g><g class="blk w-ctrl" data-tip="repair author：修 model-zoo + packaging
+17.5 分钟 · 39 轮 · $9.03
+
+拆成几个请求、各修哪些 check：controller 决定
+两个请求各在一个新 workspace 里同时进行，结束后程序把改动合并成一个新候选"><rect x="543.5" y="63" width="171.0" height="20" rx="4"/><rect x="543.5" y="63" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="631.0" y="77" text-anchor="middle">model-zoo + packaging</text></g><text class="t-dur" x="629.0" y="94" text-anchor="middle">19.3 分（含合并）</text><g class="blk w-ctrl" data-tip="compare_behavior（全量，90 个 check）。
+结果：17 个失败（又是环境）
+
+controller 第 2 轮点名调用"><rect x="717.5" y="40" width="55.0" height="20" rx="4"/><text x="745.0" y="54" text-anchor="middle">对比</text></g><text class="t-dur" x="745.0" y="71" text-anchor="middle">3.5 分</text><g class="blk w-ghost" data-tip="check_installation：在 controller 第 2 轮的计划里，但前一步没达到条件（对比没通过），程序没有执行它。"><rect x="775.5" y="40" width="55.0" height="20" rx="4"/><text x="803.0" y="54" text-anchor="middle">安装检查</text></g><g class="blk w-ghost" data-tip="select_candidate：在 controller 第 2 轮的计划里，但前一步没达到条件（对比没通过），程序没有执行它。"><rect x="833.5" y="40" width="55.0" height="20" rx="4"/><text x="861.0" y="54" text-anchor="middle">选定</text></g><g class="blk w-ghost" data-tip="deliver：在 controller 第 2 轮的计划里，但前一步没达到条件（对比没通过），程序没有执行它。"><rect x="891.5" y="40" width="55.0" height="20" rx="4"/><text x="919.0" y="54" text-anchor="middle">交付</text></g><text class="t-lane" x="0" y="148">main job</text><text class="t-lane2" x="0" y="162">（接上一行）</text><path class="bracket ctrl" d="M80 129 V125 H540 V129"/><text class="t-phase strong" x="310.0" y="120" text-anchor="middle">controller 第 3 轮的计划</text><path class="bracket ctrl" d="M544 129 V125 H1120 V129"/><text class="t-phase strong" x="832.0" y="120" text-anchor="middle">controller 第 4 轮的计划</text><g class="blk w-ctrl" data-tip="controller 第 3 轮（0.6 分钟，$0.88）
+看到的：合并后又是那 16 个环境性失败（合并产生了新的工作树）。
+计划：重新准备 → 沿用 baseline → 全量对比 → 安装 → 选定 → 交付；若对比仍失败，单独再跑一次安装检查拿证据。"><rect x="79.5" y="134" width="55.0" height="20" rx="4"/><rect x="79.5" y="134" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="109.0" y="148" text-anchor="middle">轮 3</text></g><text class="t-dur" x="107.0" y="165" text-anchor="middle">33 秒</text><g class="blk w-ctrl" data-tip="prepare_environment(target=candidate)：重新跑候选的准备配方。
+
+controller 第 3 轮点名调用"><rect x="137.5" y="134" width="55.0" height="20" rx="4"/><text x="165.0" y="148" text-anchor="middle">备环境</text></g><text class="t-dur" x="165.0" y="165" text-anchor="middle">1 秒</text><g class="blk w-ctrl" data-tip="capture_baseline：指纹没变，直接沿用已有 baseline（没有重跑）。
+
+controller 第 3 轮点名调用"><rect x="195.5" y="134" width="55.0" height="20" rx="4"/><text x="223.0" y="148" text-anchor="middle">基线</text></g><text class="t-dur" x="223.0" y="165" text-anchor="middle">7 秒</text><g class="blk w-ctrl" data-tip="compare_behavior（全量，90 个 check）。
+结果：只剩 1 个失败
+
+controller 第 3 轮点名调用"><rect x="253.5" y="134" width="55.0" height="20" rx="4"/><text x="281.0" y="148" text-anchor="middle">对比</text></g><text class="t-dur" x="281.0" y="165" text-anchor="middle">1.9 分</text><g class="blk w-ghost" data-tip="check_installation：在 controller 第 3 轮的计划里，但前一步没达到条件（对比没通过），程序没有执行它。"><rect x="311.5" y="134" width="55.0" height="20" rx="4"/><text x="339.0" y="148" text-anchor="middle">安装检查</text></g><g class="blk w-ghost" data-tip="select_candidate：在 controller 第 3 轮的计划里，但前一步没达到条件（对比没通过），程序没有执行它。"><rect x="369.5" y="134" width="55.0" height="20" rx="4"/><text x="397.0" y="148" text-anchor="middle">选定</text></g><g class="blk w-ghost" data-tip="deliver：在 controller 第 3 轮的计划里，但前一步没达到条件（对比没通过），程序没有执行它。"><rect x="427.5" y="134" width="55.0" height="20" rx="4"/><text x="455.0" y="148" text-anchor="middle">交付</text></g><g class="blk w-ctrl" data-tip="check_installation：在全新的隔离环境里构建、安装、冒烟。
+结果：3 步全过
+
+controller 第 3 轮点名调用"><rect x="485.5" y="134" width="55.0" height="20" rx="4"/><text x="513.0" y="148" text-anchor="middle">安装检查</text></g><text class="t-dur" x="513.0" y="165" text-anchor="middle">1.4 分</text><g class="blk w-ctrl" data-tip="controller 第 4 轮（1.1 分钟，$1.18）
+看到的：90 个 check 里 89 个通过，只剩 check-70（model-zoo 场景）的 1 个断言。
+计划：一个定向 repair（model-zoo + config-lazy）→ 保存 → 重新准备 → 沿用 baseline → 全量对比 → 安装 → 选定 → 交付。"><rect x="543.5" y="134" width="55.0" height="20" rx="4"/><rect x="543.5" y="134" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="573.0" y="148" text-anchor="middle">轮 4</text></g><text class="t-dur" x="571.0" y="165" text-anchor="middle">1.1 分</text><g class="blk w-ctrl" data-tip="run_agent(role=repair, capabilities=[model-zoo, config-lazy])：一个 author 定向修 check-70。
+
+controller 第 4 轮点名调用"><rect x="601.5" y="134" width="113.0" height="20" rx="4"/><rect x="601.5" y="134" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="660.0" y="148" text-anchor="middle">修复（1 个 author）</text></g><text class="t-dur" x="658.0" y="165" text-anchor="middle">5.9 分</text><g class="blk w-ctrl" data-tip="save_candidate：把草稿存成 candidate-5。
+
+controller 第 4 轮点名调用"><rect x="717.5" y="134" width="55.0" height="20" rx="4"/><text x="745.0" y="148" text-anchor="middle">保存</text></g><text class="t-dur" x="745.0" y="165" text-anchor="middle">13 秒</text><g class="blk w-ctrl" data-tip="prepare_environment(target=candidate)：重新跑候选的准备配方。
+
+controller 第 4 轮点名调用"><rect x="775.5" y="134" width="55.0" height="20" rx="4"/><text x="803.0" y="148" text-anchor="middle">备环境</text></g><text class="t-dur" x="803.0" y="165" text-anchor="middle">2 秒</text><g class="blk w-ctrl" data-tip="capture_baseline：指纹没变，直接沿用已有 baseline（没有重跑）。
+
+controller 第 4 轮点名调用"><rect x="833.5" y="134" width="55.0" height="20" rx="4"/><text x="861.0" y="148" text-anchor="middle">基线</text></g><text class="t-dur" x="861.0" y="165" text-anchor="middle">8 秒</text><g class="blk w-ctrl" data-tip="compare_behavior（全量，90 个 check）。
+结果：90 个 check 全部通过
+
+controller 第 4 轮点名调用"><rect x="891.5" y="134" width="55.0" height="20" rx="4"/><text x="919.0" y="148" text-anchor="middle">对比</text></g><text class="t-dur" x="919.0" y="165" text-anchor="middle">1.8 分</text><g class="blk w-ctrl" data-tip="check_installation：在全新的隔离环境里构建、安装、冒烟。
+结果：3 步全过
+
+controller 第 4 轮点名调用"><rect x="949.5" y="134" width="55.0" height="20" rx="4"/><text x="977.0" y="148" text-anchor="middle">安装检查</text></g><text class="t-dur" x="977.0" y="165" text-anchor="middle">1.4 分</text><g class="blk w-ctrl" data-tip="select_candidate：选定 candidate-5 作为要交付的版本。
+
+controller 第 4 轮点名调用"><rect x="1007.5" y="134" width="55.0" height="20" rx="4"/><text x="1035.0" y="148" text-anchor="middle">选定</text></g><text class="t-dur" x="1035.0" y="165" text-anchor="middle">9 秒</text><g class="blk w-ctrl" data-tip="deliver(require=best_reachable)：按交付验收报告给出最终状态。
+结果：completed_with_gaps：90/90 通过、安装通过；
+缺口是 2 个原版测试函数在转换时离开了验收
+
+controller 第 4 轮点名调用"><rect x="1065.5" y="134" width="55.0" height="20" rx="4"/><text x="1093.0" y="148" text-anchor="middle">交付</text></g><text class="t-dur" x="1093.0" y="165" text-anchor="middle">2.1 分</text></svg></div><p class="swipe">左右滑动查看 →</p>
+    <figcaption>一轮的回答是一份带条件的计划，不是一个动作：第 2、3 轮都把“安装 → 选定 → 交付”写进去了，但对比没通过，这三步就没触发，controller 被重新询问。</figcaption></figure>
+  </div>
+  <div class="stage"><header><span class="no">阶段 ④</span><h3>main job：导入、对比、修复、交付</h3><span class="when">本例 +78.2 → +127.6 分（作业时钟），49.4 分钟</span></header><div class="steps"><div class="step"><div class="idx">1</div><div class="what"><div class="t"><span>import_draft</span><span class="who w-hard">程序写死</span></div><p>封存之后 main job 等 draft job（最多等自己剩余时间的一半），核对两个作业确实出自同一次评审，只拷生成的文件，按保存候选的规则检查后存成自己的第一个候选，记一次 author 尝试。draft 不可用时 main job 自己写首版。这个工具 controller 看不到。</p></div><div class="ex"><span class="h">detectron2 这次</span><div>等了 24.7 分（draft 的修复还没完）</div><div>83 个文件 → candidate-1</div></div></div><div class="step"><div class="idx">2</div><div class="what"><div class="t"><span>第一次全量对比</span><span class="who w-hard">程序写死</span></div><p><code>compare_behavior()</code> 不带参数就是全量。它<b>只在候选上跑 check</b>，再和存下来的原版 baseline 逐项比：退出码 → 逐个用例 → 输出摘要。原版不会重跑，只核对指纹。baseline 里标了可并行的 check 在树的副本里同时跑，结果和 baseline 不一致的再单独跑一遍为准。</p></div><div class="ex"><span class="h">detectron2 这次</span><div>3.4 分，90 个 check</div><div>20 个失败</div></div></div><div class="step"><div class="idx">3</div><div class="what"><div class="t"><span>controller 第一次被问</span><span class="who w-ctrl">controller 决定</span></div><p>从这里起每一步都是 controller 的决定。它看不到源码和测试，只看失败摘要：哪个 check（只有编号）、属于哪个功能、错误类型、出错位置在候选的哪一行。它的工具不被任何修复策略限制，只有破坏作业完整性的调用会被拒绝。</p></div><div class="ex"><span class="h">detectron2 这次</span><div>本例 4 轮，共 4.2 分钟</div></div></div><div class="step"><div class="idx">4</div><div class="what"><div class="t"><span>修复循环</span><span class="who w-ctrl">修什么、怎么拆</span><span class="who w-agent">怎么改代码</span><span class="who w-hard">保存时的检查</span></div><p>典型的一轮：<code>run_agent(role=repair)</code> 或一个修复组 → <code>save_candidate</code> → <code>compare_behavior</code>（可以先点名几个 check 做筛查，再全量）→ <code>check_installation</code>。保存时程序做集成检查（不许写测试、不许遮蔽标准库）并测量与原版的重复度（默认只报告，不拒绝）。repair author 比首版 author 多拿到一样东西：失败断言比较的两个值。</p><div class="scroll"><table style="min-width:38rem"><thead><tr><th></th><th>controller 看到的</th><th>它的计划</th><th>结果</th></tr></thead><tbody><tr><th scope="row">第 1 轮<br><span class="muted mono">1.4 分</span></th><td>20 个失败里 16 个是两种相同的报错：编译产物缺失、model zoo 找不到配置。候选工作树是导入之前准备的。</td><td>先别花 author：重新准备候选环境 → 沿用 baseline → 全量对比 → 安装检查</td><td>失败 20 → 4；安装通过</td></tr><tr><th scope="row">第 2 轮<br><span class="muted mono">1.2 分</span></th><td>剩 4 个失败，分在两组互不相交的文件里（data-catalog；model-zoo 和 packaging）。</td><td>一个 split 修复组，两个请求同时修（只花一次 author 尝试）→ 全量对比 → 安装 → 选定 → 交付</td><td>修复组 19.3 分；对比又出 17 个失败；后三步没触发</td></tr><tr><th scope="row">第 3 轮<br><span class="muted mono">0.6 分</span></th><td>这 17 个里 16 个正是第 1 轮那批环境性失败：合并产生了新的工作树，准备好的产物又丢了。</td><td>重新准备 → 沿用 baseline → 全量对比 → 安装 → 选定 → 交付；对比不过就单独再跑一次安装检查取证</td><td>只剩 1 个失败；安装通过</td></tr><tr><th scope="row">第 4 轮<br><span class="muted mono">1.1 分</span></th><td>90 个 check 过了 89 个，只剩 model-zoo 场景里的 1 个断言。</td><td>一个定向 repair（model-zoo + config-lazy）→ 保存 → 重新准备 → 全量对比 → 安装 → 选定 → 交付</td><td>修复 5.9 分；90 / 90 通过；交付</td></tr></tbody></table></div></div><div class="ex"><span class="h">detectron2 这次</span><div>两轮半花在同一个环境问题上：每换一次候选，预编译产物就丢一次</div><div>这是 controller 自己判断出来并绕过去的，不是程序规则</div></div></div><div class="step"><div class="idx">5</div><div class="what"><div class="t"><span>check_installation</span><span class="who w-ctrl">或主线受托</span></div><p>在全新的虚拟环境里按 owner 的步骤构建、安装、冒烟；第一步失败就停。永远在 worker 本机顺序执行。它排在第一次对比之后，所以不在程序写死的那一段里。</p></div><div class="ex"><span class="h">detectron2 这次</span><div>每次 1.4 分，3 步全过</div></div></div><div class="step"><div class="idx">6</div><div class="what"><div class="t"><span>select_candidate → deliver</span><span class="who w-ctrl">何时交、要求多高</span><span class="who w-hard">状态怎么定</span></div><p><code>deliver</code> 要求当前代码有一次全量对比。<code>require</code> 是 controller 给自己设的门槛：<code>best_reachable</code> 表示只要还有工具能补的缺口就不交。最终状态由程序按验收报告给出：<code>succeeded</code>（没有缺口）、<code>completed_with_gaps</code>（没有失败，但有证据缺口）、<code>delivered_with_failures</code>（带着失败交付）。</p></div><div class="ex"><span class="h">detectron2 这次</span><div><code>completed_with_gaps</code></div><div>缺口：2 个原版测试函数在转换时离开了验收</div></div></div><div class="step"><div class="idx">7</div><div class="what"><div class="t"><span>交付之后</span><span class="who w-hard">程序</span><span class="who w-agent">host 汇报</span></div><p>结果在仓库里的一个本地分支上，仓库旁边另有一份单提交的独立拷贝和一个本地报告页；不 push、不 merge。交付后再把留在验收之外的原版测试在交付的代码上重放一遍，只报告，不改状态。host 最后汇报状态、缺口和位置。</p></div><div class="ex"><span class="h">detectron2 这次</span><div>重放 2.1 分</div><div>host 在作业结束后读到最终状态并汇报</div></div></div></div></div>
+  
+<div class="card"><h3>什么会让修复停下来</h3>
+<ul class="plain">
+<li>修复轮数<b>没有硬上限</b>。程序的建议是连续 3 轮失败数不降就恢复最好的候选并停手，但这只是建议，controller 可以不听。</li>
+<li>真正的上限是预算：author 尝试次数（默认不限）、作业时间（按原版大小 4 到 48 小时）、token 上限（默认没有）、controller 轮数（每小时 20 轮，最少 100、最多 1000）。</li>
+<li>controller 连续 3 轮给不出可用的回答，这次启动剩下的部分就全走主线。此时主线交付用的门槛是最宽的 <code>any</code>。</li>
+</ul></div>
+</section>
+
+<section id="round">
+  <h2>controller 的一轮：进去什么，出来什么</h2>
+  <p class="body">controller 不是一个一直在线的 agent。每到需要决定的地方，程序起一个全新的会话，把当时的状态写成文件给它，它回一个 JSON，会话就结束了。</p>
+  <div class="cards wide">
+    <div class="card"><span class="n">输入：一个只读工作区</span>
+      <ul class="tight">
+        <li><code>context.json</code>：这一轮的全部上下文（本例约 10 万字节）</li>
+        <li><code>contract.json</code>、<code>knowledge/</code>：合同和行为知识库</li>
+        <li><code>history.jsonl</code>：作业做过的每个操作</li>
+        <li><code>issues.jsonl</code>：每个失败问题的全部观察</li>
+      </ul>
+      <p><code>context.json</code> 里最要紧的几段：<code>tools</code>（它能调的每个工具、参数格式、此刻被挡的原因）；<code>advice</code>（主线此刻会怎么做）；<code>last_results</code>（最近 40 个结果）；<code>handoff</code>（未解决问题的摘要）；<code>acceptance</code>（离交付还差哪些缺口）；<code>budget</code>；parallel 模式下还有 <code>parallel</code> 和 <code>first_implementation</code>。</p></div>
+    <div class="card"><span class="n">输出：一个 JSON</span>
+      <p><code>{"calls": [...], "reason": "...", "follow": {...}}</code></p>
+      <ul class="tight">
+        <li><code>calls</code>：最多 24 个工具调用，每个带 <code>tool</code>、参数、可选的条件 <code>when</code></li>
+        <li><code>when: {call: N, outcome: [...]}</code>：前面第 N 个调用以这些结果之一结束才执行</li>
+        <li><code>"$N.field"</code>：引用前面第 N 个调用结果里的字段</li>
+        <li><code>follow: {until, max_steps}</code>：把接下来的机械步骤交还主线，最多 20 步</li>
+        <li><code>reason</code>：理由，写进作业记录</li>
+      </ul></div>
+    <div class="card"><span class="n">程序怎么执行这份回答</span>
+      <ul class="tight">
+        <li>按顺序，一次一个；每个调用过工具自己的前提检查，被挡是一个结果，不是错误</li>
+        <li>改状态的调用失败后，后面不带条件的调用跳过，带条件的照常判断</li>
+        <li><code>follow</code> 期间主线不再问它；遇到修复、恢复、暂停、交付这类“要做决定”的地方就停下来再问</li>
+        <li>回答不合法：同一轮给一次改正机会；再不行就走主线的下一步</li>
+        <li>它点了看不到的工具，或者写了文件：这一轮作废</li>
+      </ul></div>
+  </div>
+  <div class="card"><h3>真实的一份回答：main job 第 2 轮</h3>
+    <p class="sub">理由（原文为英文，大意）：重新准备环境后 20 个失败里 16 个不改代码就消失了，还剩 4 个，落在两组互不相交的文件里，所以用一个 split 修复组、每组文件一个请求，只花一次 author 尝试而且同时进行。组顺利结束就接着全量对比、安装检查、选定并按 best_reachable 交付；任何一步不成，后面的就不触发，留给下一轮。</p>
+    <div class="scroll"><table style="min-width:40rem">
+      <thead><tr><th class="num">#</th><th>工具</th><th>参数</th><th>条件 when</th><th>实际</th></tr></thead><tbody><tr><td class="num">1</td><td class="mono">run_parallel_agents</td><td>group=split，2 个 repair 请求</td><td>无条件</td><td><b>done</b></td></tr><tr><td class="num">2</td><td class="mono">compare_behavior</td><td>全量</td><td>第 1 个调用结果是 done</td><td><b>regressed（17 个失败）</b></td></tr><tr><td class="num">3</td><td class="mono">check_installation</td><td></td><td>第 2 个调用结果是 checks_passed</td><td><span class="muted">未触发</span></td></tr><tr><td class="num">4</td><td class="mono">select_candidate</td><td>candidate_id = "$1.candidate_id"</td><td>第 3 个调用结果是 passed</td><td><span class="muted">未触发</span></td></tr><tr><td class="num">5</td><td class="mono">deliver</td><td>require=best_reachable</td><td>第 4 个调用结果是 selected 或 done</td><td><span class="muted">未触发</span></td></tr></tbody></table></div>
+    <p class="sub">这一轮 controller 会话用了 1.2 分钟；它排的 5 个调用里执行了 2 个，共 22.8 分钟。</p>
+  </div>
+</section>
+
+<section id="who">
+  <h2>谁说了算：一张表</h2>
+  <p class="body">把前面各阶段的决定收在一起。读法：controller 管的是“切什么、修什么、何时交”；程序管的是没有取舍、或关系到证据可信的部分；owner 只设开关和上限；其他 agent 只决定自己产出的内容。</p>
+  <div class="card"><div class="scroll"><table style="min-width:52rem">
+    <thead><tr><th>决定</th><th>谁</th><th>规则或上限</th><th>detectron2 这次</th></tr></thead>
+    <tbody><tr class="grp"><th colspan="4">作业之外</th></tr><tr><th scope="row">保留哪些功能、哪些必需、依赖关系</th><td><span class="who w-agent">host</span></td><td>程序只校验形式</td><td class="muted">85 个 capability</td></tr><tr><th scope="row">每个 check 的命令和比较方式</th><td><span class="who w-agent">host</span></td><td>每个选中的 leaf 至少一个 check，至少一个按输出比较</td><td class="muted">62 个 check</td></tr><tr><th scope="row">提交哪个范围</th><td><span class="who w-owner">owner</span></td><td>有人值守时人在页面上选；无人值守用 scope= 预设</td><td class="muted">core：21.7 万 token</td></tr><tr><th scope="row">一个作业还是两个</th><td><span class="who w-hard">程序规则</span></td><td>≥ 20,000 token + 有计算节点；owner 可用 pair= 强制</td><td class="muted">两个</td></tr><tr><th scope="row">parallel 模式和它的上限</th><td><span class="who w-owner">owner</span></td><td>controller 改不了</td><td class="muted">开，max_agents 8</td></tr><tr><th scope="row">作业出问题后取消重交</th><td><span class="who w-agent">host</span></td><td>只在无人值守时由 host 自己决定</td><td class="muted">取消过一次</td></tr><tr class="grp"><th colspan="4">冻结</th></tr><tr><th scope="row">冻结各步的顺序</th><td><span class="who w-hard">程序</span></td><td>固定；封存前不问 controller</td><td class="muted">6 步</td></tr><tr><th scope="row">给哪些 leaf 设计测试</th><td><span class="who w-hard">程序</span></td><td>baseline 里没有有效测试的 leaf，加上有原版测试要迁移的 leaf</td><td class="muted">9 个 leaf</td></tr><tr><th scope="row">开几个 designer / reviewer 会话</th><td><span class="who w-hard">程序</span></td><td>每个目标 leaf 一个；每 8 个文件一个 reviewer</td><td class="muted">9 + 6</td></tr><tr><th scope="row">同时开几个 designer 会话</th><td><span class="who w-owner">owner</span></td><td>runner_workers；没给就全部同时，最多 32；不受 widen 影响</td><td class="muted">9 个同时</td></tr><tr><th scope="row">测试写什么</th><td><span class="who w-agent">test designer</span></td><td>每个 leaf 每轮最多 8 个文件</td><td class="muted">35 个测试 + 9 个场景文件</td></tr><tr><th scope="row">测试接受还是否决</th><td><span class="who w-agent">test reviewer</span></td><td>否决后 designer 只有一次修改机会；没有裁决的文件按否决算</td><td class="muted">拒 4 个</td></tr><tr><th scope="row">测试算不算有效</th><td><span class="who w-hard">程序</span></td><td>原版上通过、稳定、够轻、knockout 后因行为失败</td><td class="muted"></td></tr><tr><th scope="row">同时跑几个 check、几个 knockout 导出</th><td><span class="who w-owner">owner</span></td><td>默认 1 和 4；widen 后 ≤8 和 8</td><td class="muted">8 和 8</td></tr><tr class="grp"><th colspan="4">写首版</th></tr><tr><th scope="row">怎么切 scope、怎么排层</th><td><span class="who w-hard">程序</span></td><td>每个 scope ≤ 45,000 原版 token；共享文件的功能不拆开</td><td class="muted">5 个 scope，5 层</td></tr><tr><th scope="row">首版分几次调用、哪些 scope 同时写</th><td><span class="who w-ctrl">controller（parallel=on）</span></td><td>parallel=off 或它不回答时由程序按层写</td><td class="muted">一个组同时写 5 个</td></tr><tr><th scope="row">一个组里同时几个 author</th><td><span class="who w-owner">owner</span></td><td>max_agents 2–8；模式关着时程序用 4</td><td class="muted">8（实际 5 个）</td></tr><tr><th scope="row">代码怎么写</th><td><span class="who w-agent">author</span></td><td>只能在自己的工作区里写；不能写测试</td><td class="muted"></td></tr><tr><th scope="row">两个 author 改了同一文件听谁的</th><td><span class="who w-hard">程序</span></td><td>靠前的请求保留；丢文件的请求由主线重写</td><td class="muted">无冲突</td></tr><tr><th scope="row">draft job 何时结束</th><td><span class="who w-hard">程序</span></td><td>main job 封存、通过自己的对比或预算用完；controller 可提前结束</td><td class="muted">main 封存时强制</td></tr><tr class="grp"><th colspan="4">对比、修复、交付</th></tr><tr><th scope="row">controller 何时第一次被问</th><td><span class="who w-hard">程序</span></td><td>第一次全量对比之后；parallel 模式下还包括封存后每次写首版之前</td><td class="muted">main +81.8 分；draft +2.9 分</td></tr><tr><th scope="row">修不修、修什么、给 author 什么指示</th><td><span class="who w-ctrl">controller</span></td><td>指示最多 4000 字；只说做什么和在哪，不给代码</td><td class="muted">3 次修复</td></tr><tr><th scope="row">一个 repair 还是一个修复组</th><td><span class="who w-ctrl">controller</span></td><td>修复组要 parallel 模式；每组 2–20 个请求</td><td class="muted">1 个组（2 个请求）+ 2 次单独修复</td></tr><tr><th scope="row">对比哪些 check、何时对比</th><td><span class="who w-ctrl">controller</span></td><td>点名 check 是筛查，不算验收；全量才算</td><td class="muted">controller 点了 6 次全量对比</td></tr><tr><th scope="row">对比怎么判</th><td><span class="who w-hard">程序</span></td><td>退出码 → 逐用例 → 输出摘要</td><td class="muted"></td></tr><tr><th scope="row">把机械步骤交还主线、交多远</th><td><span class="who w-ctrl">controller</span></td><td>follow，最多 20 步，遇到要决定的地方停</td><td class="muted">draft 第 1 轮用了</td></tr><tr><th scope="row">选哪个候选、何时交付、门槛多高</th><td><span class="who w-ctrl">controller</span></td><td>deliver 需要当前代码的全量对比</td><td class="muted">best_reachable</td></tr><tr><th scope="row">交付状态</th><td><span class="who w-hard">程序</span></td><td>按验收报告：succeeded / completed_with_gaps / delivered_with_failures</td><td class="muted">completed_with_gaps</td></tr><tr><th scope="row">push 到远端</th><td><span class="who w-owner">owner</span></td><td>只有 succeeded 且 owner 配了远端才 push</td><td class="muted">没配</td></tr></tbody></table></div></div>
+</section>
+
+<section id="tools">
+  <span class="part">第二部分　TOOLS</span>
+  <h2>工具目录：controller 能调什么</h2>
+  <p class="body">作业的每一步都是一次工具调用；主线、controller 和 owner 手工调用走的是同一套工具、同一套前提检查。代码里一共注册了 <b>46 个</b>工具。默认作业里 controller 的工具表有 <b>29 个</b>；其余 17 个里，9 个查询类工具对它隐藏（信息已在上下文里），<code>import_draft</code> 归主线，7 个要特定开关或特定作业才出现。<b>点任意一个工具</b>：橙色边是它的前提，绿色边是它解锁的工具，上方面板给出细节。</p>
+  <div class="toolsview">
+    <div id="tool-panel" hidden></div>
+    <div class="tgroup"><h3>冻结合同　<span class="muted" style="font-weight:400;font-size:0.875rem">5 个</span></h3><p class="sub">封存之前由主线按固定顺序调用；controller 第一次被问时合同早已封存，其中三个对它永远是 blocked。</p><div class="tgrid"><button type="button" class="tool" data-name="create_workspace" aria-pressed="false"><span class="nm">create_workspace</span><span class="ds">建原版和候选两个工作树，重算计划，做 readiness 审计</span><span class="tags"><span class="tag ">可见</span><span class="tag t-hard">主线</span></span></button><button type="button" class="tool" data-name="prepare_environment" aria-pressed="false"><span class="nm">prepare_environment</span><span class="ds">在原版或候选的工作树里跑 owner 的环境准备配方</span><span class="tags"><span class="tag ">可见</span><span class="tag t-hard">主线（冻结时）</span><span class="tag t-ctrl">controller（封存后）</span></span></button><button type="button" class="tool" data-name="capture_baseline" aria-pressed="false"><span class="nm">capture_baseline</span><span class="ds">在原版上跑 check、做 leaf 测试验证，记录 baseline</span><span class="tags"><span class="tag ">可见</span><span class="tag t-hard">主线</span><span class="tag t-ctrl">controller</span></span></button><button type="button" class="tool" data-name="design_leaf_tests" aria-pressed="false"><span class="nm">design_leaf_tests</span><span class="ds">给没有有效测试的 leaf 设计并评审测试，提交到原版上</span><span class="tags"><span class="tag ">可见</span><span class="tag sess">启动会话</span><span class="tag t-hard">主线</span></span></button><button type="button" class="tool" data-name="seal_contract" aria-pressed="false"><span class="nm">seal_contract</span><span class="ds">核对 baseline、建 authoring 工作区、导出验证包、打第一个检查点</span><span class="tags"><span class="tag ">可见</span><span class="tag t-hard">主线</span></span></button></div></div><div class="tgroup"><h3>写代码　<span class="muted" style="font-weight:400;font-size:0.875rem">5 个</span></h3><p class="sub">只有这一组会启动 author 会话。author 只写草稿，保存之后才是候选。</p><div class="tgrid"><button type="button" class="tool" data-name="run_agent" aria-pressed="false"><span class="nm">run_agent</span><span class="ds">在作业的 authoring 工作区里调一次 author</span><span class="tags"><span class="tag ">可见</span><span class="tag sess">启动会话</span><span class="tag t-hard">主线（首版）</span><span class="tag t-ctrl">controller</span></span></button><button type="button" class="tool" data-name="run_parallel_agents" aria-pressed="false"><span class="nm">run_parallel_agents</span><span class="ds">一个并行组：2 到 20 个同角色的 author 请求，各在新工作区里同时写</span><span class="tags"><span class="tag ">可见</span><span class="tag sess">启动会话</span><span class="tag t-hard">主线（首版的层）</span><span class="tag t-ctrl">controller</span></span></button><button type="button" class="tool" data-name="create_implementation_workspace" aria-pressed="false"><span class="nm">create_implementation_workspace</span><span class="ds">建一个独立的实现工作区，空的或从某个候选起步</span><span class="tags"><span class="tag ">可见</span><span class="tag t-ctrl">controller</span></span></button><button type="button" class="tool" data-name="run_workspace_agents" aria-pressed="false"><span class="nm">run_workspace_agents</span><span class="ds">在最多 20 个已有的实现工作区里各调一次 author</span><span class="tags"><span class="tag ">可见</span><span class="tag sess">启动会话</span><span class="tag t-ctrl">controller</span></span></button><button type="button" class="tool" data-name="save_workspace_candidate" aria-pressed="false"><span class="nm">save_workspace_candidate</span><span class="ds">把一个实现工作区的草稿存成候选</span><span class="tags"><span class="tag ">可见</span><span class="tag t-ctrl">controller</span></span></button></div></div><div class="tgroup"><h3>候选管理　<span class="muted" style="font-weight:400;font-size:0.875rem">6 个</span></h3><p class="sub">候选是集成、提交、归档过的一版代码。这一组不调用任何模型。</p><div class="tgrid"><button type="button" class="tool" data-name="save_candidate" aria-pressed="false"><span class="nm">save_candidate</span><span class="ds">把当前草稿集成、提交、归档成下一个候选</span><span class="tags"><span class="tag ">可见</span><span class="tag t-hard">主线（首次对比前）</span><span class="tag t-ctrl">controller</span></span></button><button type="button" class="tool" data-name="restore_candidate" aria-pressed="false"><span class="nm">restore_candidate</span><span class="ds">把一个已保存候选的文件放回来，存成新候选</span><span class="tags"><span class="tag ">可见</span><span class="tag t-ctrl">controller</span></span></button><button type="button" class="tool" data-name="merge_candidate_parts" aria-pressed="false"><span class="nm">merge_candidate_parts</span><span class="ds">从几个已保存候选里各取一部分文件，合成新候选</span><span class="tags"><span class="tag ">可见</span><span class="tag t-ctrl">controller</span></span></button><button type="button" class="tool" data-name="select_candidate" aria-pressed="false"><span class="nm">select_candidate</span><span class="ds">选定要交付的候选</span><span class="tags"><span class="tag ">可见</span><span class="tag t-ctrl">controller</span></span></button><button type="button" class="tool" data-name="list_candidate_files" aria-pressed="false"><span class="nm">list_candidate_files</span><span class="ds">列出一个候选的文件名、字节数、行数</span><span class="tags"><span class="tag ">可见</span><span class="tag t-ctrl">controller</span></span></button><button type="button" class="tool" data-name="compare_candidates" aria-pressed="false"><span class="nm">compare_candidates</span><span class="ds">比较两个候选：各自独有的文件、改动的行数</span><span class="tags"><span class="tag ">可见</span><span class="tag t-ctrl">controller</span></span></button></div></div><div class="tgroup"><h3>验证　<span class="muted" style="font-weight:400;font-size:0.875rem">5 个</span></h3><p class="sub">verifier 的入口。封存之后可以按任意顺序、反复调用。</p><div class="tgrid"><button type="button" class="tool" data-name="compare_behavior" aria-pressed="false"><span class="nm">compare_behavior</span><span class="ds">在候选上跑 check，和原版 baseline 逐项对比</span><span class="tags"><span class="tag ">可见</span><span class="tag t-hard">主线（第一次）</span><span class="tag t-ctrl">controller</span></span></button><button type="button" class="tool" data-name="run_checks" aria-pressed="false"><span class="nm">run_checks</span><span class="ds">按原样跑 check，不和原版比</span><span class="tags"><span class="tag ">可见</span><span class="tag t-hard">主线</span><span class="tag t-ctrl">controller</span></span></button><button type="button" class="tool" data-name="check_installation" aria-pressed="false"><span class="nm">check_installation</span><span class="ds">在全新的隔离环境里按 owner 的步骤构建、安装、冒烟</span><span class="tags"><span class="tag ">可见</span><span class="tag t-ctrl">controller</span></span></button><button type="button" class="tool" data-name="compare_performance" aria-pressed="false"><span class="nm">compare_performance</span><span class="ds">在冻结的性能基准上测量候选和原版</span><span class="tags"><span class="tag cond">有条件</span><span class="tag t-ctrl">controller</span></span></button><button type="button" class="tool" data-name="compare_task_effort" aria-pressed="false"><span class="nm">compare_task_effort</span><span class="ds">在行为已被接受的候选上跑任务基准</span><span class="tags"><span class="tag ">可见</span><span class="tag sess">启动会话</span><span class="tag t-ctrl">controller</span></span></button></div></div><div class="tgroup"><h3>交付　<span class="muted" style="font-weight:400;font-size:0.875rem">1 个</span></h3><div class="tgrid"><button type="button" class="tool" data-name="deliver" aria-pressed="false"><span class="nm">deliver</span><span class="ds">按当前代码的证据交付当前候选</span><span class="tags"><span class="tag ">可见</span><span class="tag t-ctrl">controller</span></span></button></div></div><div class="tgroup"><h3>pair 专用　<span class="muted" style="font-weight:400;font-size:0.875rem">2 个</span></h3><p class="sub">两个作业之间交接首版用。</p><div class="tgrid"><button type="button" class="tool hidden-tool" data-name="import_draft" aria-pressed="false"><span class="nm">import_draft</span><span class="ds">main job 封存后等 draft job 的首版，导入成自己的第一个候选</span><span class="tags"><span class="tag hid">隐藏</span><span class="tag t-hard">主线</span></span></button><button type="button" class="tool" data-name="finish_draft" aria-pressed="false"><span class="nm">finish_draft</span><span class="ds">draft job 把当前候选封存为交给 main job 的首版</span><span class="tags"><span class="tag cond">有条件</span><span class="tag t-hard">主线（强制）</span><span class="tag t-ctrl">controller</span></span></button></div></div><div class="tgroup"><h3>合同变更　<span class="muted" style="font-weight:400;font-size:0.875rem">2 个</span></h3><p class="sub">封存之后想改检查范围时用；每次变更都要重新抓 baseline。</p><div class="tgrid"><button type="button" class="tool" data-name="save_contract" aria-pressed="false"><span class="nm">save_contract</span><span class="ds">保存一份诊断合同：只挑一部分 check，加上给 author 的说明</span><span class="tags"><span class="tag ">可见</span><span class="tag t-ctrl">controller</span></span></button><button type="button" class="tool" data-name="request_revision" aria-pressed="false"><span class="nm">request_revision</span><span class="ds">向 owner 提议追加 check 或替换知识库</span><span class="tags"><span class="tag ">可见</span><span class="tag t-ctrl">controller</span></span></button></div></div><div class="tgroup"><h3>记录、提问、取消　<span class="muted" style="font-weight:400;font-size:0.875rem">5 个</span></h3><p class="sub">不改变候选状态，随时可调。</p><div class="tgrid"><button type="button" class="tool" data-name="record_unknown" aria-pressed="false"><span class="nm">record_unknown</span><span class="ds">记一个未决问题，留给后面的轮次和 owner</span><span class="tags"><span class="tag ">可见</span><span class="tag t-ctrl">controller</span></span></button><button type="button" class="tool" data-name="request_clarification" aria-pressed="false"><span class="nm">request_clarification</span><span class="ds">向 owner 提一个具体问题</span><span class="tags"><span class="tag ">可见</span><span class="tag t-ctrl">controller</span></span></button><button type="button" class="tool" data-name="flag_check" aria-pressed="false"><span class="nm">flag_check</span><span class="ds">标记某个 check 可能把重写限制得过死</span><span class="tags"><span class="tag ">可见</span><span class="tag t-ctrl">controller</span></span></button><button type="button" class="tool" data-name="get_knowledge" aria-pressed="false"><span class="nm">get_knowledge</span><span class="ds">读冻结的行为知识库里的记录</span><span class="tags"><span class="tag ">可见</span><span class="tag t-ctrl">controller</span></span></button><button type="button" class="tool" data-name="cancel_operation" aria-pressed="false"><span class="nm">cancel_operation</span><span class="ds">取消一个后台操作</span><span class="tags"><span class="tag ">可见</span><span class="tag t-ctrl">controller</span></span></button></div></div><div class="tgroup"><h3>任务评估　<span class="muted" style="font-weight:400;font-size:0.875rem">6 个</span></h3><p class="sub">只在 tasks=on 的作业里有意义；后五个还要 owner 另外打开 task_trials 才对 controller 可见。</p><div class="tgrid"><button type="button" class="tool" data-name="prepare_tasks" aria-pressed="false"><span class="nm">prepare_tasks</span><span class="ds">设计任务基准，并在原版上测量</span><span class="tags"><span class="tag ">可见</span><span class="tag sess">启动会话</span><span class="tag t-hard">主线</span></span></button><button type="button" class="tool" data-name="design_tasks" aria-pressed="false"><span class="nm">design_tasks</span><span class="ds">只跑任务设计者，保存它设计的任务集</span><span class="tags"><span class="tag cond">有条件</span><span class="tag sess">启动会话</span><span class="tag t-ctrl">controller</span></span></button><button type="button" class="tool" data-name="save_task_suite" aria-pressed="false"><span class="nm">save_task_suite</span><span class="ds">校验并保存一份任务集</span><span class="tags"><span class="tag cond">有条件</span><span class="tag t-ctrl">controller</span></span></button><button type="button" class="tool" data-name="run_task_trial" aria-pressed="false"><span class="nm">run_task_trial</span><span class="ds">在原版或当前候选的副本上跑一个 solver</span><span class="tags"><span class="tag cond">有条件</span><span class="tag sess">启动会话</span><span class="tag t-ctrl">controller</span></span></button><button type="button" class="tool" data-name="grade_task_trial" aria-pressed="false"><span class="nm">grade_task_trial</span><span class="ds">给一次 trial 的解答打分</span><span class="tags"><span class="tag cond">有条件</span><span class="tag sess">启动会话</span><span class="tag t-ctrl">controller</span></span></button><button type="button" class="tool" data-name="compare_task_trials" aria-pressed="false"><span class="nm">compare_task_trials</span><span class="ds">比较原版臂和候选臂的两次 trial</span><span class="tags"><span class="tag cond">有条件</span><span class="tag t-ctrl">controller</span></span></button></div></div><div class="tgroup"><h3>controller 看不到的查询　<span class="muted" style="font-weight:400;font-size:0.875rem">9 个</span></h3><p class="sub">同样的信息已经在它每轮的上下文或工作区文件里。owner 仍可用 job-call 手工调用。</p><div class="tgrid"><button type="button" class="tool hidden-tool" data-name="get_run_state" aria-pressed="false"><span class="nm">get_run_state</span><span class="ds">作业状态快照</span><span class="tags"><span class="tag hid">隐藏</span><span class="tag ">owner</span></span></button><button type="button" class="tool hidden-tool" data-name="get_operation_status" aria-pressed="false"><span class="nm">get_operation_status</span><span class="ds">按编号读一个操作</span><span class="tags"><span class="tag hid">隐藏</span><span class="tag ">owner</span></span></button><button type="button" class="tool hidden-tool" data-name="get_operation_history" aria-pressed="false"><span class="nm">get_operation_history</span><span class="ds">分页读作业的全部操作</span><span class="tags"><span class="tag hid">隐藏</span><span class="tag ">owner</span></span></button><button type="button" class="tool hidden-tool" data-name="get_feedback_history" aria-pressed="false"><span class="nm">get_feedback_history</span><span class="ds">分页读每个失败问题和它的全部观察</span><span class="tags"><span class="tag hid">隐藏</span><span class="tag ">owner</span></span></button><button type="button" class="tool hidden-tool" data-name="get_workspace_status" aria-pressed="false"><span class="nm">get_workspace_status</span><span class="ds">读各个实现工作区的状态和调用记录</span><span class="tags"><span class="tag hid">隐藏</span><span class="tag ">owner</span></span></button><button type="button" class="tool hidden-tool" data-name="audit_coverage" aria-pressed="false"><span class="nm">audit_coverage</span><span class="ds">原版需求的覆盖审计：每个 leaf 有哪些 check</span><span class="tags"><span class="tag hid">隐藏</span><span class="tag ">owner</span></span></button><button type="button" class="tool hidden-tool" data-name="measure_code" aria-pressed="false"><span class="nm">measure_code</span><span class="ds">测量工作树的代码量和结构</span><span class="tags"><span class="tag hid">隐藏</span><span class="tag ">owner</span></span></button><button type="button" class="tool hidden-tool" data-name="evaluate_acceptance" aria-pressed="false"><span class="nm">evaluate_acceptance</span><span class="ds">列出当前代码离验收还差哪些缺口</span><span class="tags"><span class="tag hid">隐藏</span><span class="tag ">owner</span></span></button><button type="button" class="tool hidden-tool" data-name="run_benchmark" aria-pressed="false"><span class="nm">run_benchmark</span><span class="ds">跑指定的 check 并报告用时</span><span class="tags"><span class="tag hid">隐藏</span><span class="tag ">owner</span></span></button></div></div>
+  </div>
+  <details><summary>全部 46 个工具的参数、前提和结果（展开成一张表）</summary>
+<div class="scroll"><table style="min-width:64rem"><thead><tr><th>工具（参数）</th><th>做什么</th><th>调用前提</th><th>可能的结果</th><th>controller 能否调</th></tr></thead>
+<tbody><tr class="grp"><th colspan="5">冻结合同</th></tr><tr><td class="mono">create_workspace<br><span class="muted">()</span></td><td>建原版和候选两个工作树，重算计划，做 readiness 审计。不准备环境，也不运行任何 check。结果里带 readiness 结论、leaf 测试策略和这个作业的冻结步骤。</td><td>合同还没封存<br>只能调一次<br>封存之后不能再调（seal_contract）</td><td class="mono">created / blocked</td><td>可见：列在表里，但 controller 被问到时合同已封存，永远 blocked</td></tr><tr><td class="mono">prepare_environment<br><span class="muted">(target, check_names)</span></td><td>在原版或候选的工作树里跑 owner 的环境准备配方。每跑一次，目标的环境版本号加一，绑在旧版本上的观察全部作废；准备原版还会让 baseline 过期。配方在 worker 本机顺序执行。</td><td>create_workspace 之后任何时候都能调<br>至少有一个配方可跑，否则 blocked<br>先要有工作区和计划（create_workspace）</td><td class="mono">passed / failed / blocked</td><td>可见</td></tr><tr><td class="mono">capture_baseline<br><span class="muted">(force)</span></td><td>在原版上跑 check、做 leaf 测试验证，记录 baseline。先给原版做指纹；指纹没变就沿用已有的 baseline，不重跑（force 强制重跑）。设计测试提交了文件之后，它是作业欠下的那一步。</td><td>create_workspace 之后<br>controller 作业里封存前后都可以反复调<br>先要有工作区和计划（create_workspace）<br>设计提交了文件，就欠一次重抓；还清之前不能封存（design_leaf_tests）<br>准备原版会让已有的 baseline 过期（prepare_environment）<br>每换一次合同欠一次重抓（save_contract）</td><td class="mono">ready（reused 表示沿用）/ unverified / failed（不安全）/ blocked</td><td>可见</td></tr><tr><td class="mono">design_leaf_tests<br><span class="muted">(leaves)</span></td><td>给没有有效测试的 leaf 设计并评审测试，提交到原版上。自己不抓 baseline：只要提交了文件，结果里 recapture_owed 为真，下一步必须是 capture_baseline。<br><span class="muted">启动会话：test designer：每个目标 leaf 一个，同时开；test reviewer：每 8 个文件一个，同时开</span></td><td>capture_baseline 之后<br>封存之前；封存后永远 blocked<br>设计要读 baseline 的结果，才知道哪些 leaf 缺测试（capture_baseline）<br>封存之后不能再调（seal_contract）</td><td class="mono">done / not_run（附原因）/ blocked</td><td>可见：列在表里，但封存后永远 blocked，controller 实际调不到</td></tr><tr><td class="mono">seal_contract<br><span class="muted">()</span></td><td>核对 baseline、建 authoring 工作区、导出验证包、打第一个检查点。封存之后不再设计任何测试；没有有效测试的 leaf 成为永久缺口。controller 作业里 baseline 不可用也照样封存，但会报告问题并给交付状态封顶。</td><td>冻结顺序里前面的步骤都已完成<br>不欠重抓<br>baseline 不是不安全的（check 改了冻结输入）<br>只能调一次<br>封存时 baseline 必须是当前的（capture_baseline）<br>顺序在前；owner 关掉测试设计时这一步不存在（design_leaf_tests）</td><td class="mono">done / blocked</td><td>可见：列在表里，永远 blocked</td></tr><tr class="grp"><th colspan="5">写代码</th></tr><tr><td class="mono">run_agent<br><span class="muted">(role, instructions, capabilities, issue_ids, scope)</span></td><td>在作业的 authoring 工作区里调一次 author。role 是 implement、repair、optimize 或 reviewer。调用期间把涉及功能的原版源码只读借给 author。reviewer 不改文件，只交一份评审报告，报告不改变任何状态。<br><span class="muted">启动会话：1 个 author 会话</span></td><td>合同已封存<br>开了任务评估时：任务基准已准备好<br>还有 author 尝试次数、作业时间和 token<br>optimize 另受 max_optimization_attempts 限制（默认 2）<br>要等合同封存（第一个检查点）（seal_contract）<br>任务基准没准备好之前不能写代码（只在 tasks=on 时）（prepare_tasks）</td><td class="mono">completed / failed / rejected / blocked</td><td>可见</td></tr><tr><td class="mono">run_parallel_agents<br><span class="muted">(requests, group, base, reason, discard_drafts)</span></td><td>一个并行组：2 到 20 个同角色的 author 请求，各在新工作区里同时写。group=split：把各请求的改动合并成一个新的当前候选，同一路径靠前的请求保留，丢了文件的请求列在 rerun 里。group=speculate：几个版本并排保留，各是一个候选，不替你挑。整组只算一次 author 尝试。<br><span class="muted">启动会话：2 到 20 个 author 会话，同时最多 max_agents 个</span></td><td>parallel 模式开着（例外：主线按层写首版的那种 split 不需要）<br>预算前提同 run_agent<br>split 时不能有未保存的草稿（或 discard_drafts）<br>speculate 的请求数不超过 owner 的 speculation<br>一个组只能一种角色，不能是 reviewer<br>要等合同封存（第一个检查点）（seal_contract）<br>任务基准没准备好之前不能写代码（只在 tasks=on 时）（prepare_tasks）</td><td class="mono">done / partial / rejected / no_candidate / blocked</td><td>可见：模式关着时显示为 blocked</td></tr><tr><td class="mono">create_implementation_workspace<br><span class="muted">(reason, candidate_id)</span></td><td>建一个独立的实现工作区，空的或从某个候选起步。不影响作业当前的草稿、候选和工作树。</td><td>合同已封存<br>要等合同封存（第一个检查点）（seal_contract）</td><td class="mono">created / blocked</td><td>可见</td></tr><tr><td class="mono">run_workspace_agents<br><span class="muted">(requests, max_parallel)</span></td><td>在最多 20 个已有的实现工作区里各调一次 author。什么都不会自动变成候选；失败的调用也保留各工作区的草稿。每个请求算一次 author 尝试。<br><span class="muted">启动会话：每个请求一个 author 会话</span></td><td>工作区要先用 create_implementation_workspace 建好<br>预算前提同 run_agent<br>max_parallel 不超过 owner 的上限<br>要等合同封存（第一个检查点）（seal_contract）<br>任务基准没准备好之前不能写代码（只在 tasks=on 时）（prepare_tasks）<br>每个请求要指向一个已建好的工作区（create_implementation_workspace）</td><td class="mono">done / partial / blocked</td><td>可见</td></tr><tr><td class="mono">save_workspace_candidate<br><span class="muted">(workspace_id, reason)</span></td><td>把一个实现工作区的草稿存成候选。不改变作业的当前候选。这样存下的候选没经过集成，要用 restore、select 或 merge 才进入主线。</td><td>合同已封存<br>工作区里有生成的文件<br>要等合同封存（第一个检查点）（seal_contract）</td><td class="mono">saved / blocked</td><td>可见</td></tr><tr class="grp"><th colspan="5">候选管理</th></tr><tr><td class="mono">save_candidate<br><span class="muted">(reason, restore_drafts)</span></td><td>把当前草稿集成、提交、归档成下一个候选。集成检查：不许写到 verifier 的路径（测试、许可证等），不许遮蔽标准库和测试工具的模块。同时测量与原版的重复度，默认只报告、不拒绝。</td><td>合同已封存<br>要等合同封存（第一个检查点）（seal_contract）</td><td class="mono">done / rejected / blocked</td><td>可见</td></tr><tr><td class="mono">restore_candidate<br><span class="muted">(candidate_id, reason, discard_drafts)</span></td><td>把一个已保存候选的文件放回来，存成新候选。不调用 author。</td><td>必须是已保存的候选<br>不能有未保存的草稿（或 discard_drafts）<br>要等合同封存（第一个检查点）（seal_contract）<br>要有一个已保存的候选（save_candidate）<br>要有一个已保存的候选（run_parallel_agents）<br>要有一个已保存的候选（import_draft）<br>要有一个已保存的候选（save_workspace_candidate）</td><td class="mono">done / rejected / blocked</td><td>可见</td></tr><tr><td class="mono">merge_candidate_parts<br><span class="muted">(parts, reason, discard_drafts, on_conflict)</span></td><td>从几个已保存候选里各取一部分文件，合成新候选。不删除任何文件。各部分指到同一路径时拒绝，或用 on_conflict=first 让靠前的保留。</td><td>每个部分的候选必须已保存<br>不能有未保存的草稿（或 discard_drafts）<br>要等合同封存（第一个检查点）（seal_contract）<br>要有一个已保存的候选（save_candidate）<br>要有一个已保存的候选（run_parallel_agents）<br>要有一个已保存的候选（import_draft）<br>要有一个已保存的候选（save_workspace_candidate）</td><td class="mono">done / rejected / blocked</td><td>可见</td></tr><tr><td class="mono">select_candidate<br><span class="muted">(candidate_id, reason, discard_drafts)</span></td><td>选定要交付的候选。选的不是当前候选时先恢复它（得到一个新编号）。</td><td>必须是已保存的候选<br>要等合同封存（第一个检查点）（seal_contract）<br>要有一个已保存的候选（save_candidate）<br>要有一个已保存的候选（run_parallel_agents）<br>要有一个已保存的候选（import_draft）<br>要有一个已保存的候选（save_workspace_candidate）</td><td class="mono">selected / done / rejected / blocked</td><td>可见：draft job 的表里没有它</td></tr><tr><td class="mono">list_candidate_files<br><span class="muted">(candidate_id)</span></td><td>列出一个候选的文件名、字节数、行数。只读；从不给出内容。</td><td>必须是已保存的候选<br>要等合同封存（第一个检查点）（seal_contract）<br>要有一个已保存的候选（save_candidate）<br>要有一个已保存的候选（run_parallel_agents）<br>要有一个已保存的候选（import_draft）<br>要有一个已保存的候选（save_workspace_candidate）</td><td class="mono">ok / blocked</td><td>可见</td></tr><tr><td class="mono">compare_candidates<br><span class="muted">(a, b)</span></td><td>比较两个候选：各自独有的文件、改动的行数。只读；从不给出内容。</td><td>两个都必须是已保存的候选<br>要等合同封存（第一个检查点）（seal_contract）<br>要有一个已保存的候选（save_candidate）<br>要有一个已保存的候选（run_parallel_agents）<br>要有一个已保存的候选（import_draft）<br>要有一个已保存的候选（save_workspace_candidate）</td><td class="mono">ok / blocked</td><td>可见</td></tr><tr class="grp"><th colspan="5">验证</th></tr><tr><td class="mono">compare_behavior<br><span class="muted">(check_names)</span></td><td>在候选上跑 check，和原版 baseline 逐项对比。不带参数是全量，只有全量才算验收证据；点名 check 是筛查，便宜，但不算。原版不重跑，只核对指纹。</td><td>合同已封存<br>有和当前合同、环境相符的 baseline，否则先 capture_baseline<br>当前合同不欠冻结步骤<br>要等合同封存（第一个检查点）（seal_contract）<br>要有和当前合同、环境相符的 baseline（capture_baseline）<br>重抓 baseline 之前不能对比（save_contract）</td><td class="mono">checks_passed / regressed / unverified / blocked</td><td>可见</td></tr><tr><td class="mono">run_checks<br><span class="muted">(check_names, stop_at_first_failure, timing)</span></td><td>按原样跑 check，不和原版比。不带参数时跑 owner 配的交付检查。timing=true 给出每个 check 的用时。</td><td>合同已封存<br>要等合同封存（第一个检查点）（seal_contract）</td><td class="mono">passed / failed / inconclusive / not_run / blocked</td><td>可见</td></tr><tr><td class="mono">check_installation<br><span class="muted">()</span></td><td>在全新的隔离环境里按 owner 的步骤构建、安装、冒烟。第一步失败就停。永远在 worker 本机顺序执行。owner 没配安装检查时返回 not_configured，交付状态因此封顶。</td><td>合同已封存<br>要等合同封存（第一个检查点）（seal_contract）</td><td class="mono">passed / failed / not_configured / not_run</td><td>可见</td></tr><tr><td class="mono">compare_performance<br><span class="muted">()</span></td><td>在冻结的性能基准上测量候选和原版。行为验收之前调用只记录原因，不测量。结果已定的测量不会重做。</td><td>只有开了性能验收的作业才有这个工具</td><td class="mono">passed / failed / inconclusive / not_evaluated / disabled</td><td>有条件：performance=on 才有</td></tr><tr><td class="mono">compare_task_effort<br><span class="muted">()</span></td><td>在行为已被接受的候选上跑任务基准。任务评估关着时只返回 disabled。<br><span class="muted">启动会话：solver 和 judge 会话</span></td><td>合同已封存<br>要等合同封存（第一个检查点）（seal_contract）</td><td class="mono">passed / disabled / 其他未通过状态</td><td>可见</td></tr><tr class="grp"><th colspan="5">交付</th></tr><tr><td class="mono">deliver<br><span class="muted">(reason, require)</span></td><td>按当前代码的证据交付当前候选。状态由验收报告决定。require 是门槛：any、no_failures、best_reachable、succeeded；达不到就什么都不做，返回还差哪些缺口。没选定候选时自动选当前的。</td><td>有当前候选<br>当前代码有一次全量对比（筛查不算）<br>那次对比没有发现冻结输入被改<br>没有诊断合同在生效<br>要有当前候选（save_candidate）<br>当前代码要有一次全量对比；筛查不算（compare_behavior）<br>诊断合同生效期间不能交付（save_contract）</td><td class="mono">succeeded / completed_with_gaps / delivered_with_failures / blocked</td><td>可见：draft job 的表里没有它</td></tr><tr class="grp"><th colspan="5">pair 专用</th></tr><tr><td class="mono">import_draft<br><span class="muted">()</span></td><td>main job 封存后等 draft job 的首版，导入成自己的第一个候选。最多等自己剩余时间的一半。按保存候选的规则检查，记一次 author 尝试。draft 不可用时返回 unavailable，main job 自己写首版。</td><td>只有 pair 的 main job<br>合同已封存<br>只做一次<br>自己还没调过 author，也还没有候选<br>要等合同封存（第一个检查点）（seal_contract）<br>任务基准没准备好之前不能写代码（只在 tasks=on 时）（prepare_tasks）<br>自己调过 author 之后就不能再导入草稿（run_agent）</td><td class="mono">imported / rejected / unavailable / blocked</td><td>隐藏：主线自己调，controller 看不到</td></tr><tr><td class="mono">finish_draft<br><span class="muted">()</span></td><td>draft job 把当前候选封存为交给 main job 的首版。作业以 draft_ready 结束，不交付任何东西。main job 一封存，主线就强制调用它。</td><td>只有 pair 的 draft job<br>合同已封存<br>有已保存的候选，且没有未保存的草稿<br>要等合同封存（第一个检查点）（seal_contract）<br>draft job 只能交出已保存的候选（save_candidate）</td><td class="mono">ready / blocked</td><td>有条件：只在开了 parallel 的 draft job 里对 controller 可见</td></tr><tr class="grp"><th colspan="5">合同变更</th></tr><tr><td class="mono">save_contract<br><span class="muted">(reason, notes, check_names, environment)</span></td><td>保存一份诊断合同：只挑一部分 check，加上给 author 的说明。交付要求不会因此变少。不带 check_names 就恢复完整合同。每换一次合同都欠一次 capture_baseline；诊断合同生效期间不能交付。</td><td>合同已封存<br>要等合同封存（第一个检查点）（seal_contract）</td><td class="mono">saved / blocked</td><td>可见</td></tr><tr><td class="mono">request_revision<br><span class="muted">(revision, wait)</span></td><td>向 owner 提议追加 check 或替换知识库。只做静态校验并记录，不授予任何东西；要 owner 用 job-authorize 批准才生效。owner 不在场时只是记一笔。</td><td>合同已封存<br>要等合同封存（第一个检查点）（seal_contract）</td><td class="mono">requested / blocked</td><td>可见</td></tr><tr class="grp"><th colspan="5">记录、提问、取消</th></tr><tr><td class="mono">record_unknown<br><span class="muted">(question, unknown_id, capabilities, status, …)</span></td><td>记一个未决问题，留给后面的轮次和 owner。什么都不拒绝；但状态留在 blocked 的问题会成为交付缺口。</td><td>任何时候都能调</td><td class="mono">recorded / blocked</td><td>可见</td></tr><tr><td class="mono">request_clarification<br><span class="muted">(question, capabilities, wait, evidence)</span></td><td>向 owner 提一个具体问题。owner 不在场（owner_attends 为假，默认）时只记录，作业继续。</td><td>带 wait 时需要合同已封存</td><td class="mono">asked / answered / blocked</td><td>可见</td></tr><tr><td class="mono">flag_check<br><span class="muted">(check, reason, evidence)</span></td><td>标记某个 check 可能把重写限制得过死。只是给 owner 看的记录，不改变任何裁决、缺口或 check。</td><td>任何时候都能调</td><td class="mono">recorded / blocked</td><td>可见</td></tr><tr><td class="mono">get_knowledge<br><span class="muted">(capability_id, query, limit)</span></td><td>读冻结的行为知识库里的记录。只读。记录的是行为和接口，从不包含测试检查了什么。</td><td>合同已封存<br>要等合同封存（第一个检查点）（seal_contract）</td><td class="mono">记录本身 / blocked</td><td>可见</td></tr><tr><td class="mono">cancel_operation<br><span class="muted">(operation_id)</span></td><td>取消一个后台操作。只停它自己的进程；作业回到上一个检查点，已经封存的东西（比如 author 的尝试次数和草稿）保留。</td><td>必须是后台操作</td><td class="mono">cancelled / cancelling / ended / not_found / blocked</td><td>可见</td></tr><tr class="grp"><th colspan="5">任务评估</th></tr><tr><td class="mono">prepare_tasks<br><span class="muted">()</span></td><td>设计任务基准，并在原版上测量。必须在任何 author 调用之前完成。<br><span class="muted">启动会话：examiner、solver、judge 会话</span></td><td>封存时留下了待准备的任务基准<br>要等合同封存（第一个检查点）（seal_contract）</td><td class="mono">ready / unverified / blocked</td><td>可见：列在表里；tasks=off 时永远 blocked</td></tr><tr><td class="mono">design_tasks<br><span class="muted">()</span></td><td>只跑任务设计者，保存它设计的任务集。<br><span class="muted">启动会话：1 个 examiner 会话</span></td><td>任务评估开着<br>合同已封存</td><td class="mono">saved / failed / blocked</td><td>有条件：task_trials 才可见</td></tr><tr><td class="mono">save_task_suite<br><span class="muted">(suite, reason)</span></td><td>校验并保存一份任务集。</td><td>任务评估开着<br>合同已封存</td><td class="mono">saved / blocked</td><td>有条件：task_trials 才可见</td></tr><tr><td class="mono">run_task_trial<br><span class="muted">(task_id, arm, variant, repeat)</span></td><td>在原版或当前候选的副本上跑一个 solver。<br><span class="muted">启动会话：1 个 solver 会话</span></td><td>已有任务集<br>candidate 臂需要当前候选<br>要有任务集（save_task_suite）<br>要有任务集（design_tasks）</td><td class="mono">saved / blocked</td><td>有条件：task_trials 才可见</td></tr><tr><td class="mono">grade_task_trial<br><span class="muted">(trial_id)</span></td><td>给一次 trial 的解答打分。<br><span class="muted">启动会话：1 个 judge 会话</span></td><td>trial 已保存且在等评分<br>先有一次等待评分的 trial（run_task_trial）</td><td class="mono">graded / blocked</td><td>有条件：task_trials 才可见</td></tr><tr><td class="mono">compare_task_trials<br><span class="muted">(original_trial, candidate_trial)</span></td><td>比较原版臂和候选臂的两次 trial。不计入验收。</td><td>两次 trial 都已保存，任务和设置相同<br>两臂各要有一次 trial（run_task_trial）</td><td class="mono">observed / inconclusive / blocked</td><td>有条件：task_trials 才可见</td></tr><tr class="grp"><th colspan="5">controller 看不到的查询</th></tr><tr><td class="mono">get_run_state<br><span class="muted">()</span></td><td>作业状态快照。</td><td>任何时候都能调</td><td class="mono">ok</td><td>隐藏：→ 每轮的 context.json</td></tr><tr><td class="mono">get_operation_status<br><span class="muted">(operation_id)</span></td><td>按编号读一个操作。</td><td>任何时候都能调</td><td class="mono">found / not_found</td><td>隐藏：→ history.jsonl</td></tr><tr><td class="mono">get_operation_history<br><span class="muted">(offset, limit, …)</span></td><td>分页读作业的全部操作。</td><td>任何时候都能调</td><td class="mono">page</td><td>隐藏：→ history.jsonl</td></tr><tr><td class="mono">get_feedback_history<br><span class="muted">(offset, limit, …)</span></td><td>分页读每个失败问题和它的全部观察。</td><td>任何时候都能调</td><td class="mono">page</td><td>隐藏：→ issues.jsonl</td></tr><tr><td class="mono">get_workspace_status<br><span class="muted">(workspace_id)</span></td><td>读各个实现工作区的状态和调用记录。</td><td>任何时候都能调</td><td class="mono">ok</td><td>隐藏：→ context 的 workspaces 段</td></tr><tr><td class="mono">audit_coverage<br><span class="muted">()</span></td><td>原版需求的覆盖审计：每个 leaf 有哪些 check。</td><td>create_workspace 之后<br>先要有工作区和计划（create_workspace）</td><td class="mono">ready / incomplete</td><td>隐藏：→ capture_baseline 的结果和 seal 的封顶</td></tr><tr><td class="mono">measure_code<br><span class="muted">()</span></td><td>测量工作树的代码量和结构。</td><td>create_workspace 之后<br>先要有工作区和计划（create_workspace）</td><td class="mono">measured / incomplete</td><td>隐藏：→ compare_behavior 结果里的 size</td></tr><tr><td class="mono">evaluate_acceptance<br><span class="muted">(profile)</span></td><td>列出当前代码离验收还差哪些缺口。</td><td>create_workspace 之后<br>先要有工作区和计划（create_workspace）</td><td class="mono">passed / incomplete</td><td>隐藏：→ context 的 acceptance 段</td></tr><tr><td class="mono">run_benchmark<br><span class="muted">(check_names)</span></td><td>跑指定的 check 并报告用时。</td><td>合同已封存<br>要等合同封存（第一个检查点）（seal_contract）</td><td class="mono">同 run_checks</td><td>隐藏：→ run_checks(timing=true)</td></tr></tbody></table></div></details>
+  <script type="application/json" id="tools-data">{"create_workspace": {"sig": "", "long": "建原版和候选两个工作树，重算计划，做 readiness 审计。不准备环境，也不运行任何 check。结果里带 readiness 结论、leaf 测试策略和这个作业的冻结步骤。", "requires": ["合同还没封存", "只能调一次"], "needs": [["seal_contract", "【互斥】封存之后不能再调"]], "unlocks": [["【必须在前】先要有工作区和计划", ["prepare_environment", "capture_baseline", "audit_coverage", "measure_code", "evaluate_acceptance"]]], "outcomes": "created / blocked", "sessions": null, "vis": "可见：列在表里，但 controller 被问到时合同已封存，永远 blocked", "caller": "主线"}, "prepare_environment": {"sig": "target, check_names", "long": "在原版或候选的工作树里跑 owner 的环境准备配方。每跑一次，目标的环境版本号加一，绑在旧版本上的观察全部作废；准备原版还会让 baseline 过期。配方在 worker 本机顺序执行。", "requires": ["create_workspace 之后任何时候都能调", "至少有一个配方可跑，否则 blocked"], "needs": [["create_workspace", "【必须在前】先要有工作区和计划"]], "unlocks": [["【欠一步】准备原版会让已有的 baseline 过期", ["capture_baseline"]]], "outcomes": "passed / failed / blocked", "sessions": null, "vis": "可见", "caller": "主线（冻结时）、controller（封存后）"}, "capture_baseline": {"sig": "force", "long": "在原版上跑 check、做 leaf 测试验证，记录 baseline。先给原版做指纹；指纹没变就沿用已有的 baseline，不重跑（force 强制重跑）。设计测试提交了文件之后，它是作业欠下的那一步。", "requires": ["create_workspace 之后", "controller 作业里封存前后都可以反复调"], "needs": [["create_workspace", "【必须在前】先要有工作区和计划"], ["design_leaf_tests", "【欠一步】设计提交了文件，就欠一次重抓；还清之前不能封存"], ["prepare_environment", "【欠一步】准备原版会让已有的 baseline 过期"], ["save_contract", "【欠一步】每换一次合同欠一次重抓"]], "unlocks": [["【必须在前】设计要读 baseline 的结果，才知道哪些 leaf 缺测试", ["design_leaf_tests"]], ["【必须在前】封存时 baseline 必须是当前的", ["seal_contract"]], ["【必须在前】要有和当前合同、环境相符的 baseline", ["compare_behavior"]]], "outcomes": "ready（reused 表示沿用）/ unverified / failed（不安全）/ blocked", "sessions": null, "vis": "可见", "caller": "主线、controller"}, "design_leaf_tests": {"sig": "leaves", "long": "给没有有效测试的 leaf 设计并评审测试，提交到原版上。自己不抓 baseline：只要提交了文件，结果里 recapture_owed 为真，下一步必须是 capture_baseline。", "requires": ["capture_baseline 之后", "封存之前；封存后永远 blocked"], "needs": [["capture_baseline", "【必须在前】设计要读 baseline 的结果，才知道哪些 leaf 缺测试"], ["seal_contract", "【互斥】封存之后不能再调"]], "unlocks": [["【欠一步】设计提交了文件，就欠一次重抓；还清之前不能封存", ["capture_baseline"]], ["【必须在前】顺序在前；owner 关掉测试设计时这一步不存在", ["seal_contract"]]], "outcomes": "done / not_run（附原因）/ blocked", "sessions": "test designer：每个目标 leaf 一个，同时开；test reviewer：每 8 个文件一个，同时开", "vis": "可见：列在表里，但封存后永远 blocked，controller 实际调不到", "caller": "主线"}, "seal_contract": {"sig": "", "long": "核对 baseline、建 authoring 工作区、导出验证包、打第一个检查点。封存之后不再设计任何测试；没有有效测试的 leaf 成为永久缺口。controller 作业里 baseline 不可用也照样封存，但会报告问题并给交付状态封顶。", "requires": ["冻结顺序里前面的步骤都已完成", "不欠重抓", "baseline 不是不安全的（check 改了冻结输入）", "只能调一次"], "needs": [["capture_baseline", "【必须在前】封存时 baseline 必须是当前的"], ["design_leaf_tests", "【必须在前】顺序在前；owner 关掉测试设计时这一步不存在"]], "unlocks": [["【必须在前】要等合同封存（第一个检查点）", ["run_agent", "run_parallel_agents", "run_workspace_agents", "create_implementation_workspace", "save_workspace_candidate", "save_candidate", "restore_candidate", "merge_candidate_parts", "select_candidate", "list_candidate_files", "compare_candidates", "compare_behavior", "run_checks", "check_installation", "compare_task_effort", "save_contract", "request_revision", "get_knowledge", "import_draft", "finish_draft", "prepare_tasks", "run_benchmark"]], ["【互斥】封存之后不能再调", ["create_workspace", "design_leaf_tests"]]], "outcomes": "done / blocked", "sessions": null, "vis": "可见：列在表里，永远 blocked", "caller": "主线"}, "run_agent": {"sig": "role, instructions, capabilities, issue_ids, scope", "long": "在作业的 authoring 工作区里调一次 author。role 是 implement、repair、optimize 或 reviewer。调用期间把涉及功能的原版源码只读借给 author。reviewer 不改文件，只交一份评审报告，报告不改变任何状态。", "requires": ["合同已封存", "开了任务评估时：任务基准已准备好", "还有 author 尝试次数、作业时间和 token", "optimize 另受 max_optimization_attempts 限制（默认 2）"], "needs": [["seal_contract", "【必须在前】要等合同封存（第一个检查点）"], ["prepare_tasks", "【必须在前】任务基准没准备好之前不能写代码（只在 tasks=on 时）"]], "unlocks": [["【产出】author 只写草稿，保存之后才是候选", ["save_candidate"]], ["【互斥】自己调过 author 之后就不能再导入草稿", ["import_draft"]]], "outcomes": "completed / failed / rejected / blocked", "sessions": "1 个 author 会话", "vis": "可见", "caller": "主线（首版）、controller"}, "run_parallel_agents": {"sig": "requests, group, base, reason, discard_drafts", "long": "一个并行组：2 到 20 个同角色的 author 请求，各在新工作区里同时写。group=split：把各请求的改动合并成一个新的当前候选，同一路径靠前的请求保留，丢了文件的请求列在 rerun 里。group=speculate：几个版本并排保留，各是一个候选，不替你挑。整组只算一次 author 尝试。", "requires": ["parallel 模式开着（例外：主线按层写首版的那种 split 不需要）", "预算前提同 run_agent", "split 时不能有未保存的草稿（或 discard_drafts）", "speculate 的请求数不超过 owner 的 speculation", "一个组只能一种角色，不能是 reviewer"], "needs": [["seal_contract", "【必须在前】要等合同封存（第一个检查点）"], ["prepare_tasks", "【必须在前】任务基准没准备好之前不能写代码（只在 tasks=on 时）"]], "unlocks": [["【必须在前】要有一个已保存的候选", ["restore_candidate", "merge_candidate_parts", "select_candidate", "list_candidate_files", "compare_candidates"]]], "outcomes": "done / partial / rejected / no_candidate / blocked", "sessions": "2 到 20 个 author 会话，同时最多 max_agents 个", "vis": "可见：模式关着时显示为 blocked", "caller": "主线（首版的层）、controller"}, "create_implementation_workspace": {"sig": "reason, candidate_id", "long": "建一个独立的实现工作区，空的或从某个候选起步。不影响作业当前的草稿、候选和工作树。", "requires": ["合同已封存"], "needs": [["seal_contract", "【必须在前】要等合同封存（第一个检查点）"]], "unlocks": [["【必须在前】每个请求要指向一个已建好的工作区", ["run_workspace_agents"]]], "outcomes": "created / blocked", "sessions": null, "vis": "可见", "caller": "controller"}, "run_workspace_agents": {"sig": "requests, max_parallel", "long": "在最多 20 个已有的实现工作区里各调一次 author。什么都不会自动变成候选；失败的调用也保留各工作区的草稿。每个请求算一次 author 尝试。", "requires": ["工作区要先用 create_implementation_workspace 建好", "预算前提同 run_agent", "max_parallel 不超过 owner 的上限"], "needs": [["seal_contract", "【必须在前】要等合同封存（第一个检查点）"], ["prepare_tasks", "【必须在前】任务基准没准备好之前不能写代码（只在 tasks=on 时）"], ["create_implementation_workspace", "【必须在前】每个请求要指向一个已建好的工作区"]], "unlocks": [["【产出】工作区里的草稿要保存才成为候选", ["save_workspace_candidate"]]], "outcomes": "done / partial / blocked", "sessions": "每个请求一个 author 会话", "vis": "可见", "caller": "controller"}, "save_workspace_candidate": {"sig": "workspace_id, reason", "long": "把一个实现工作区的草稿存成候选。不改变作业的当前候选。这样存下的候选没经过集成，要用 restore、select 或 merge 才进入主线。", "requires": ["合同已封存", "工作区里有生成的文件"], "needs": [["seal_contract", "【必须在前】要等合同封存（第一个检查点）"], ["run_workspace_agents", "【产出】工作区里的草稿要保存才成为候选"]], "unlocks": [["【必须在前】要有一个已保存的候选", ["restore_candidate", "merge_candidate_parts", "select_candidate", "list_candidate_files", "compare_candidates"]]], "outcomes": "saved / blocked", "sessions": null, "vis": "可见", "caller": "controller"}, "save_candidate": {"sig": "reason, restore_drafts", "long": "把当前草稿集成、提交、归档成下一个候选。集成检查：不许写到 verifier 的路径（测试、许可证等），不许遮蔽标准库和测试工具的模块。同时测量与原版的重复度，默认只报告、不拒绝。", "requires": ["合同已封存"], "needs": [["seal_contract", "【必须在前】要等合同封存（第一个检查点）"], ["run_agent", "【产出】author 只写草稿，保存之后才是候选"]], "unlocks": [["【必须在前】要有一个已保存的候选", ["restore_candidate", "merge_candidate_parts", "select_candidate", "list_candidate_files", "compare_candidates"]], ["【必须在前】要有当前候选", ["deliver"]], ["【必须在前】draft job 只能交出已保存的候选", ["finish_draft"]]], "outcomes": "done / rejected / blocked", "sessions": null, "vis": "可见", "caller": "主线（首次对比前）、controller"}, "restore_candidate": {"sig": "candidate_id, reason, discard_drafts", "long": "把一个已保存候选的文件放回来，存成新候选。不调用 author。", "requires": ["必须是已保存的候选", "不能有未保存的草稿（或 discard_drafts）"], "needs": [["seal_contract", "【必须在前】要等合同封存（第一个检查点）"], ["save_candidate", "【必须在前】要有一个已保存的候选"], ["run_parallel_agents", "【必须在前】要有一个已保存的候选"], ["import_draft", "【必须在前】要有一个已保存的候选"], ["save_workspace_candidate", "【必须在前】要有一个已保存的候选"]], "unlocks": [], "outcomes": "done / rejected / blocked", "sessions": null, "vis": "可见", "caller": "controller"}, "merge_candidate_parts": {"sig": "parts, reason, discard_drafts, on_conflict", "long": "从几个已保存候选里各取一部分文件，合成新候选。不删除任何文件。各部分指到同一路径时拒绝，或用 on_conflict=first 让靠前的保留。", "requires": ["每个部分的候选必须已保存", "不能有未保存的草稿（或 discard_drafts）"], "needs": [["seal_contract", "【必须在前】要等合同封存（第一个检查点）"], ["save_candidate", "【必须在前】要有一个已保存的候选"], ["run_parallel_agents", "【必须在前】要有一个已保存的候选"], ["import_draft", "【必须在前】要有一个已保存的候选"], ["save_workspace_candidate", "【必须在前】要有一个已保存的候选"]], "unlocks": [], "outcomes": "done / rejected / blocked", "sessions": null, "vis": "可见", "caller": "controller"}, "select_candidate": {"sig": "candidate_id, reason, discard_drafts", "long": "选定要交付的候选。选的不是当前候选时先恢复它（得到一个新编号）。", "requires": ["必须是已保存的候选"], "needs": [["seal_contract", "【必须在前】要等合同封存（第一个检查点）"], ["save_candidate", "【必须在前】要有一个已保存的候选"], ["run_parallel_agents", "【必须在前】要有一个已保存的候选"], ["import_draft", "【必须在前】要有一个已保存的候选"], ["save_workspace_candidate", "【必须在前】要有一个已保存的候选"]], "unlocks": [["【软约束】不选也行：deliver 会自动选当前候选", ["deliver"]]], "outcomes": "selected / done / rejected / blocked", "sessions": null, "vis": "可见：draft job 的表里没有它", "caller": "controller"}, "list_candidate_files": {"sig": "candidate_id", "long": "列出一个候选的文件名、字节数、行数。只读；从不给出内容。", "requires": ["必须是已保存的候选"], "needs": [["seal_contract", "【必须在前】要等合同封存（第一个检查点）"], ["save_candidate", "【必须在前】要有一个已保存的候选"], ["run_parallel_agents", "【必须在前】要有一个已保存的候选"], ["import_draft", "【必须在前】要有一个已保存的候选"], ["save_workspace_candidate", "【必须在前】要有一个已保存的候选"]], "unlocks": [], "outcomes": "ok / blocked", "sessions": null, "vis": "可见", "caller": "controller"}, "compare_candidates": {"sig": "a, b", "long": "比较两个候选：各自独有的文件、改动的行数。只读；从不给出内容。", "requires": ["两个都必须是已保存的候选"], "needs": [["seal_contract", "【必须在前】要等合同封存（第一个检查点）"], ["save_candidate", "【必须在前】要有一个已保存的候选"], ["run_parallel_agents", "【必须在前】要有一个已保存的候选"], ["import_draft", "【必须在前】要有一个已保存的候选"], ["save_workspace_candidate", "【必须在前】要有一个已保存的候选"]], "unlocks": [], "outcomes": "ok / blocked", "sessions": null, "vis": "可见", "caller": "controller"}, "compare_behavior": {"sig": "check_names", "long": "在候选上跑 check，和原版 baseline 逐项对比。不带参数是全量，只有全量才算验收证据；点名 check 是筛查，便宜，但不算。原版不重跑，只核对指纹。", "requires": ["合同已封存", "有和当前合同、环境相符的 baseline，否则先 capture_baseline", "当前合同不欠冻结步骤"], "needs": [["seal_contract", "【必须在前】要等合同封存（第一个检查点）"], ["capture_baseline", "【必须在前】要有和当前合同、环境相符的 baseline"], ["save_contract", "【互斥】重抓 baseline 之前不能对比"]], "unlocks": [["【必须在前】当前代码要有一次全量对比；筛查不算", ["deliver"]]], "outcomes": "checks_passed / regressed / unverified / blocked", "sessions": null, "vis": "可见", "caller": "主线（第一次）、controller"}, "run_checks": {"sig": "check_names, stop_at_first_failure, timing", "long": "按原样跑 check，不和原版比。不带参数时跑 owner 配的交付检查。timing=true 给出每个 check 的用时。", "requires": ["合同已封存"], "needs": [["seal_contract", "【必须在前】要等合同封存（第一个检查点）"]], "unlocks": [["【软约束】没跑不会被挡，但会成为缺口；require 高时交付会被拦下", ["deliver"]]], "outcomes": "passed / failed / inconclusive / not_run / blocked", "sessions": null, "vis": "可见", "caller": "主线、controller"}, "check_installation": {"sig": "", "long": "在全新的隔离环境里按 owner 的步骤构建、安装、冒烟。第一步失败就停。永远在 worker 本机顺序执行。owner 没配安装检查时返回 not_configured，交付状态因此封顶。", "requires": ["合同已封存"], "needs": [["seal_contract", "【必须在前】要等合同封存（第一个检查点）"]], "unlocks": [["【软约束】没跑不会被挡，但会成为缺口；require 高时交付会被拦下", ["deliver"]]], "outcomes": "passed / failed / not_configured / not_run", "sessions": null, "vis": "可见", "caller": "controller"}, "compare_performance": {"sig": "", "long": "在冻结的性能基准上测量候选和原版。行为验收之前调用只记录原因，不测量。结果已定的测量不会重做。", "requires": ["只有开了性能验收的作业才有这个工具"], "needs": [], "unlocks": [], "outcomes": "passed / failed / inconclusive / not_evaluated / disabled", "sessions": null, "vis": "有条件：performance=on 才有", "caller": "controller"}, "compare_task_effort": {"sig": "", "long": "在行为已被接受的候选上跑任务基准。任务评估关着时只返回 disabled。", "requires": ["合同已封存"], "needs": [["seal_contract", "【必须在前】要等合同封存（第一个检查点）"], ["prepare_tasks", "【软约束】没有原版的任务基线就什么都不测"]], "unlocks": [], "outcomes": "passed / disabled / 其他未通过状态", "sessions": "solver 和 judge 会话", "vis": "可见", "caller": "controller"}, "deliver": {"sig": "reason, require", "long": "按当前代码的证据交付当前候选。状态由验收报告决定。require 是门槛：any、no_failures、best_reachable、succeeded；达不到就什么都不做，返回还差哪些缺口。没选定候选时自动选当前的。", "requires": ["有当前候选", "当前代码有一次全量对比（筛查不算）", "那次对比没有发现冻结输入被改", "没有诊断合同在生效"], "needs": [["save_candidate", "【必须在前】要有当前候选"], ["compare_behavior", "【必须在前】当前代码要有一次全量对比；筛查不算"], ["select_candidate", "【软约束】不选也行：deliver 会自动选当前候选"], ["run_checks", "【软约束】没跑不会被挡，但会成为缺口；require 高时交付会被拦下"], ["check_installation", "【软约束】没跑不会被挡，但会成为缺口；require 高时交付会被拦下"], ["record_unknown", "【软约束】状态为 blocked 的未决问题是一个缺口"], ["save_contract", "【互斥】诊断合同生效期间不能交付"]], "unlocks": [], "outcomes": "succeeded / completed_with_gaps / delivered_with_failures / blocked", "sessions": null, "vis": "可见：draft job 的表里没有它", "caller": "controller"}, "import_draft": {"sig": "", "long": "main job 封存后等 draft job 的首版，导入成自己的第一个候选。最多等自己剩余时间的一半。按保存候选的规则检查，记一次 author 尝试。draft 不可用时返回 unavailable，main job 自己写首版。", "requires": ["只有 pair 的 main job", "合同已封存", "只做一次", "自己还没调过 author，也还没有候选"], "needs": [["seal_contract", "【必须在前】要等合同封存（第一个检查点）"], ["prepare_tasks", "【必须在前】任务基准没准备好之前不能写代码（只在 tasks=on 时）"], ["run_agent", "【互斥】自己调过 author 之后就不能再导入草稿"]], "unlocks": [["【必须在前】要有一个已保存的候选", ["restore_candidate", "merge_candidate_parts", "select_candidate", "list_candidate_files", "compare_candidates"]]], "outcomes": "imported / rejected / unavailable / blocked", "sessions": null, "vis": "隐藏：主线自己调，controller 看不到", "caller": "主线"}, "finish_draft": {"sig": "", "long": "draft job 把当前候选封存为交给 main job 的首版。作业以 draft_ready 结束，不交付任何东西。main job 一封存，主线就强制调用它。", "requires": ["只有 pair 的 draft job", "合同已封存", "有已保存的候选，且没有未保存的草稿"], "needs": [["seal_contract", "【必须在前】要等合同封存（第一个检查点）"], ["save_candidate", "【必须在前】draft job 只能交出已保存的候选"]], "unlocks": [], "outcomes": "ready / blocked", "sessions": null, "vis": "有条件：只在开了 parallel 的 draft job 里对 controller 可见", "caller": "主线（强制）、controller"}, "save_contract": {"sig": "reason, notes, check_names, environment", "long": "保存一份诊断合同：只挑一部分 check，加上给 author 的说明。交付要求不会因此变少。不带 check_names 就恢复完整合同。每换一次合同都欠一次 capture_baseline；诊断合同生效期间不能交付。", "requires": ["合同已封存"], "needs": [["seal_contract", "【必须在前】要等合同封存（第一个检查点）"]], "unlocks": [["【欠一步】每换一次合同欠一次重抓", ["capture_baseline"]], ["【互斥】重抓 baseline 之前不能对比", ["compare_behavior"]], ["【互斥】诊断合同生效期间不能交付", ["deliver"]]], "outcomes": "saved / blocked", "sessions": null, "vis": "可见", "caller": "controller"}, "request_revision": {"sig": "revision, wait", "long": "向 owner 提议追加 check 或替换知识库。只做静态校验并记录，不授予任何东西；要 owner 用 job-authorize 批准才生效。owner 不在场时只是记一笔。", "requires": ["合同已封存"], "needs": [["seal_contract", "【必须在前】要等合同封存（第一个检查点）"]], "unlocks": [], "outcomes": "requested / blocked", "sessions": null, "vis": "可见", "caller": "controller"}, "record_unknown": {"sig": "question, unknown_id, capabilities, status, …", "long": "记一个未决问题，留给后面的轮次和 owner。什么都不拒绝；但状态留在 blocked 的问题会成为交付缺口。", "requires": [], "needs": [], "unlocks": [["【软约束】状态为 blocked 的未决问题是一个缺口", ["deliver"]]], "outcomes": "recorded / blocked", "sessions": null, "vis": "可见", "caller": "controller"}, "request_clarification": {"sig": "question, capabilities, wait, evidence", "long": "向 owner 提一个具体问题。owner 不在场（owner_attends 为假，默认）时只记录，作业继续。", "requires": ["带 wait 时需要合同已封存"], "needs": [], "unlocks": [], "outcomes": "asked / answered / blocked", "sessions": null, "vis": "可见", "caller": "controller"}, "flag_check": {"sig": "check, reason, evidence", "long": "标记某个 check 可能把重写限制得过死。只是给 owner 看的记录，不改变任何裁决、缺口或 check。", "requires": [], "needs": [], "unlocks": [], "outcomes": "recorded / blocked", "sessions": null, "vis": "可见", "caller": "controller"}, "get_knowledge": {"sig": "capability_id, query, limit", "long": "读冻结的行为知识库里的记录。只读。记录的是行为和接口，从不包含测试检查了什么。", "requires": ["合同已封存"], "needs": [["seal_contract", "【必须在前】要等合同封存（第一个检查点）"]], "unlocks": [], "outcomes": "记录本身 / blocked", "sessions": null, "vis": "可见", "caller": "controller"}, "cancel_operation": {"sig": "operation_id", "long": "取消一个后台操作。只停它自己的进程；作业回到上一个检查点，已经封存的东西（比如 author 的尝试次数和草稿）保留。", "requires": ["必须是后台操作"], "needs": [], "unlocks": [], "outcomes": "cancelled / cancelling / ended / not_found / blocked", "sessions": null, "vis": "可见", "caller": "controller"}, "prepare_tasks": {"sig": "", "long": "设计任务基准，并在原版上测量。必须在任何 author 调用之前完成。", "requires": ["封存时留下了待准备的任务基准"], "needs": [["seal_contract", "【必须在前】要等合同封存（第一个检查点）"]], "unlocks": [["【必须在前】任务基准没准备好之前不能写代码（只在 tasks=on 时）", ["run_agent", "run_parallel_agents", "run_workspace_agents", "import_draft"]], ["【软约束】没有原版的任务基线就什么都不测", ["compare_task_effort"]]], "outcomes": "ready / unverified / blocked", "sessions": "examiner、solver、judge 会话", "vis": "可见：列在表里；tasks=off 时永远 blocked", "caller": "主线"}, "design_tasks": {"sig": "", "long": "只跑任务设计者，保存它设计的任务集。", "requires": ["任务评估开着", "合同已封存"], "needs": [], "unlocks": [["【必须在前】要有任务集", ["run_task_trial"]]], "outcomes": "saved / failed / blocked", "sessions": "1 个 examiner 会话", "vis": "有条件：task_trials 才可见", "caller": "controller"}, "save_task_suite": {"sig": "suite, reason", "long": "校验并保存一份任务集。", "requires": ["任务评估开着", "合同已封存"], "needs": [], "unlocks": [["【必须在前】要有任务集", ["run_task_trial"]]], "outcomes": "saved / blocked", "sessions": null, "vis": "有条件：task_trials 才可见", "caller": "controller"}, "run_task_trial": {"sig": "task_id, arm, variant, repeat", "long": "在原版或当前候选的副本上跑一个 solver。", "requires": ["已有任务集", "candidate 臂需要当前候选"], "needs": [["save_task_suite", "【必须在前】要有任务集"], ["design_tasks", "【必须在前】要有任务集"]], "unlocks": [["【必须在前】先有一次等待评分的 trial", ["grade_task_trial"]], ["【必须在前】两臂各要有一次 trial", ["compare_task_trials"]]], "outcomes": "saved / blocked", "sessions": "1 个 solver 会话", "vis": "有条件：task_trials 才可见", "caller": "controller"}, "grade_task_trial": {"sig": "trial_id", "long": "给一次 trial 的解答打分。", "requires": ["trial 已保存且在等评分"], "needs": [["run_task_trial", "【必须在前】先有一次等待评分的 trial"]], "unlocks": [], "outcomes": "graded / blocked", "sessions": "1 个 judge 会话", "vis": "有条件：task_trials 才可见", "caller": "controller"}, "compare_task_trials": {"sig": "original_trial, candidate_trial", "long": "比较原版臂和候选臂的两次 trial。不计入验收。", "requires": ["两次 trial 都已保存，任务和设置相同"], "needs": [["run_task_trial", "【必须在前】两臂各要有一次 trial"]], "unlocks": [], "outcomes": "observed / inconclusive / blocked", "sessions": null, "vis": "有条件：task_trials 才可见", "caller": "controller"}, "get_run_state": {"sig": "", "long": "作业状态快照。", "requires": [], "needs": [], "unlocks": [], "outcomes": "ok", "sessions": null, "vis": "隐藏：→ 每轮的 context.json", "caller": "owner"}, "get_operation_status": {"sig": "operation_id", "long": "按编号读一个操作。", "requires": [], "needs": [], "unlocks": [], "outcomes": "found / not_found", "sessions": null, "vis": "隐藏：→ history.jsonl", "caller": "owner"}, "get_operation_history": {"sig": "offset, limit, …", "long": "分页读作业的全部操作。", "requires": [], "needs": [], "unlocks": [], "outcomes": "page", "sessions": null, "vis": "隐藏：→ history.jsonl", "caller": "owner"}, "get_feedback_history": {"sig": "offset, limit, …", "long": "分页读每个失败问题和它的全部观察。", "requires": [], "needs": [], "unlocks": [], "outcomes": "page", "sessions": null, "vis": "隐藏：→ issues.jsonl", "caller": "owner"}, "get_workspace_status": {"sig": "workspace_id", "long": "读各个实现工作区的状态和调用记录。", "requires": [], "needs": [], "unlocks": [], "outcomes": "ok", "sessions": null, "vis": "隐藏：→ context 的 workspaces 段", "caller": "owner"}, "audit_coverage": {"sig": "", "long": "原版需求的覆盖审计：每个 leaf 有哪些 check。", "requires": ["create_workspace 之后"], "needs": [["create_workspace", "【必须在前】先要有工作区和计划"]], "unlocks": [], "outcomes": "ready / incomplete", "sessions": null, "vis": "隐藏：→ capture_baseline 的结果和 seal 的封顶", "caller": "owner"}, "measure_code": {"sig": "", "long": "测量工作树的代码量和结构。", "requires": ["create_workspace 之后"], "needs": [["create_workspace", "【必须在前】先要有工作区和计划"]], "unlocks": [], "outcomes": "measured / incomplete", "sessions": null, "vis": "隐藏：→ compare_behavior 结果里的 size", "caller": "owner"}, "evaluate_acceptance": {"sig": "profile", "long": "列出当前代码离验收还差哪些缺口。", "requires": ["create_workspace 之后"], "needs": [["create_workspace", "【必须在前】先要有工作区和计划"]], "unlocks": [], "outcomes": "passed / incomplete", "sessions": null, "vis": "隐藏：→ context 的 acceptance 段", "caller": "owner"}, "run_benchmark": {"sig": "check_names", "long": "跑指定的 check 并报告用时。", "requires": ["合同已封存"], "needs": [["seal_contract", "【必须在前】要等合同封存（第一个检查点）"]], "unlocks": [], "outcomes": "同 run_checks", "sessions": null, "vis": "隐藏：→ run_checks(timing=true)", "caller": "owner"}}</script>
+</section>
+
+<section id="deps">
+  <h2>工具之间的依赖</h2>
+  <p class="body">工具的前提检查的是<b>作业的状态</b>，不是“上一步调了谁”。所以依赖可以画成一张状态图：方框是状态，箭头上是把作业推到下一个状态的工具，方框下面是到了这个状态才能调（或被挡住）的工具。前提不满足时调用不会报错，而是返回 <code>blocked</code> 加一句原因；controller 被告知“被拒绝是信息，读原因、换做法，不要重复”。</p>
+  <div class="card"><figure><div class="scroll"><svg class="fig" viewBox="0 0 1120 579" role="img" style="min-width:900px" aria-label="工具依赖的状态图：封存之前是 建工作区、抓 baseline、设计测试后重抓、封存 的固定顺序；封存之后候选依次经过 草稿、当前候选、已全量对比、已交付，修复让它回到草稿"><defs><pattern id="hatch-follow" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="7" height="7" style="fill:var(--w-hard)"/><rect width="3.5" height="7" style="fill:var(--w-ctrl)"/></pattern><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker><marker id="arr-m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:var(--muted)"/></marker></defs><text class="t-phase strong" x="20" y="18">封存之前：主线按固定顺序走，controller 不参与</text><g class="st"><rect x="20" y="56" width="168" height="46" rx="8"/><text x="104" y="84" text-anchor="middle">还没有工作区</text></g><g class="st"><rect x="290" y="56" width="168" height="46" rx="8"/><text x="374" y="84" text-anchor="middle">有工作区和计划</text></g><g class="st"><rect x="560" y="56" width="168" height="46" rx="8"/><text x="644" y="84" text-anchor="middle">有 baseline</text></g><g class="st"><rect x="830" y="56" width="168" height="46" rx="8"/><text x="914" y="76" text-anchor="middle">合同已封存</text><text class="s2" x="914" y="92" text-anchor="middle">第一个检查点</text></g><path class="edge strong" d="M188 79 H288" marker-end="url(#arr)"/><text class="tl h" x="239" y="49" text-anchor="middle">create_workspace</text><path class="edge strong" d="M458 79 H558" marker-end="url(#arr)"/><text class="tl h" x="509" y="49" text-anchor="middle">capture_baseline</text><path class="edge strong" d="M728 79 H828" marker-end="url(#arr)"/><text class="tl h" x="779" y="49" text-anchor="middle">seal_contract</text><text class="tl m" x="294" y="122">prepare_environment 随时可调</text><g class="st"><rect x="560" y="160" width="168" height="46" rx="8"/><text x="644" y="180" text-anchor="middle">欠一次重抓</text><text class="s2" x="644" y="196" text-anchor="middle">seal_contract 被挡</text></g><path class="edge strong" d="M610 102 V158" marker-end="url(#arr)"/><path class="edge strong" d="M678 160 V104" marker-end="url(#arr)"/><text class="tl h" x="602" y="134" text-anchor="end">design_leaf_tests</text><text class="tl h" x="686" y="134">capture_baseline</text><text class="t-note" x="602" y="148" text-anchor="end">（提交了测试文件）</text><line class="rule" x1="0" y1="204" x2="1120" y2="204"/><text class="t-phase strong" x="20" y="224">封存之后：验证类工具随时可调；下面是候选往前走的主路</text><g class="st"><rect x="20" y="296" width="152" height="46" rx="8" stroke-dasharray="5 3"/><text x="96" y="316" text-anchor="middle">合同已封存</text><text class="s2" x="96" y="332" text-anchor="middle">（接上）</text></g><g class="st"><rect x="252" y="296" width="152" height="46" rx="8"/><text x="328" y="324" text-anchor="middle">有未保存的草稿</text></g><g class="st"><rect x="484" y="296" width="152" height="46" rx="8"/><text x="560" y="324" text-anchor="middle">有当前候选</text></g><g class="st"><rect x="716" y="296" width="152" height="46" rx="8"/><text x="792" y="316" text-anchor="middle">已全量对比</text><text class="s2" x="792" y="332" text-anchor="middle">当前代码有证据</text></g><g class="st"><rect x="948" y="296" width="152" height="46" rx="8"/><text x="1024" y="324" text-anchor="middle">已交付</text></g><path class="edge strong" d="M172 319 H250" marker-end="url(#arr)"/><text class="tl c" x="212" y="288" text-anchor="middle">run_agent</text><path class="edge strong" d="M404 319 H482" marker-end="url(#arr)"/><text class="tl c" x="444" y="288" text-anchor="middle">save_candidate</text><path class="edge strong" d="M636 319 H714" marker-end="url(#arr)"/><text class="tl c" x="676" y="288" text-anchor="middle">compare_behavior()</text><path class="edge strong" d="M868 319 H946" marker-end="url(#arr)"/><text class="tl c" x="908" y="288" text-anchor="middle">deliver</text><path class="edge" d="M142 296 C212 252 464 252 514 294" marker-end="url(#arr-m)"/><text class="tl m" x="328" y="254" text-anchor="middle">run_parallel_agents(split) · import_draft：直接得到候选</text><path class="edge back" d="M792 342 V364 H328 V344" marker-end="url(#arr-m)"/><text class="tl m" x="560" y="380" text-anchor="middle">run_agent(repair)：改了代码，证据要重新取</text><text class="tl m" x="20" y="408">新解锁：</text><text class="tl c" x="20" y="423">run_agent · run_parallel_agents</text><text class="tl c" x="20" y="438">run_workspace_agents</text><text class="tl c" x="20" y="453">create_implementation_workspace</text><text class="tl c" x="20" y="468">compare_behavior · run_checks</text><text class="tl c" x="20" y="483">check_installation</text><text class="tl c" x="20" y="498">save_contract · request_revision</text><text class="tl c" x="20" y="513">get_knowledge</text><text class="tl h" x="20" y="528">import_draft（pair 的 main job）</text><text class="tl m" x="20" y="543">永久挡住：create_workspace、</text><text class="tl m" x="20" y="558">design_leaf_tests、seal_contract</text><text class="tl m" x="252" y="408">此时被挡：</text><text class="tl m" x="252" y="423">restore_candidate</text><text class="tl m" x="252" y="438">merge_candidate_parts</text><text class="tl m" x="252" y="453">select_candidate（别的候选）</text><text class="tl m" x="252" y="468">run_parallel_agents(split)</text><text class="tl m" x="252" y="483">finish_draft</text><text class="tl m" x="252" y="498">先 save_candidate，</text><text class="tl m" x="252" y="513">或带 discard_drafts</text><text class="tl m" x="484" y="408">新解锁：</text><text class="tl c" x="484" y="423">select_candidate</text><text class="tl c" x="484" y="438">restore_candidate</text><text class="tl c" x="484" y="453">merge_candidate_parts</text><text class="tl c" x="484" y="468">list_candidate_files</text><text class="tl c" x="484" y="483">compare_candidates</text><text class="tl h" x="484" y="498">finish_draft（draft job）</text><text class="tl m" x="484" y="513">被挡：import_draft</text><text class="tl m" x="716" y="408">新解锁：</text><text class="tl c" x="716" y="423">deliver</text><text class="tl m" x="716" y="438">仍被挡的情况：</text><text class="tl m" x="716" y="453">诊断合同在生效；</text><text class="tl m" x="716" y="468">对比时冻结输入被改；</text><text class="tl m" x="716" y="483">达不到 require 的门槛</text><text class="tl m" x="948" y="408">只剩查询类工具</text><text class="tl m" x="948" y="423">和 cancel_operation</text><text class="tl m" x="948" y="438">owner 的 job-authorize</text><text class="tl m" x="948" y="453">才能重新打开</text></svg></div><p class="swipe">左右滑动查看 →</p>
+    <figcaption>灰色工具名由主线调用，紫色的归 controller。封存是分水岭：之前只有冻结的五个工具在动，之后其余工具才解锁，同时冻结的三个工具被永久挡住。虚线回路是修复：只要改了代码，之前的对比就不再算当前代码的证据。</figcaption></figure></div>
+  <div class="card"><h3>约束清单</h3>
+    <p class="sub">右列是前提不满足时调用方收到的原文（节选）。</p>
+    <div class="scroll"><table style="min-width:52rem"><thead><tr><th>约束</th><th>被挡时收到的话</th></tr></thead><tbody><tr class="grp"><th colspan="2">顺序（硬性，不满足就 blocked）</th></tr><tr><td>冻结按固定顺序：create_workspace → capture_baseline → design_leaf_tests → capture_baseline → seal_contract</td><td class="mono muted">Run capture_baseline first</td></tr><tr><td>几乎所有其他工具都要等封存：author 调用、候选、对比、安装检查、合同变更、知识库</td><td class="mono muted">Author calls need the frozen contract (seal_contract first)</td></tr><tr><td>deliver 要有当前候选，并且当前代码有一次全量对比</td><td class="mono muted">No full behavior comparison of the current code … run compare_behavior without check_names first</td></tr><tr><td>compare_behavior 要有和当前合同、环境相符的 baseline</td><td class="mono muted">No original baseline for the current contract, environment and original; run capture_baseline</td></tr><tr><td>run_workspace_agents 的每个请求要指向已建好的工作区</td><td class="mono muted">Unknown workspace: …</td></tr><tr class="grp"><th colspan="2">欠账（做了 A，就欠一个 B）</th></tr><tr><td>design_leaf_tests 提交了文件 → 欠一次 capture_baseline，否则封存被拒</td><td class="mono muted">The original baseline is not the one a comparison would use now … capture_baseline again before the seal</td></tr><tr><td>prepare_environment 准备了原版 → 已有的 baseline 过期，要重抓</td><td class="mono muted"></td></tr><tr><td>save_contract 换了合同 → 欠一次 capture_baseline，还清之前不能对比</td><td class="mono muted">The contract in force still needs capture_baseline before a comparison</td></tr><tr class="grp"><th colspan="2">只能一次</th></tr><tr><td>create_workspace、seal_contract</td><td class="mono muted">The job&#x27;s contract is already frozen</td></tr><tr><td>import_draft：一个 main job 只导入一次</td><td class="mono muted">This job&#x27;s import of its draft is made (…); it is made once</td></tr><tr><td>prepare_tasks：最多两次，第二次只在第一次因任务设计失败时</td><td class="mono muted">The task benchmark was prepared a second time already</td></tr><tr class="grp"><th colspan="2">互斥</th></tr><tr><td>有未保存的草稿时：不能 restore、merge、选别的候选、开 split 组、finish_draft（discard_drafts 可解除前四个）</td><td class="mono muted">The drafts of author call N are not saved, and this call would replace them</td></tr><tr><td>诊断合同生效期间不能 deliver</td><td class="mono muted">The contract in force selects some of the requirements&#x27; checks: save the complete contract …</td></tr><tr><td>main job 自己调过 author 或已有候选，就不能再 import_draft</td><td class="mono muted">An author of this job has written already: a draft is imported before any author call</td></tr><tr><td>draft job 永远不能 select_candidate、deliver</td><td class="mono muted">This is the draft job of a pair: it writes the first implementation and never delivers</td></tr><tr><td>一个并行组里所有请求必须同一种角色，且不能是 reviewer</td><td class="mono muted">A parallel group is one author call, so its requests share one role</td></tr><tr><td>封存之后不能再 create_workspace、design_leaf_tests、seal_contract</td><td class="mono muted">The job&#x27;s contract is already frozen</td></tr><tr class="grp"><th colspan="2">只在某种模式下存在</th></tr><tr><td>run_parallel_agents：owner 开了 parallel 模式（主线按层写首版的那种调用除外）</td><td class="mono muted">The parallel mode is not on (the owner&#x27;s strategy.parallel.enabled)</td></tr><tr><td>import_draft：pair 的 main job；finish_draft：pair 的 draft job</td><td class="mono muted">Only the main job of a pair imports a draft</td></tr><tr><td>compare_performance：performance=on</td><td class="mono muted">unknown tool</td></tr><tr><td>五个 task-trial 工具：tasks=on 且 owner 另开 task_trials</td><td class="mono muted">… is not in your tools table: task trials are off in this job</td></tr><tr class="grp"><th colspan="2">预算</th></tr><tr><td>每次 author 调用要有尝试次数、作业时间和 token；一个并行组算一次，run_workspace_agents 每个请求算一次</td><td class="mono muted">No author attempt remains | Too little job time remains for another author call</td></tr><tr><td>optimize 最多 max_optimization_attempts 次（默认 2）</td><td class="mono muted">The owner&#x27;s limit on optimization calls leaves none for this request</td></tr><tr><td>speculate 组的请求数 ≤ speculation；同时进行的 author 数 ≤ owner 的上限</td><td class="mono muted">The owner allows N author call(s) at a time</td></tr><tr><td>一轮回答最多 24 个调用；follow 最多 20 步</td><td class="mono muted"></td></tr><tr class="grp"><th colspan="2">软约束（不挡，但会成为交付缺口）</th></tr><tr><td>select_candidate 可以不调：deliver 会自动选当前候选</td><td class="mono muted"></td></tr><tr><td>run_checks、check_installation 没跑：记为缺口；deliver(require=best_reachable) 会因此拦下交付</td><td class="mono muted">Not delivered: require best_reachable asks for …</td></tr><tr><td>compare_performance、compare_task_effort 在行为被接受之前调用：只记录原因，不测量</td><td class="mono muted">not_evaluated: behavior_acceptance_pending</td></tr><tr class="grp"><th colspan="2">全局</th></tr><tr><td>同一时刻一个作业只跑一个会改状态的操作；后台操作进行时，其他改状态的调用排队等，只有查询和 cancel_operation 立即回答</td><td class="mono muted"></td></tr><tr><td>交付之后：只剩查询类工具和 cancel_operation 可调</td><td class="mono muted">The job was delivered; only an owner&#x27;s authorization (job-authorize) reopens it</td></tr></tbody></table></div></div>
+  <div class="card"><h3>实例：detectron2 运行里 controller 第一次被问时拿到的工具表</h3>
+    <p class="sub">draft job 第 1 轮的表里有 28 个工具，main job 第 1 轮有 29 个；其中 23 个两边都可调，下面只列有差别或被挡的。</p>
+    <div class="scroll"><table style="min-width:44rem"><thead><tr><th>工具</th><th>draft job 第 1 轮（封存后，还没写代码）</th><th>main job 第 1 轮（第一次全量对比后）</th></tr></thead><tbody><tr><td class="mono">create_workspace</td><td><b>blocked</b>：合同已封存<br><span class="mono muted">The job&#x27;s contract is already frozen</span></td><td><b>blocked</b>：合同已封存<br><span class="mono muted">The job&#x27;s contract is already frozen</span></td></tr><tr><td class="mono">design_leaf_tests</td><td><b>blocked</b>：合同已封存<br><span class="mono muted">The job&#x27;s contract is already frozen</span></td><td><b>blocked</b>：合同已封存<br><span class="mono muted">The job&#x27;s contract is already frozen</span></td></tr><tr><td class="mono">seal_contract</td><td><b>blocked</b>：合同已封存<br><span class="mono muted">The job&#x27;s contract is already frozen</span></td><td><b>blocked</b>：合同已封存<br><span class="mono muted">The job&#x27;s contract is already frozen</span></td></tr><tr><td class="mono">prepare_tasks</td><td><b>blocked</b>：没有待准备的任务基准（tasks=off）<br><span class="mono muted">No task benchmark is waiting to be prepared</span></td><td><b>blocked</b>：没有待准备的任务基准（tasks=off）<br><span class="mono muted">No task benchmark is waiting to be prepared</span></td></tr><tr><td class="mono">finish_draft</td><td><b>blocked</b>：draft job 还没有已保存的候选<br><span class="mono muted">The draft job has no saved candidate yet</span></td><td><span class="muted">不在表里</span></td></tr><tr><td class="mono">select_candidate</td><td><span class="muted">不在表里</span></td><td>可调</td></tr><tr><td class="mono">deliver</td><td><span class="muted">不在表里</span></td><td>可调</td></tr></tbody></table></div>
+    <p class="sub">draft job 的表里多一个 <code>finish_draft</code>、少了 <code>select_candidate</code> 和 <code>deliver</code>：它不交付。两边都没有 <code>import_draft</code> 和九个查询类工具。</p></div>
+</section>
+
+<footer>
+  <p><b>依据。</b>流程和工具读的是 nanolize main @ 21d8a28e（2026-11-20）的代码，以代码为准；文档有几处落后于代码（例如文档说 controller 选择每一步，代码里它要等第一次全量对比之后才被问；文档说按层写首版是 parallel 模式才有的，代码里每个 controller 作业都按层写）。</p>
+  <p><b>例子。</b>detectron2 这次运行在 2026-11-19，用的是合入 main 之前的同一组改动（提交 30d4c861，之后以 PR #45 合入）。数字来自作业的操作记录和每个模型会话的记录；每种配置只跑了这一次。</p>
+  <p><b>没画的。</b>任务评估（examiner、solver、judge）和性能验收这次都没开，页面只在工具目录里列出相关工具。fixed 策略（不用 controller）也没有展开。为了公开发布，页面里去掉了本机路径、集群账户和队列名、沙箱隐藏目录的清单。</p>
+</footer>
+
+</div>
+<div id="tip" hidden></div>
+<script>
+(function () {
+  var tip = document.getElementById('tip');
+  Array.prototype.forEach.call(document.querySelectorAll('.legend[data-for]'), function (legend) {
+    var fig = document.getElementById(legend.getAttribute('data-for'));
+    var buttons = Array.prototype.slice.call(legend.querySelectorAll('button.lg'));
+    buttons.forEach(function (button) {
+      button.addEventListener('click', function () {
+        var on = button.getAttribute('aria-pressed') === 'true';
+        buttons.forEach(function (other) { other.setAttribute('aria-pressed', 'false'); });
+        if (on) { fig.removeAttribute('data-focus'); return; }
+        button.setAttribute('aria-pressed', 'true');
+        fig.setAttribute('data-focus', button.getAttribute('data-kind'));
+      });
+    });
+  });
+  function hide() { tip.hidden = true; }
+  function show(event) {
+    var block = event.target.closest ? event.target.closest('[data-tip]') : null;
+    if (!block) { hide(); return; }
+    tip.textContent = block.getAttribute('data-tip');
+    tip.hidden = false;
+    var box = tip.getBoundingClientRect();
+    var left = Math.min(event.clientX + 12, window.innerWidth - box.width - 8);
+    var top = event.clientY + 16;
+    if (top + box.height > window.innerHeight - 8) { top = event.clientY - box.height - 10; }
+    tip.style.left = Math.max(8, left) + 'px';
+    tip.style.top = Math.max(8, top) + 'px';
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('.tips'), function (box) {
+    box.addEventListener('pointermove', show);
+    box.addEventListener('pointerdown', show);
+    box.addEventListener('pointerleave', hide);
+  });
+  window.addEventListener('scroll', hide, { passive: true });
+
+  // the tools view: choosing a tool marks what it needs and what it unlocks
+  var view = document.querySelector('.toolsview');
+  if (!view) { return; }
+  var data = JSON.parse(document.getElementById('tools-data').textContent);
+  var panel = document.getElementById('tool-panel');
+  var cards = {};
+  Array.prototype.forEach.call(view.querySelectorAll('.tool'), function (card) { cards[card.getAttribute('data-name')] = card; });
+  function clear() {
+    view.removeAttribute('data-sel');
+    Object.keys(cards).forEach(function (name) { cards[name].classList.remove('sel', 'pre', 'post'); cards[name].setAttribute('aria-pressed', 'false'); });
+    panel.hidden = true;
+  }
+  function item(text) { var li = document.createElement('li'); li.textContent = text; return li; }
+  function list(rows, empty) {
+    var ul = document.createElement('ul');
+    if (!rows.length) { ul.appendChild(item(empty)); }
+    rows.forEach(function (row) { ul.appendChild(item(row)); });
+    return ul;
+  }
+  function choose(name) {
+    var tool = data[name];
+    if (!tool) { return; }
+    if (view.getAttribute('data-sel') === name) { clear(); return; }
+    clear();
+    view.setAttribute('data-sel', name);
+    cards[name].classList.add('sel');
+    cards[name].setAttribute('aria-pressed', 'true');
+    tool.needs.forEach(function (edge) { if (cards[edge[0]]) { cards[edge[0]].classList.add('pre'); } });
+    tool.unlocks.forEach(function (group) { group[1].forEach(function (to) { if (cards[to]) { cards[to].classList.add('post'); } }); });
+    panel.textContent = '';
+    var close = document.createElement('button'); close.className = 'close'; close.type = 'button'; close.textContent = '收起 ×';
+    close.addEventListener('click', clear); panel.appendChild(close);
+    var title = document.createElement('div'); title.className = 'nm'; title.textContent = name + '(' + tool.sig + ')'; panel.appendChild(title);
+    var what = document.createElement('div'); what.textContent = tool.long; panel.appendChild(what);
+    var dl = document.createElement('dl');
+    function row(label, node) { var dt = document.createElement('dt'); dt.textContent = label; var dd = document.createElement('dd'); dd.appendChild(node); dl.appendChild(dt); dl.appendChild(dd); }
+    function text(value) { return document.createTextNode(value); }
+    row('调用前提', list(tool.requires.concat(tool.needs.map(function (edge) { return edge[1] + '（' + edge[0] + '）'; })), '任何时候都能调'));
+    row('它影响的工具', list(tool.unlocks.map(function (group) { return group[0] + '：' + group[1].join('、'); }), '没有别的工具以它为前提'));
+    row('可能的结果', text(tool.outcomes));
+    if (tool.sessions) { row('会启动的会话', text(tool.sessions)); }
+    row('controller 能否调', text(tool.vis));
+    row('通常谁调', text(tool.caller));
+    panel.appendChild(dl);
+    panel.hidden = false;
+  }
+  Object.keys(cards).forEach(function (name) { cards[name].addEventListener('click', function () { choose(name); }); });
+})();
+</script>
+</body>
+</html>
