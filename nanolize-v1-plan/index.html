@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="referrer" content="no-referrer">
-<meta name="description" content="nanolize 新版本 v1 的实施方案：controller 接管所有 author 和 test designer 的拆分与并行，保留 main job 加 draft job 的两作业结构。含分层图、现在四种开关组合（pair 开或关、parallel 开或关）的流程图、逐项清单、v1 流程示意、工作包顺序、验证办法、风险和待定事项。基于分支 layered-controller @ 21d8a28e，尚未动代码。">
+<meta name="description" content="nanolize 新版本 v1 的实施方案：controller 接管所有 author 和 test designer 的拆分与并行，保留 main job 加 draft job 的两作业结构。先用流程图对照现在和 v1 的四种开关组合（pair 开或关、parallel 开或关），再给出逐项清单、工作包顺序、验证办法、风险和待定事项。v1 把更多流程交给 controller 编排，pair 管两个作业是否重叠，parallel 管其余所有并行。基于分支 layered-controller @ 21d8a28e，尚未动代码。">
 <title>nanolize v1 实施方案</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%231c5cab'/%3E%3Cpath d='M4 11V5l8 6V5' fill='none' stroke='white' stroke-width='1.6'/%3E%3C/svg%3E">
 <style>
@@ -254,80 +254,44 @@
 <header class="page">
   <div class="eyebrow"><span>分支：layered-controller（建在 PR #45 的合并点 21d8a28e 上）</span><span>2026-11-20</span><span>状态：方案，还没动代码</span></div>
   <h1>nanolize v1 实施方案</h1>
-  <p class="lead">新版本要做成 host agent → controller → author / test designer / verifier 三层，并逐版把自由度交给 controller。v1 是第一步：<b>所有 author 和 test designer 的拆分与并行都由 controller 决定</b>，运行仍然是 main job 加 draft job 两个并行的作业。这页先写清我对 v1 的理解，再画出现在四种开关组合各自的流程，然后给出要改什么、按什么顺序改、怎么验证，以及需要你定的几件事。</p>
-  <p class="sub">11-20 更新：① 新增“四种开关组合”一节。② main 在这页发布后回滚了 PR #45，新分支仍含它，见“需要你定的”第 7 项。③ 按你的要求改了 parallel 关着时的做法：author 会话也由 controller 控制，一个接一个写，程序不再划分 scope（工作包 W10，“需要你定的”第 1、8、9 项）。</p>
+  <p class="lead">新版本要做成 host agent → controller → author / test designer / verifier 三层，逐版把流程交给 controller。v1 做两件事：<b>把原来由 mainline 控制的流程更多地交给 controller 编排</b>；<b>两个开关各管一件事</b>，pair 管 draft job 和 main job 是否重叠，parallel 管其余所有并行。</p>
+  <p class="sub">这页先用例子图说话：第一部分是现在的四种组合，第二部分是 v1 期望的四种组合，画法相同，可以逐张对照。细节（逐项清单、工作包、验证、风险、需要你定的）都放在后面。</p>
   <nav class="toc" aria-label="目录">
-    <a href="#scope">v1 做什么</a><a href="#layers">分层</a><a href="#modes">四种开关组合</a><a href="#inventory">逐项清单</a><a href="#flow">流程示意</a>
-    <a href="#authors">author 的改动</a><a href="#designers">test designer 的改动</a><a href="#packages">工作包和顺序</a>
+    <a href="#switches">两个开关</a><a href="#now">现在的四种组合</a><a href="#v1">v1 的四种组合</a>
+    <a href="#scope">v1 改什么</a><a href="#layers">分层</a><a href="#inventory">逐项清单</a><a href="#now-details">现在的细节</a>
+    <a href="#flowwork">流程编排的改动</a><a href="#authors">author 的改动</a><a href="#designers">test designer 的改动</a><a href="#packages">工作包和顺序</a>
     <a href="#verify">验证</a><a href="#risks">风险</a><a href="#decide">需要你定的</a><a href="#later">v1 不做的</a>
   </nav>
 </header>
 
-<section id="scope">
-  <h2>我对 v1 的理解</h2>
+<section id="switches">
+  <h2>两个开关</h2>
   <div class="cards wide">
-    <div class="card"><span class="n">v1 改两条线</span>
+    <div class="card"><span class="n">pair</span>
+      <p><b>管 draft job 和 main job 是否重叠。</b>v1 不改它的含义。</p>
       <ul class="tight">
-        <li><b>controller → author</b>：现在只有 owner 打开 <code>parallel</code> 才归 controller。v1 里它是每个 controller 作业的常态，两个作业都是。<code>parallel</code> 只决定 author 并行还是串行：开着时 controller 可以开并行组；关着时一个接一个写，程序不再划分 scope。并去掉并行时仍然写死的规则（共享文件谁写、只能按程序切好的 scope 分）。</li>
-        <li><b>controller → test designer</b>：现在完全没有这条线。v1 新建：封存之前给 controller 一轮，由它决定 test designer 的拆分和并行。</li>
+        <li><b>关</b>：一个作业。首版排在封存后面。</li>
+        <li><b>开</b>：两个作业同时跑。main job 冻结合同并验收；draft job 在仓库的第二个克隆上同时写首版。</li>
+        <li>不写：程序自己定。选中的代码不少于 20,000 token，并且有计算节点可用，就是两个。</li>
       </ul></div>
-    <div class="card"><span class="n">v1 不改的</span>
+    <div class="card"><span class="n">parallel</span>
+      <p><b>管其余所有和并行有关的事。</b>这是 v1 里的含义。</p>
       <ul class="tight">
-        <li><b>两个作业的结构</b>：main job 冻结合同并验收，draft job 同时写首版。拆不拆仍由程序规则和 <code>pair=</code> 决定。</li>
-        <li><b>verifier 这条线</b>：冻结里的 baseline、封存、第一次全量对比仍归 mainline。</li>
-        <li><b>证据规则</b>：给哪些 leaf 设计测试、门、试跑、knockout、评审裁决、对比怎么判，全部照旧。</li>
-        <li><b>owner 的上限</b>：同时几个 author、同时几个 designer 的上限仍是 owner 的。</li>
-      </ul></div>
-    <div class="card"><span class="n">mainline 在 v1 里还剩什么</span>
-      <ul class="tight">
-        <li>执行没有取舍的步骤：建工作区、抓 baseline、封存、导入草稿、第一次对比。</li>
-        <li><b>兜底</b>：controller 没给出可用回答时，照今天的固定做法走。</li>
-        <li><b>补漏</b>：controller 的安排漏掉的 leaf 或 capability，由它补上，保证一个不少。</li>
-      </ul></div>
-  </div>
-  <p class="sub">一句话：v1 之后，“开几个会话、怎么分、同时几个”这类决定，在 author 和 test designer 两处都归 controller；程序只保留证据规则、上限和安全网。</p>
-</section>
-
-<section id="layers">
-  <h2>分层：v1 之后是什么样</h2>
-  <div class="card"><figure><div class="scroll"><svg class="fig" viewBox="0 0 1100 590" role="img" style="min-width:900px" aria-label="v1 的分层：host 在上，中间是作业控制层的 mainline 和 controller，下面是 author、test designer、verifier。v1 里 controller 接管 author 和 test designer 两条线的拆分与并行，mainline 对 author 退到只兜底，对 test designer 仍然决定给哪些 leaf 设计；verifier 这条线不变"><defs><pattern id="hatch-follow" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="7" height="7" style="fill:var(--w-hard)"/><rect width="3.5" height="7" style="fill:var(--w-ctrl)"/></pattern><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker><marker id="arr-m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:var(--muted)"/></marker></defs><text x="40" y="16" style="font-size:11px;fill:var(--accent);font-family:var(--font-mono)">第 1 层　host（v1 不变）</text><rect x="330" y="24" width="440" height="56" rx="8" style="fill:var(--surface);stroke:var(--w-agent-ink)" stroke-width="1.5"/><rect x="330" y="24" width="6" height="56" rx="3" style="fill:var(--w-agent)"/><text x="346" y="46" style="font-size:13px;font-weight:700">host agent</text><text x="346" y="64" style="font-size:11px;fill:var(--muted)">写合同和上限、提交；运行中只观察</text><path class="arrow" d="M550 80 L550 124" marker-end="url(#arr)"/><rect x="40" y="126" width="1020" height="128" rx="12" style="fill:none;stroke:var(--line)" stroke-width="1.5" stroke-dasharray="6 4"/><text x="56" y="146" style="font-size:11px;fill:var(--accent);font-family:var(--font-mono)">第 2 层　作业控制层（main job 和 draft job 各一套）</text><rect x="70" y="158" width="430" height="82" rx="8" style="fill:var(--surface);stroke:var(--w-hard-ink)" stroke-width="1.5"/><rect x="70" y="158" width="6" height="82" rx="3" style="fill:var(--w-hard)"/><text x="86" y="180" style="font-size:13px;font-weight:700">mainline（程序，固定规则）</text><text x="86" y="198" style="font-size:11px;fill:var(--muted)">v1：只做没有取舍的步骤、兜底、补齐遗漏</text><text x="86" y="214" style="font-size:11px;fill:var(--muted)">关系到证据的规则仍归它</text><rect x="600" y="158" width="430" height="82" rx="8" style="fill:var(--surface);stroke:var(--w-ctrl-ink)" stroke-width="1.5"/><rect x="600" y="158" width="6" height="82" rx="3" style="fill:var(--w-ctrl)"/><text x="616" y="180" style="font-size:13px;font-weight:700">controller（模型）</text><text x="616" y="198" style="font-size:11px;fill:var(--muted)">v1：所有 author 和 test designer 会话</text><text x="616" y="214" style="font-size:11px;fill:var(--muted)">怎么拆、几个同时跑，都由它定</text><path class="arrow" d="M500 186 L598 186" marker-end="url(#arr)"/><text x="549" y="179" text-anchor="middle" style="font-size:10.5px;fill:var(--muted)">问</text><path class="arrow" d="M598 214 L502 214" marker-end="url(#arr)"/><text x="549" y="207" text-anchor="middle" style="font-size:10.5px;fill:var(--muted)">答</text><text x="40" y="282" style="font-size:11px;fill:var(--accent);font-family:var(--font-mono)">第 3 层　执行层</text><path d="M285 240 V296 M110 296 H810" style="fill:none;stroke:var(--w-hard-ink)" stroke-width="2"/><path d="M900 240 V320 M250 320 H950" style="fill:none;stroke:var(--w-ctrl-ink)" stroke-width="2.5"/><path d="M110 296 V339" style="fill:none;stroke:var(--w-hard-ink)" stroke-width="2" stroke-dasharray="4 4"/><circle cx="110" cy="344" r="5" style="fill:var(--surface);stroke:var(--w-hard-ink)" stroke-width="1.5"/><path d="M460 296 V339" style="fill:none;stroke:var(--w-hard-ink)" stroke-width="2"/><circle cx="460" cy="344" r="5" style="fill:var(--w-hard);stroke:var(--w-hard-ink)" stroke-width="1.5"/><path d="M810 296 V339" style="fill:none;stroke:var(--w-hard-ink)" stroke-width="2"/><circle cx="810" cy="344" r="5" style="fill:var(--w-hard);stroke:var(--w-hard-ink)" stroke-width="1.5"/><path d="M250 320 V339" style="fill:none;stroke:var(--w-ctrl-ink)" stroke-width="3.5"/><circle cx="250" cy="344" r="6" style="fill:var(--w-ctrl);stroke:var(--w-ctrl-ink)" stroke-width="1.5"/><path d="M600 320 V339" style="fill:none;stroke:var(--w-ctrl-ink)" stroke-width="3.5"/><circle cx="600" cy="344" r="6" style="fill:var(--w-ctrl);stroke:var(--w-ctrl-ink)" stroke-width="1.5"/><path d="M950 320 V339" style="fill:none;stroke:var(--w-ctrl-ink)" stroke-width="2"/><circle cx="950" cy="344" r="5" style="fill:var(--w-ctrl);stroke:var(--w-ctrl-ink)" stroke-width="1.5"/><rect x="40" y="344" width="320" height="212" rx="8" style="fill:var(--surface);stroke:var(--w-agent-ink)" stroke-width="1.5"/><rect x="40" y="344" width="6" height="212" rx="3" style="fill:var(--w-agent)"/><text x="56" y="366" style="font-size:13px;font-weight:700">author</text><text x="56" y="384" style="font-size:11px;fill:var(--muted)">首版和修复</text><circle cx="60" cy="402" r="5" style="fill:var(--w-ctrl);stroke:var(--w-ctrl-ink)" stroke-width="1.5"/><text x="74" y="406" style="font-size:11px;font-weight:700;fill:var(--w-ctrl-ink)">controller</text><text x="74" y="422" style="font-size:11px;fill:var(--ink)">现在：只在 parallel=on 时切首版、拆修复</text><text x="74" y="437" style="font-size:11px;fill:var(--ink)">v1：默认就由它定，两个作业都是；</text><text x="74" y="452" style="font-size:11px;fill:var(--ink)">可以不按程序切好的 scope 来分</text><circle cx="60" cy="482" r="5" style="fill:none;stroke:var(--w-hard-ink)" stroke-width="1.5" stroke-dasharray="2 2"/><text x="74" y="486" style="font-size:11px;font-weight:700;fill:var(--w-hard-ink)">mainline</text><text x="74" y="502" style="font-size:11px;fill:var(--muted)">现在：parallel=off 时按层写首版</text><text x="74" y="517" style="font-size:11px;fill:var(--muted)">v1：只兜底（controller 不答时）、</text><text x="74" y="532" style="font-size:11px;fill:var(--muted)">补写它漏掉的部分</text><rect x="390" y="344" width="320" height="212" rx="8" style="fill:var(--surface);stroke:var(--w-agent-ink)" stroke-width="1.5"/><rect x="390" y="344" width="6" height="212" rx="3" style="fill:var(--w-agent)"/><text x="406" y="366" style="font-size:13px;font-weight:700">test designer</text><text x="406" y="384" style="font-size:11px;fill:var(--muted)">给缺测试的 leaf 写测试（test reviewer 不变）</text><circle cx="410" cy="402" r="5" style="fill:var(--w-ctrl);stroke:var(--w-ctrl-ink)" stroke-width="1.5"/><text x="424" y="406" style="font-size:11px;font-weight:700;fill:var(--w-ctrl-ink)">controller</text><rect x="503" y="394" width="46" height="15" rx="7" style="fill:var(--w-agent)"/><text x="526" y="405" text-anchor="middle" style="font-size:10px;font-weight:700;fill:var(--on-series)">v1 新增</text><text x="424" y="422" style="font-size:11px;fill:var(--ink)">现在：管不到</text><text x="424" y="437" style="font-size:11px;fill:var(--ink)">v1：定怎么分批、一个 leaf 分几个会话、</text><text x="424" y="452" style="font-size:11px;fill:var(--ink)">同时几个；不能给 designer 写指示</text><circle cx="410" cy="482" r="5" style="fill:var(--w-hard);stroke:var(--w-hard-ink)" stroke-width="1.5"/><text x="424" y="486" style="font-size:11px;font-weight:700;fill:var(--w-hard-ink)">mainline</text><text x="424" y="502" style="font-size:11px;fill:var(--ink)">仍然定：给哪些 leaf 设计（一个不能少）、</text><text x="424" y="517" style="font-size:11px;fill:var(--ink)">门、试跑、评审、提交；</text><text x="424" y="532" style="font-size:11px;fill:var(--ink)">controller 漏掉的 leaf 由它补上</text><rect x="740" y="344" width="320" height="212" rx="8" style="fill:var(--surface);stroke:var(--w-hard-ink)" stroke-width="1.5"/><rect x="740" y="344" width="6" height="212" rx="3" style="fill:var(--w-hard)"/><text x="756" y="366" style="font-size:13px;font-weight:700">verifier（程序）</text><text x="756" y="384" style="font-size:11px;fill:var(--muted)">v1 不改这条线</text><circle cx="760" cy="402" r="5" style="fill:var(--w-ctrl);stroke:var(--w-ctrl-ink)" stroke-width="1.5"/><text x="774" y="406" style="font-size:11px;font-weight:700;fill:var(--w-ctrl-ink)">controller</text><text x="774" y="422" style="font-size:11px;fill:var(--ink)">第一次全量对比之后：何时对比、</text><text x="774" y="437" style="font-size:11px;fill:var(--ink)">筛查哪些 check、安装检查</text><circle cx="760" cy="482" r="5" style="fill:var(--w-hard);stroke:var(--w-hard-ink)" stroke-width="1.5"/><text x="774" y="486" style="font-size:11px;font-weight:700;fill:var(--w-hard-ink)">mainline</text><text x="774" y="502" style="font-size:11px;fill:var(--ink)">冻结里的 baseline 和 knockout、封存、</text><text x="774" y="517" style="font-size:11px;fill:var(--ink)">第一次全量对比（留给后续版本）</text><text x="550" y="578" text-anchor="middle" style="font-size:10.5px;fill:var(--muted)">粗紫线 = v1 里 controller 完全接管拆分与并行的两条线　　虚线灰 = mainline 退到只兜底</text></svg></div><p class="swipe">左右滑动查看 →</p>
-    <figcaption>和现状（见 <a href="../nanolize-pipeline-map/#roles">流程全图的分层图</a>）相比，变的是两条粗紫线：author 那条从“开了 parallel 才有”变成常态，test designer 那条是新建的。mainline 对 author 退到只兜底和补漏；对 test designer 它仍然决定给哪些 leaf 设计，并把流程里和证据有关的部分留在自己手里。</figcaption></figure></div>
-</section>
-
-<section id="modes">
-  <h2>现在的四种开关组合：pair 开或关 × parallel 开或关</h2>
-  <p class="body">新分支上还没有改代码，所以这一节画的就是它现在的行为。图是示意图：同一个假想项目，3 个 leaf 要设计测试，首版分成 5 个 scope、两层。画法和流程全图一样：每个作业第一行是控制层发出的工具调用，下面几行是这些调用让谁干活；一列是一步，上下对齐的块同时进行；灰色是 mainline 定的，紫色是 controller 定的。把鼠标放在块上看说明。</p>
-  
-  <div class="cards wide">
-    <div class="card"><span class="n">开关一：pair</span>
-      <p><b>管一次运行是一个作业还是两个。</b></p>
-      <ul class="tight">
-        <li><code>pair=off</code>：一个作业。</li>
-        <li><code>pair=on</code>：两个作业。main job 冻结合同并验收；draft job 在仓库的第二个克隆上同时写首版。没有可用的计算节点时会被拒绝。</li>
-        <li>不写：程序自己定。选中的代码不少于 20,000 token，并且有计算节点可用，就是两个；否则一个。</li>
-      </ul></div>
-    <div class="card"><span class="n">开关二：parallel</span>
-      <p><b>默认关。打开后一个开关同时管五件事：</b></p>
-      <ul class="tight">
-        <li>封存后首版怎么切，由 controller 定（否则 mainline 按层写）。</li>
-        <li>draft job 有自己的 controller（否则没有）。</li>
-        <li>并行修复组、并排试两个版本可以用（否则被拒绝）。</li>
-        <li>owner 的上限生效：同时几个 author（默认 4）、并排试几个版本（默认 2）。</li>
-        <li>机器并发放宽：knockout 同时 8 个，check 同时最多 8 个。</li>
+        <li><b>关</b>：所有会话一个接一个。</li>
+        <li><b>开</b>：下面这些并行流程才可用，由 controller 在 owner 的上限内安排：多个 author 同时写；同时给多个 leaf 写测试；同时修几处；draft job 提前验证，用已经固定的那部分测试先对比、先修。</li>
+        <li><b>现在</b>不是这样：谁来规划也挂在这个开关上；关着时仍有并行（test designer 全部同时开，同一层最多 4 个 author）。</li>
       </ul></div>
   </div>
   <p class="sub">两个开关都由 owner 在入口命令里给，或由 host 代填。controller 看得到它们，改不了。</p>
+</section>
 
-  <div class="card notice"><h3>先说一件事：main 回滚了 PR #45，新分支仍然含它</h3>
-    <p>新分支建在 PR #45 的合并点（21d8a28e）上。之后 main 在 2026-11-20 合了 PR #47，把 PR #45 整个回滚了。所以这一节说的“现在”是<b>新分支的代码</b>，和今天的 main 不一样。PR #45 里和流程有关的有三件事：</p>
-    <ul class="tight">
-      <li><b>parallel 开着时，controller 切首版，draft job 写完接着对比和修复。</b>下面 ② ④ 两张图里用蓝色虚线标出的部分。今天的 main 上没有。</li>
-      <li><b>worker 多于一个时，baseline 的 check 和 knockout 的对照同时跑。</b>冻结里 verifier 的块变短，图的形状不变。今天的 main 上没有。</li>
-      <li>run 页面画出两个作业和并行组；main job 的 token 计数算上 draft job 的 controller。</li>
-    </ul>
-    <p>这对方案的影响见<a href="#decide">需要你定的第 7 项</a>。</p></div>
-
-  <div class="card"><h3>四种组合一览</h3>
+<section id="now">
+  <div class="part">第一部分　现在</div>
+  <h2>现在：新分支上的四种组合</h2>
+  <p class="body">新分支上还没有改代码，这一节画的是它现在的行为。图是示意图：同一个假想项目，3 个 leaf 要设计测试，首版分成 5 个 scope、两层。每个作业第一行是控制层发出的工具调用，下面几行是这些调用让谁干活；一列是一步，上下对齐的块同时进行。<b>灰色是 mainline 定的，紫色是 controller 定的。</b>把鼠标放在块上看说明。</p>
+  <p class="sub">② ④ 里用蓝色虚线标出的部分来自 PR #45。main 后来回滚了 PR #45，新分支仍含它，细节见<a href="#now-details">现在的细节</a>。</p>
+  
+  <div class="card"><h3>四种组合一览（现在）</h3>
     <div class="scroll"><table class="matrix" style="min-width:46rem">
       <thead><tr><th></th><th>parallel 关（默认）</th><th>parallel 开</th></tr></thead>
       <tbody>
@@ -336,7 +300,6 @@
       </tbody></table></div>
     <p class="sub">竖着看是 pair 的作用：首版在哪写。横着看是 parallel 的作用：首版和修复由谁切。两个开关都碰不到冻结。</p></div>
 
-  
   <div class="card tips focusable mode" id="mode-a">
     <h3><span class="no">①</span><span>一个作业，首版由 mainline 按层写</span><span class="sw2">pair 关 · parallel 关</span></h3>
     <div class="chips"><span class="who w-hard">冻结：mainline</span><span class="who w-hard">首版：mainline 按层</span><span class="who w-ctrl">修复：controller，一次一个 author</span></div>
@@ -712,6 +675,417 @@ controller 在规划轮里通常会放行 mainline 一直做到这一步；不�
 谁定的：mainline（程序的固定规则），没有问 controller"><rect x="811.5" y="315" width="59.0" height="20" rx="4"/><text x="841.0" y="329" text-anchor="middle">交出草稿</text></g><path class="under" d="M316 506 V511 H870 V506"/><text class="t-under" x="593.0" y="525" text-anchor="middle">来自 PR #45。今天的 main 上 draft job 没有 controller：mainline 按层写完就交出，和 ③ 一样</text><path class="link" d="M593.0 60.0 V270.0 H831.0 V313.0" marker-end="url(#arr)"/><text class="t-note" x="712.0" y="265.0" text-anchor="middle">main job 封存 → 强制交出</text><path class="link" d="M851.0 315.0 V62.0" marker-end="url(#arr)"/><text class="t-note" x="858.0" y="265.0" text-anchor="start">交出的首版</text></svg></div><p class="swipe">左右滑动查看 →</p>
     <figcaption>两个作业各有一个 controller，互相看不到。实测：detectron2 核心，127.6 分钟，main job 等 draft job 等了 24.7 分钟（完整时间线见 <a href="../nanolize-pipeline-map/#timeline">流程全图</a>）。</figcaption></figure>
   </div>
+</section>
+
+<section id="v1">
+  <div class="part">第二部分　v1</div>
+  <h2>v1：期望的四种组合</h2>
+  <p class="body">同一个假想项目，同样的画法，可以和上一节逐张对照：<b>从灰变紫的地方，就是从 mainline 交给 controller 编排的。</b>示意图，不是实测。</p>
+  <div class="card"><h3>和现在比，变了什么</h3>
+    <ul class="plain">
+      <li><b>紫色变多。</b>冻结里多一轮 controller，由它排 test designer。封存之后每一步都先问 controller，包括保存和第一次全量对比；今天要等到第一次对比之后。draft job 总有自己的 controller。</li>
+      <li><b>parallel 关着，就是真的一个接一个。</b>test designer、author、repair 同一时刻都只有一个会话，程序不划分 scope。今天关着时 designer 全部同时开，同一层最多 4 个 author。</li>
+      <li><b>parallel 开着才有的并行流程。</b>几个 designer 同时写、并行组写首版、并行修复、draft job 提前验证，都由 controller 在 owner 的上限内安排。</li>
+      <li><b>仍是灰色的。</b>准备、抓 baseline、试跑、评审、提交、封存、draft job 的交出。它们没有取舍，或者是证据规则。</li>
+    </ul></div>
+  
+  <div class="card"><h3>四种组合一览（v1）</h3>
+    <div class="scroll"><table class="matrix" style="min-width:46rem">
+      <thead><tr><th></th><th>parallel 关（默认）</th><th>parallel 开</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">pair 关<br><span class="muted" style="font-weight:400">一个作业</span></th><td><a href="#v1-a">①′ 一个作业，所有会话一个接一个</a><p>controller 在冻结里排 test designer 的先后，封存后排首版、对比、修复、交付。任何时刻只有一个会话。程序不划分 scope。</p><div class="chips"><span class="who w-ctrl">designer：controller 排先后，一次一个</span><span class="who w-ctrl">首版：controller，一次一个 author</span><span class="who w-ctrl">修复：controller，一次一个</span></div></td><td><a href="#v1-b">②′ 一个作业，会话可以并行</a><p>和 ①′ 一样由 controller 编排，但它可以让几个 designer 同时写、用并行组写首版、开并行修复组。上限是 owner 的。</p><div class="chips"><span class="who w-ctrl">designer：controller 排，同时几个</span><span class="who w-ctrl">首版：controller，并行组</span><span class="who w-ctrl">修复：controller，并行修复组</span></div></td></tr>
+        <tr><th scope="row">pair 开<br><span class="muted" style="font-weight:400">两个作业</span></th><td><a href="#v1-c">③′ 两个作业重叠，各自内部一个接一个</a><p>draft job 有自己的 controller，和 main job 的冻结同时进行，author 一个接一个写；写完就交，不提前验证。main job 导入后由 controller 编排对比、修复、交付。</p><div class="chips"><span class="who w-ctrl">designer：main job 的 controller，一次一个</span><span class="who w-ctrl">首版：draft job 的 controller，一次一个 author</span><span class="who w-hard">draft job：写完就交，不提前验证</span></div></td><td><a href="#v1-d">④′ 两个作业重叠，内部也并行，draft job 提前验证</a><p>draft job 的 controller 用并行组写首版，然后用已经固定的那部分测试提前验证、并行修复，直到 main job 封存。导入时等不等由 main job 的 controller 定。</p><div class="chips"><span class="who w-ctrl">designer：main job 的 controller，同时几个</span><span class="who w-ctrl">首版：draft job 的 controller，并行组</span><span class="who w-ctrl">draft job：提前验证并修复</span><span class="who w-ctrl">导入：main job 的 controller 定等不等</span></div></td></tr>
+      </tbody></table></div>
+    <p class="sub">竖着看是 pair：两个作业是否重叠。横着看是 parallel：作业内部的会话一个接一个，还是可以并行。四格里都是 controller 在编排。</p></div>
+
+  <div class="card tips focusable mode" id="v1-a">
+    <h3><span class="no">①′</span><span>一个作业，所有会话一个接一个</span><span class="sw2">pair 关 · parallel 关</span></h3>
+    <div class="chips"><span class="who w-ctrl">designer：controller 排先后，一次一个</span><span class="who w-ctrl">首版：controller，一次一个 author</span><span class="who w-ctrl">修复：controller，一次一个</span></div>
+    <div class="legend" data-for="v1-a"><span class="hint">颜色 = 谁决定这一步（点一下只看一类）</span><button type="button" class="lg" data-kind="hard" aria-pressed="false"><span class="sw w-hard"></span>程序写死</button><button type="button" class="lg" data-kind="ctrl" aria-pressed="false"><span class="sw w-ctrl"></span>controller 决定</button></div>
+    <figure><div class="scroll"><svg class="fig" viewBox="0 0 1340 192" role="img" aria-label="v1，pair 关、parallel 关：一个作业，所有会话一个接一个。controller 在冻结里排 test designer 的先后，封存后排首版、对比、修复和交付；baseline 和封存仍由 mainline 做" style="min-width:1152px"><defs><pattern id="hatch-follow" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="7" height="7" style="fill:var(--w-hard)"/><rect width="3.5" height="7" style="fill:var(--w-ctrl)"/></pattern><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker><marker id="arr-m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:var(--muted)"/></marker></defs><text class="t-lane" x="0" y="26">唯一的作业</text><rect x="124" y="36" width="1208" height="28" rx="4" style="fill:var(--par-bg)"/><text class="t-lane2" x="118" y="54" text-anchor="end">控制层</text><text class="t-lane2" x="118" y="90" text-anchor="end">verifier</text><text class="t-lane2" x="118" y="126" text-anchor="end">designer · reviewer</text><text class="t-lane2" x="118" y="162" text-anchor="end">author</text><path class="bracket " d="M130 33 V29 H246 V33"/><text class="t-phase " x="188.0" y="24" text-anchor="middle">mainline</text><path class="bracket ctrl" d="M250 33 V29 H666 V33"/><text class="t-phase strong" x="458.0" y="24" text-anchor="middle">controller 排 test designer（v1 新增）</text><path class="bracket " d="M670 33 V29 H786 V33"/><text class="t-phase " x="728.0" y="24" text-anchor="middle">mainline</text><path class="bracket ctrl" d="M790 33 V29 H1326 V33"/><text class="t-phase strong" x="1058.0" y="24" text-anchor="middle">封存之后每一步都由 controller 编排：首版一个接一个写，修复一次一个</text><g class="blk w-hard" data-tip="create_workspace 和 owner 的准备配方。没有取舍，仍由 mainline 做。
+
+谁定的：mainline（程序的固定规则），没有问 controller"><rect x="129.5" y="40" width="57.0" height="20" rx="4"/><text x="158.0" y="54" text-anchor="middle">准备</text></g><g class="blk w-hard" data-tip="capture_baseline：仍由 mainline 调用。
+
+谁定的：mainline（程序的固定规则），没有问 controller"><rect x="189.5" y="40" width="57.0" height="20" rx="4"/><text x="218.0" y="54" text-anchor="middle">抓基线</text></g><g class="blk w-hard" data-tip="verifier 算出哪些 leaf 没有有效测试。这份名单 controller 改不了。"><rect x="189.5" y="76" width="57.0" height="20" rx="4"/><text x="218.0" y="90" text-anchor="middle">原版 check</text></g><g class="blk w-ctrl" data-tip="封存之前唯一的一轮：controller 只能回答 design_leaf_tests 怎么排。
+它看到每个要设计的 leaf 的大小（功能点数、知识条目数、源码 token、要迁移的测试数）、owner 的上限、时间窗口；
+看不到源码和测试，不能给 designer 写文字。
+parallel 关着：一次只有一个 designer 会话。它定 leaf 的先后，以及大 leaf 要不要分成几个会话。
+
+v1 新增"><rect x="249.5" y="40" width="57.0" height="20" rx="4"/><rect x="249.5" y="40" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="280.0" y="54" text-anchor="middle">规划轮</text></g><g class="blk w-ctrl" data-tip="design_leaf_tests(split=...)：一次调用，会话一个接一个。
+名单上的 leaf 一个都不会少。
+
+谁定的：controller，在它这一轮的回答里点名
+
+v1 新增"><rect x="309.5" y="40" width="357.0" height="20" rx="4"/><text x="488.0" y="54" text-anchor="middle">设计 leaf 测试（按 controller 的安排，一次一个 leaf）</text></g><g class="blk w-ctrl" data-tip="test designer 会话：leaf L1。
+
+先后顺序：controller
+同时几个：1（parallel 关）。今天不看这个开关，全部同时开
+测试写成什么样：test designer 自己
+
+v1 新增"><rect x="309.5" y="112" width="57.0" height="20" rx="4"/><rect x="309.5" y="112" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="340.0" y="126" text-anchor="middle">L1</text></g><g class="blk w-ctrl" data-tip="test designer 会话：leaf L2。
+
+先后顺序：controller
+同时几个：1（parallel 关）。今天不看这个开关，全部同时开
+测试写成什么样：test designer 自己
+
+v1 新增"><rect x="369.5" y="112" width="57.0" height="20" rx="4"/><rect x="369.5" y="112" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="400.0" y="126" text-anchor="middle">L2</text></g><g class="blk w-ctrl" data-tip="test designer 会话：leaf L3。
+
+先后顺序：controller
+同时几个：1（parallel 关）。今天不看这个开关，全部同时开
+测试写成什么样：test designer 自己
+
+v1 新增"><rect x="429.5" y="112" width="57.0" height="20" rx="4"/><rect x="429.5" y="112" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="460.0" y="126" text-anchor="middle">L3</text></g><g class="blk w-hard" data-tip="和现在一样：静态门、原版上试跑、knockout。一个测试算不算有效由程序按规则定，和谁排的会话无关。"><rect x="489.5" y="76" width="57.0" height="20" rx="4"/><text x="518.0" y="90" text-anchor="middle">试跑</text></g><g class="blk w-hard" data-tip="test reviewer：每 8 个文件一个，由程序分批；接受还是否决是 reviewer 自己的判断。
+parallel 关着：一次一个。"><rect x="549.5" y="112" width="57.0" height="20" rx="4"/><rect x="549.5" y="112" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="580.0" y="126" text-anchor="middle">评审</text></g><g class="blk w-hard" data-tip="和现在一样：最终试跑，把被接受的测试提交到原版上。"><rect x="609.5" y="76" width="57.0" height="20" rx="4"/><text x="638.0" y="90" text-anchor="middle">检查·提交</text></g><g class="blk w-hard" data-tip="capture_baseline 第二次：仍由 mainline 调用。
+
+谁定的：mainline（程序的固定规则），没有问 controller"><rect x="669.5" y="40" width="57.0" height="20" rx="4"/><text x="698.0" y="54" text-anchor="middle">再抓基线</text></g><g class="blk w-hard" data-tip="带着新测试重跑。"><rect x="669.5" y="76" width="57.0" height="20" rx="4"/><text x="698.0" y="90" text-anchor="middle">原版 check</text></g><g class="blk w-hard" data-tip="seal_contract：仍由 mainline 调用。测试和 baseline 从此不再改。
+
+谁定的：mainline（程序的固定规则），没有问 controller"><rect x="729.5" y="40" width="57.0" height="20" rx="4"/><text x="758.0" y="54" text-anchor="middle">封存</text></g><g class="blk w-ctrl" data-tip="controller 排首版。parallel 关着：一次只有一个 author 会话，程序不划分 scope。
+它决定一次写完，还是按 capability 分几次、一个接一个写；每次给什么指示。
+它不回答时，mainline 发一次写全部的调用。
+
+v1：封存之后每一步都先问 controller（今天要等到第一次全量对比之后）
+
+v1 新增"><rect x="789.5" y="40" width="57.0" height="20" rx="4"/><rect x="789.5" y="40" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="820.0" y="54" text-anchor="middle">规划轮</text></g><g class="blk w-ctrl" data-tip="run_agent(role=implement, capabilities=[...])：controller 点名的第一批 capability。
+写完先保存成候选（图里没有单独画），下一个 author 接着这些文件写。
+图里分两次写；小项目可以一次写完。
+
+谁定的：controller，在它这一轮的回答里点名
+
+v1 新增"><rect x="849.5" y="40" width="57.0" height="20" rx="4"/><text x="878.0" y="54" text-anchor="middle">写首版 1</text></g><g class="blk w-ctrl" data-tip="author 会话：写第一批 capability。
+
+写哪些、给什么指示：controller
+同时几个：1（parallel 关）
+代码怎么写：author 自己"><rect x="849.5" y="148" width="57.0" height="20" rx="4"/><rect x="849.5" y="148" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="880.0" y="162" text-anchor="middle">author 1</text></g><g class="blk w-ctrl" data-tip="run_agent(role=implement, capabilities=[...])：其余的 capability。
+串行写没有合并：后写的 author 看得到先写的文件，共享文件归谁的问题不存在。
+
+谁定的：controller，在它这一轮的回答里点名
+
+v1 新增"><rect x="909.5" y="40" width="57.0" height="20" rx="4"/><text x="938.0" y="54" text-anchor="middle">写首版 2</text></g><g class="blk w-ctrl" data-tip="author 会话：在第一批的基础上写其余的 capability。"><rect x="909.5" y="148" width="57.0" height="20" rx="4"/><rect x="909.5" y="148" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="940.0" y="162" text-anchor="middle">author 2</text></g><g class="blk w-ctrl" data-tip="compare_behavior（全量）：第一次对比。今天这是 mainline 的固定一步；v1 里它是 controller 计划里的一步。
+没有全量对比的证据就交付不了，这条规则不变。
+
+谁定的：controller，在它这一轮的回答里点名
+
+v1：封存之后每一步都先问 controller（今天要等到第一次全量对比之后）"><rect x="969.5" y="40" width="57.0" height="20" rx="4"/><text x="998.0" y="54" text-anchor="middle">对比</text></g><g class="blk w-ctrl" data-tip="verifier 在首版上跑全部 check，和封存的 baseline 逐项比。"><rect x="969.5" y="76" width="57.0" height="20" rx="4"/><text x="998.0" y="90" text-anchor="middle">候选 check</text></g><g class="blk w-ctrl" data-tip="controller 的一轮：看对比结果，决定修什么、怎么修。"><rect x="1029.5" y="40" width="57.0" height="20" rx="4"/><rect x="1029.5" y="40" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="1060.0" y="54" text-anchor="middle">轮 3</text></g><g class="blk w-ctrl" data-tip="run_agent(role=repair)：一次一个 author，写完先保存（图里没有单独画）。
+parallel 关着：并行组不可用，workspace 那组工具也一次只跑一个。
+
+谁定的：controller，在它这一轮的回答里点名"><rect x="1089.5" y="40" width="57.0" height="20" rx="4"/><text x="1118.0" y="54" text-anchor="middle">修复</text></g><g class="blk w-ctrl" data-tip="repair author：修 controller 点名的失败。"><rect x="1089.5" y="148" width="57.0" height="20" rx="4"/><rect x="1089.5" y="148" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="1120.0" y="162" text-anchor="middle">repair</text></g><g class="blk w-ctrl" data-tip="compare_behavior：先筛查受影响的 check，再全量。
+
+谁定的：controller，在它这一轮的回答里点名"><rect x="1149.5" y="40" width="57.0" height="20" rx="4"/><text x="1178.0" y="54" text-anchor="middle">对比</text></g><g class="blk w-ctrl" data-tip="verifier 在新候选上跑 check。"><rect x="1149.5" y="76" width="57.0" height="20" rx="4"/><text x="1178.0" y="90" text-anchor="middle">候选 check</text></g><g class="blk w-ctrl" data-tip="controller 的又一轮：全部通过就收尾；还有失败就再修（图里只画一次修复）。"><rect x="1209.5" y="40" width="57.0" height="20" rx="4"/><rect x="1209.5" y="40" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="1240.0" y="54" text-anchor="middle">轮 4</text></g><g class="blk w-ctrl" data-tip="select_candidate → deliver。
+
+谁定的：controller，在它这一轮的回答里点名"><rect x="1269.5" y="40" width="57.0" height="20" rx="4"/><text x="1298.0" y="54" text-anchor="middle">选定·交付</text></g></svg></div><p class="swipe">左右滑动查看 →</p>
+    <figcaption>designer、author 两行同一时刻都只有一个块。和今天的 ① 比：紫色从“第一次对比之后”提前到“第一次 baseline 之后”，灰色只剩准备、baseline、试跑、评审、提交、封存。首版分两次写是 controller 的选择，小项目可以一次写完。</figcaption></figure>
+  </div>
+  <div class="card tips focusable mode" id="v1-b">
+    <h3><span class="no">②′</span><span>一个作业，会话可以并行</span><span class="sw2">pair 关 · parallel 开</span></h3>
+    <div class="chips"><span class="who w-ctrl">designer：controller 排，同时几个</span><span class="who w-ctrl">首版：controller，并行组</span><span class="who w-ctrl">修复：controller，并行修复组</span></div>
+    <div class="legend" data-for="v1-b"><span class="hint">颜色 = 谁决定这一步（点一下只看一类）</span><button type="button" class="lg" data-kind="hard" aria-pressed="false"><span class="sw w-hard"></span>程序写死</button><button type="button" class="lg" data-kind="ctrl" aria-pressed="false"><span class="sw w-ctrl"></span>controller 决定</button></div>
+    <figure><div class="scroll"><svg class="fig" viewBox="0 0 1194 330" role="img" aria-label="v1，pair 关、parallel 开：一个作业。controller 在冻结里安排几个 test designer 同时写，封存后用并行组写首版，对比后可以开并行修复组；baseline 和封存仍由 mainline 做" style="min-width:1026px"><defs><pattern id="hatch-follow" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="7" height="7" style="fill:var(--w-hard)"/><rect width="3.5" height="7" style="fill:var(--w-ctrl)"/></pattern><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker><marker id="arr-m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:var(--muted)"/></marker></defs><text class="t-lane" x="0" y="26">唯一的作业</text><rect x="124" y="36" width="1062" height="28" rx="4" style="fill:var(--par-bg)"/><text class="t-lane2" x="118" y="54" text-anchor="end">控制层</text><text class="t-lane2" x="118" y="90" text-anchor="end">verifier</text><text class="t-lane2" x="118" y="126" text-anchor="end">designer · reviewer</text><text class="t-lane2" x="118" y="231" text-anchor="end">author</text><path class="bracket " d="M130 33 V29 H250 V33"/><text class="t-phase " x="190.0" y="24" text-anchor="middle">mainline</text><path class="bracket ctrl" d="M254 33 V29 H560 V33"/><text class="t-phase strong" x="407.0" y="24" text-anchor="middle">controller 排 test designer（v1 新增）</text><path class="bracket " d="M564 33 V29 H684 V33"/><text class="t-phase " x="624.0" y="24" text-anchor="middle">mainline</text><path class="bracket ctrl" d="M688 33 V29 H1180 V33"/><text class="t-phase strong" x="934.0" y="24" text-anchor="middle">封存之后每一步都由 controller 编排：首版和修复都可以并行</text><g class="blk w-hard" data-tip="create_workspace 和 owner 的准备配方。没有取舍，仍由 mainline 做。
+
+谁定的：mainline（程序的固定规则），没有问 controller"><rect x="129.5" y="40" width="59.0" height="20" rx="4"/><text x="159.0" y="54" text-anchor="middle">准备</text></g><g class="blk w-hard" data-tip="capture_baseline：仍由 mainline 调用。
+
+谁定的：mainline（程序的固定规则），没有问 controller"><rect x="191.5" y="40" width="59.0" height="20" rx="4"/><text x="221.0" y="54" text-anchor="middle">抓基线</text></g><g class="blk w-hard" data-tip="verifier 算出哪些 leaf 没有有效测试。这份名单 controller 改不了。"><rect x="191.5" y="76" width="59.0" height="20" rx="4"/><text x="221.0" y="90" text-anchor="middle">原版 check</text></g><g class="blk w-ctrl" data-tip="封存之前唯一的一轮：controller 只能回答 design_leaf_tests 怎么排。
+它看到每个要设计的 leaf 的大小（功能点数、知识条目数、源码 token、要迁移的测试数）、owner 的上限、时间窗口；
+看不到源码和测试，不能给 designer 写文字。
+parallel 开着：它定哪些 leaf 同时写、哪个大 leaf 分成几个会话、同时最多几个。
+
+v1 新增"><rect x="253.5" y="40" width="59.0" height="20" rx="4"/><rect x="253.5" y="40" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="285.0" y="54" text-anchor="middle">规划轮</text></g><g class="blk w-ctrl" data-tip="design_leaf_tests(split=...)：一次调用。
+名单上的 leaf 一个都不会少；没点名的照默认开一个会话。
+
+谁定的：controller，在它这一轮的回答里点名
+
+v1 新增"><rect x="315.5" y="40" width="245.0" height="20" rx="4"/><text x="438.0" y="54" text-anchor="middle">设计 leaf 测试（按 controller 的安排）</text></g><g class="blk w-ctrl" data-tip="test designer 会话：leaf L1 的第 1 部分。controller 把这个大 leaf 分成 2 个会话，和别的 leaf 同时写。
+
+v1 新增"><rect x="315.5" y="112" width="59.0" height="20" rx="4"/><rect x="315.5" y="112" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="347.0" y="126" text-anchor="middle">L1·1</text></g><g class="blk w-ctrl" data-tip="test designer 会话：leaf L1 的第 2 部分。
+
+v1 新增"><rect x="315.5" y="135" width="59.0" height="20" rx="4"/><rect x="315.5" y="135" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="347.0" y="149" text-anchor="middle">L1·2</text></g><g class="blk w-ctrl" data-tip="test designer 会话：leaf L2。"><rect x="315.5" y="158" width="59.0" height="20" rx="4"/><rect x="315.5" y="158" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="347.0" y="172" text-anchor="middle">L2</text></g><g class="blk w-ctrl" data-tip="test designer 会话：leaf L3。
+
+同时几个：controller 在 owner 的上限内定
+测试写成什么样：test designer 自己"><rect x="315.5" y="181" width="59.0" height="20" rx="4"/><rect x="315.5" y="181" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="347.0" y="195" text-anchor="middle">L3</text></g><g class="blk w-hard" data-tip="和现在一样：静态门、原版上试跑、knockout。一个测试算不算有效由程序按规则定，和谁排的会话无关。"><rect x="377.5" y="76" width="59.0" height="20" rx="4"/><text x="407.0" y="90" text-anchor="middle">试跑</text></g><g class="blk w-hard" data-tip="test reviewer：每 8 个文件一个，由程序分批；接受还是否决是 reviewer 自己的判断。
+parallel 开着：几个 reviewer 同时。"><rect x="439.5" y="112" width="59.0" height="20" rx="4"/><rect x="439.5" y="112" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="471.0" y="126" text-anchor="middle">评审</text></g><g class="blk w-hard" data-tip="和现在一样：最终试跑，把被接受的测试提交到原版上。"><rect x="501.5" y="76" width="59.0" height="20" rx="4"/><text x="531.0" y="90" text-anchor="middle">检查·提交</text></g><g class="blk w-hard" data-tip="capture_baseline 第二次：仍由 mainline 调用。
+
+谁定的：mainline（程序的固定规则），没有问 controller"><rect x="563.5" y="40" width="59.0" height="20" rx="4"/><text x="593.0" y="54" text-anchor="middle">再抓基线</text></g><g class="blk w-hard" data-tip="带着新测试重跑。"><rect x="563.5" y="76" width="59.0" height="20" rx="4"/><text x="593.0" y="90" text-anchor="middle">原版 check</text></g><g class="blk w-hard" data-tip="seal_contract：仍由 mainline 调用。测试和 baseline 从此不再改。
+
+谁定的：mainline（程序的固定规则），没有问 controller"><rect x="625.5" y="40" width="59.0" height="20" rx="4"/><text x="655.0" y="54" text-anchor="middle">封存</text></g><g class="blk w-ctrl" data-tip="controller 排首版：哪些 capability 一起写、分几个请求、谁负责共享文件。
+它不回答时，mainline 按程序切好的 scope 分层写；它漏掉的由 mainline 补写。
+
+v1：封存之后每一步都先问 controller（今天要等到第一次全量对比之后）"><rect x="687.5" y="40" width="59.0" height="20" rx="4"/><rect x="687.5" y="40" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="719.0" y="54" text-anchor="middle">规划轮</text></g><g class="blk w-ctrl" data-tip="run_parallel_agents(group=split)：几个 author 同时写，各在自己的 workspace 里，写完由程序合并。
+请求可以按 capability 自由分组（W4），可以写明谁负责共享文件（W3）。
+
+谁定的：controller，在它这一轮的回答里点名"><rect x="749.5" y="40" width="59.0" height="20" rx="4"/><text x="779.0" y="54" text-anchor="middle">并行组</text></g><g class="blk w-ctrl" data-tip="author 会话。
+
+怎么分组、给什么指示：controller
+同时最多几个：owner 的 max_agents
+代码怎么写：author 自己"><rect x="749.5" y="217" width="59.0" height="20" rx="4"/><rect x="749.5" y="217" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="781.0" y="231" text-anchor="middle">能力组 A</text></g><g class="blk w-ctrl" data-tip="author 会话。
+
+怎么分组、给什么指示：controller
+同时最多几个：owner 的 max_agents
+代码怎么写：author 自己"><rect x="749.5" y="240" width="59.0" height="20" rx="4"/><rect x="749.5" y="240" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="781.0" y="254" text-anchor="middle">能力组 B</text></g><g class="blk w-ctrl" data-tip="author 会话。
+
+怎么分组、给什么指示：controller
+同时最多几个：owner 的 max_agents
+代码怎么写：author 自己"><rect x="749.5" y="263" width="59.0" height="20" rx="4"/><rect x="749.5" y="263" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="781.0" y="277" text-anchor="middle">能力组 C</text></g><g class="blk w-ctrl" data-tip="author 会话。
+
+怎么分组、给什么指示：controller
+同时最多几个：owner 的 max_agents
+代码怎么写：author 自己"><rect x="749.5" y="286" width="59.0" height="20" rx="4"/><rect x="749.5" y="286" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="781.0" y="300" text-anchor="middle">能力组 D</text></g><g class="blk w-ctrl" data-tip="compare_behavior（全量）：第一次对比。今天这是 mainline 的固定一步；v1 里它是 controller 计划里的一步。
+没有全量对比的证据就交付不了，这条规则不变。
+
+谁定的：controller，在它这一轮的回答里点名
+
+v1：封存之后每一步都先问 controller（今天要等到第一次全量对比之后）"><rect x="811.5" y="40" width="59.0" height="20" rx="4"/><text x="841.0" y="54" text-anchor="middle">对比</text></g><g class="blk w-ctrl" data-tip="verifier 在首版上跑全部 check，和封存的 baseline 逐项比。"><rect x="811.5" y="76" width="59.0" height="20" rx="4"/><text x="841.0" y="90" text-anchor="middle">候选 check</text></g><g class="blk w-ctrl" data-tip="controller 的一轮：看对比结果，决定修什么、怎么修。"><rect x="873.5" y="40" width="59.0" height="20" rx="4"/><rect x="873.5" y="40" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="905.0" y="54" text-anchor="middle">轮 3</text></g><g class="blk w-ctrl" data-tip="run_parallel_agents(group=split)，几个 repair 请求同时修；也可以并排试 2 个版本。
+只在 parallel 开着时可用。修完由程序合并成新候选。
+
+谁定的：controller，在它这一轮的回答里点名"><rect x="935.5" y="40" width="59.0" height="20" rx="4"/><text x="965.0" y="54" text-anchor="middle">修复组</text></g><g class="blk w-ctrl" data-tip="repair author：修 controller 分给它的那部分失败。"><rect x="935.5" y="217" width="59.0" height="20" rx="4"/><rect x="935.5" y="217" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="967.0" y="231" text-anchor="middle">repair 1</text></g><g class="blk w-ctrl" data-tip="repair author：和 repair 1 同时进行。"><rect x="935.5" y="240" width="59.0" height="20" rx="4"/><rect x="935.5" y="240" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="967.0" y="254" text-anchor="middle">repair 2</text></g><g class="blk w-ctrl" data-tip="compare_behavior：先筛查受影响的 check，再全量。
+
+谁定的：controller，在它这一轮的回答里点名"><rect x="997.5" y="40" width="59.0" height="20" rx="4"/><text x="1027.0" y="54" text-anchor="middle">对比</text></g><g class="blk w-ctrl" data-tip="verifier 在新候选上跑 check。"><rect x="997.5" y="76" width="59.0" height="20" rx="4"/><text x="1027.0" y="90" text-anchor="middle">候选 check</text></g><g class="blk w-ctrl" data-tip="controller 的又一轮：全部通过就收尾；还有失败就再修（图里只画一次修复）。"><rect x="1059.5" y="40" width="59.0" height="20" rx="4"/><rect x="1059.5" y="40" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="1091.0" y="54" text-anchor="middle">轮 4</text></g><g class="blk w-ctrl" data-tip="select_candidate → deliver。
+
+谁定的：controller，在它这一轮的回答里点名"><rect x="1121.5" y="40" width="59.0" height="20" rx="4"/><text x="1151.0" y="54" text-anchor="middle">选定·交付</text></g></svg></div><p class="swipe">左右滑动查看 →</p>
+    <figcaption>和 ①′ 比，三处从一个接一个变成上下叠着的几个块：designer、首版的 author、repair。和今天的 ② 比：冻结里多了 controller 排 designer 那一段，第一次对比进了 controller 的计划。</figcaption></figure>
+  </div>
+  <div class="card tips focusable mode" id="v1-c">
+    <h3><span class="no">③′</span><span>两个作业重叠，各自内部一个接一个</span><span class="sw2">pair 开 · parallel 关</span></h3>
+    <div class="chips"><span class="who w-ctrl">designer：main job 的 controller，一次一个</span><span class="who w-ctrl">首版：draft job 的 controller，一次一个 author</span><span class="who w-hard">draft job：写完就交，不提前验证</span></div>
+    <div class="legend" data-for="v1-c"><span class="hint">颜色 = 谁决定这一步（点一下只看一类）</span><button type="button" class="lg" data-kind="hard" aria-pressed="false"><span class="sw w-hard"></span>程序写死</button><button type="button" class="lg" data-kind="ctrl" aria-pressed="false"><span class="sw w-ctrl"></span>controller 决定</button><span class="lg"><span class="sw w-wait"></span>等待</span></div>
+    <figure><div class="scroll"><svg class="fig" viewBox="0 0 1256 362" role="img" aria-label="v1，pair 开、parallel 关：两个作业同时跑，各自内部的会话一个接一个。draft job 有自己的 controller，串行写完首版就交出，不提前验证；main job 封存后导入，controller 编排对比、修复和交付" style="min-width:1080px"><defs><pattern id="hatch-follow" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="7" height="7" style="fill:var(--w-hard)"/><rect width="3.5" height="7" style="fill:var(--w-ctrl)"/></pattern><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker><marker id="arr-m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:var(--muted)"/></marker></defs><text class="t-lane" x="0" y="26">main job</text><rect x="124" y="36" width="1124" height="28" rx="4" style="fill:var(--par-bg)"/><text class="t-lane2" x="118" y="54" text-anchor="end">控制层</text><text class="t-lane2" x="118" y="90" text-anchor="end">verifier</text><text class="t-lane2" x="118" y="126" text-anchor="end">designer · reviewer</text><text class="t-lane2" x="118" y="162" text-anchor="end">author</text><path class="bracket " d="M130 33 V29 H250 V33"/><text class="t-phase " x="190.0" y="24" text-anchor="middle">mainline</text><path class="bracket ctrl" d="M254 33 V29 H684 V33"/><text class="t-phase strong" x="469.0" y="24" text-anchor="middle">controller 排 test designer（v1 新增）</text><path class="bracket " d="M688 33 V29 H808 V33"/><text class="t-phase " x="748.0" y="24" text-anchor="middle">mainline</text><path class="bracket ctrl" d="M874 33 V29 H1242 V33"/><text class="t-phase strong" x="1058.0" y="24" text-anchor="middle">controller 编排：对比、修复、交付</text><g class="blk w-hard" data-tip="create_workspace 和 owner 的准备配方。没有取舍，仍由 mainline 做。
+
+谁定的：mainline（程序的固定规则），没有问 controller"><rect x="129.5" y="40" width="59.0" height="20" rx="4"/><text x="159.0" y="54" text-anchor="middle">准备</text></g><g class="blk w-hard" data-tip="capture_baseline：仍由 mainline 调用。
+
+谁定的：mainline（程序的固定规则），没有问 controller"><rect x="191.5" y="40" width="59.0" height="20" rx="4"/><text x="221.0" y="54" text-anchor="middle">抓基线</text></g><g class="blk w-hard" data-tip="verifier 算出哪些 leaf 没有有效测试。这份名单 controller 改不了。
+pair 的 main job：check 放到计算节点上跑。"><rect x="191.5" y="76" width="59.0" height="20" rx="4"/><text x="221.0" y="90" text-anchor="middle">原版 check</text></g><g class="blk w-ctrl" data-tip="封存之前唯一的一轮：controller 只能回答 design_leaf_tests 怎么排。
+它看到每个要设计的 leaf 的大小（功能点数、知识条目数、源码 token、要迁移的测试数）、owner 的上限、时间窗口；
+看不到源码和测试，不能给 designer 写文字。
+parallel 关着：一次只有一个 designer 会话。它定 leaf 的先后，以及大 leaf 要不要分成几个会话。
+
+v1 新增"><rect x="253.5" y="40" width="59.0" height="20" rx="4"/><rect x="253.5" y="40" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="285.0" y="54" text-anchor="middle">规划轮</text></g><g class="blk w-ctrl" data-tip="design_leaf_tests(split=...)：一次调用，会话一个接一个。
+名单上的 leaf 一个都不会少。
+
+谁定的：controller，在它这一轮的回答里点名
+
+v1 新增"><rect x="315.5" y="40" width="369.0" height="20" rx="4"/><text x="500.0" y="54" text-anchor="middle">设计 leaf 测试（按 controller 的安排，一次一个 leaf）</text></g><g class="blk w-ctrl" data-tip="test designer 会话：leaf L1。
+
+先后顺序：controller
+同时几个：1（parallel 关）。今天不看这个开关，全部同时开
+测试写成什么样：test designer 自己
+
+v1 新增"><rect x="315.5" y="112" width="59.0" height="20" rx="4"/><rect x="315.5" y="112" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="347.0" y="126" text-anchor="middle">L1</text></g><g class="blk w-ctrl" data-tip="test designer 会话：leaf L2。
+
+先后顺序：controller
+同时几个：1（parallel 关）。今天不看这个开关，全部同时开
+测试写成什么样：test designer 自己
+
+v1 新增"><rect x="377.5" y="112" width="59.0" height="20" rx="4"/><rect x="377.5" y="112" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="409.0" y="126" text-anchor="middle">L2</text></g><g class="blk w-ctrl" data-tip="test designer 会话：leaf L3。
+
+先后顺序：controller
+同时几个：1（parallel 关）。今天不看这个开关，全部同时开
+测试写成什么样：test designer 自己
+
+v1 新增"><rect x="439.5" y="112" width="59.0" height="20" rx="4"/><rect x="439.5" y="112" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="471.0" y="126" text-anchor="middle">L3</text></g><g class="blk w-hard" data-tip="和现在一样：静态门、原版上试跑、knockout。一个测试算不算有效由程序按规则定，和谁排的会话无关。"><rect x="501.5" y="76" width="59.0" height="20" rx="4"/><text x="531.0" y="90" text-anchor="middle">试跑</text></g><g class="blk w-hard" data-tip="test reviewer：每 8 个文件一个，由程序分批；接受还是否决是 reviewer 自己的判断。
+parallel 关着：一次一个。"><rect x="563.5" y="112" width="59.0" height="20" rx="4"/><rect x="563.5" y="112" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="595.0" y="126" text-anchor="middle">评审</text></g><g class="blk w-hard" data-tip="和现在一样：最终试跑，把被接受的测试提交到原版上。"><rect x="625.5" y="76" width="59.0" height="20" rx="4"/><text x="655.0" y="90" text-anchor="middle">检查·提交</text></g><g class="blk w-hard" data-tip="capture_baseline 第二次：仍由 mainline 调用。
+
+谁定的：mainline（程序的固定规则），没有问 controller"><rect x="687.5" y="40" width="59.0" height="20" rx="4"/><text x="717.0" y="54" text-anchor="middle">再抓基线</text></g><g class="blk w-hard" data-tip="带着新测试重跑。"><rect x="687.5" y="76" width="59.0" height="20" rx="4"/><text x="717.0" y="90" text-anchor="middle">原版 check</text></g><g class="blk w-hard" data-tip="seal_contract：仍由 mainline 调用。测试和 baseline 从此不再改。
+
+谁定的：mainline（程序的固定规则），没有问 controller"><rect x="749.5" y="40" width="59.0" height="20" rx="4"/><text x="779.0" y="54" text-anchor="middle">封存</text></g><g class="blk w-hard" data-tip="import_draft：draft job 交出的首版存成 main job 的 candidate-1。
+parallel 关着时 draft job 写完就交，这里没有等不等的选择，仍是 mainline 的一步。
+draft job 没交出来时，main job 的 controller 自己排首版。
+
+谁定的：mainline（程序的固定规则），没有问 controller"><rect x="811.5" y="40" width="59.0" height="20" rx="4"/><text x="841.0" y="54" text-anchor="middle">导入</text></g><g class="blk w-ctrl" data-tip="compare_behavior（全量）：第一次对比。今天这是 mainline 的固定一步；v1 里它是 controller 计划里的一步。
+没有全量对比的证据就交付不了，这条规则不变。
+
+谁定的：controller，在它这一轮的回答里点名
+
+v1：封存之后每一步都先问 controller（今天要等到第一次全量对比之后）"><rect x="873.5" y="40" width="59.0" height="20" rx="4"/><text x="903.0" y="54" text-anchor="middle">对比</text></g><g class="blk w-ctrl" data-tip="verifier 在首版上跑全部 check，和封存的 baseline 逐项比。"><rect x="873.5" y="76" width="59.0" height="20" rx="4"/><text x="903.0" y="90" text-anchor="middle">候选 check</text></g><g class="blk w-ctrl" data-tip="controller 的一轮：看对比结果，决定修什么、怎么修。"><rect x="935.5" y="40" width="59.0" height="20" rx="4"/><rect x="935.5" y="40" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="967.0" y="54" text-anchor="middle">轮 2</text></g><g class="blk w-ctrl" data-tip="run_agent(role=repair)：一次一个 author，写完先保存（图里没有单独画）。
+parallel 关着：并行组不可用，workspace 那组工具也一次只跑一个。
+
+谁定的：controller，在它这一轮的回答里点名"><rect x="997.5" y="40" width="59.0" height="20" rx="4"/><text x="1027.0" y="54" text-anchor="middle">修复</text></g><g class="blk w-ctrl" data-tip="repair author：修 controller 点名的失败。"><rect x="997.5" y="148" width="59.0" height="20" rx="4"/><rect x="997.5" y="148" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="1029.0" y="162" text-anchor="middle">repair</text></g><g class="blk w-ctrl" data-tip="compare_behavior：先筛查受影响的 check，再全量。
+
+谁定的：controller，在它这一轮的回答里点名"><rect x="1059.5" y="40" width="59.0" height="20" rx="4"/><text x="1089.0" y="54" text-anchor="middle">对比</text></g><g class="blk w-ctrl" data-tip="verifier 在新候选上跑 check。"><rect x="1059.5" y="76" width="59.0" height="20" rx="4"/><text x="1089.0" y="90" text-anchor="middle">候选 check</text></g><g class="blk w-ctrl" data-tip="controller 的又一轮：全部通过就收尾；还有失败就再修（图里只画一次修复）。"><rect x="1121.5" y="40" width="59.0" height="20" rx="4"/><rect x="1121.5" y="40" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="1153.0" y="54" text-anchor="middle">轮 3</text></g><g class="blk w-ctrl" data-tip="select_candidate → deliver。
+
+谁定的：controller，在它这一轮的回答里点名"><rect x="1183.5" y="40" width="59.0" height="20" rx="4"/><text x="1213.0" y="54" text-anchor="middle">选定·交付</text></g><text class="t-lane" x="0" y="232">draft job</text><rect x="124" y="242" width="1124" height="28" rx="4" style="fill:var(--par-bg)"/><text class="t-lane2" x="118" y="260" text-anchor="end">控制层</text><text class="t-lane2" x="118" y="296" text-anchor="end">verifier</text><text class="t-lane2" x="118" y="332" text-anchor="end">author</text><path class="bracket " d="M130 239 V235 H312 V239"/><text class="t-phase " x="221.0" y="230" text-anchor="middle">mainline</text><path class="bracket ctrl" d="M316 239 V235 H498 V239"/><text class="t-phase strong" x="407.0" y="230" text-anchor="middle">controller：首版一个接一个写</text><g class="blk w-hard" data-tip="draft job 在仓库的第二个克隆上工作，和 main job 互不干扰。
+create_workspace 加 owner 的准备配方。
+
+谁定的：mainline（程序的固定规则），没有问 controller"><rect x="129.5" y="246" width="59.0" height="20" rx="4"/><text x="159.0" y="260" text-anchor="middle">准备</text></g><g class="blk w-hard" data-tip="capture_baseline 的轻量版。
+
+谁定的：mainline（程序的固定规则），没有问 controller"><rect x="191.5" y="246" width="59.0" height="20" rx="4"/><text x="221.0" y="260" text-anchor="middle">抓基线</text></g><g class="blk w-hard" data-tip="verifier 只跑原版自带的 check，不做 knockout，在本机跑。
+draft job 不设计测试，所以它的冻结只有几分钟。"><rect x="191.5" y="282" width="59.0" height="20" rx="4"/><text x="221.0" y="296" text-anchor="middle">原版 check</text></g><g class="blk w-hard" data-tip="seal_contract：draft job 自己这份较轻的合同。
+
+谁定的：mainline（程序的固定规则），没有问 controller"><rect x="253.5" y="246" width="59.0" height="20" rx="4"/><text x="283.0" y="260" text-anchor="middle">封存</text></g><g class="blk w-ctrl" data-tip="draft job 的 controller 排首版。parallel 关着：一次只有一个 author 会话，程序不划分 scope。
+它决定一次写完，还是按 capability 分几次、一个接一个写；每次给什么指示。
+它不回答时，mainline 发一次写全部的调用。
+
+v1：封存之后每一步都先问 controller（今天要等到第一次全量对比之后）
+
+v1 新增"><rect x="315.5" y="246" width="59.0" height="20" rx="4"/><rect x="315.5" y="246" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="347.0" y="260" text-anchor="middle">规划轮</text></g><g class="blk w-ctrl" data-tip="run_agent(role=implement, capabilities=[...])：controller 点名的第一批 capability。
+写完先保存成候选（图里没有单独画），下一个 author 接着这些文件写。
+图里分两次写；小项目可以一次写完。
+
+谁定的：controller，在它这一轮的回答里点名
+
+v1 新增"><rect x="377.5" y="246" width="59.0" height="20" rx="4"/><text x="407.0" y="260" text-anchor="middle">写首版 1</text></g><g class="blk w-ctrl" data-tip="author 会话：写第一批 capability。
+
+写哪些、给什么指示：controller
+同时几个：1（parallel 关）
+代码怎么写：author 自己"><rect x="377.5" y="318" width="59.0" height="20" rx="4"/><rect x="377.5" y="318" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="409.0" y="332" text-anchor="middle">author 1</text></g><g class="blk w-ctrl" data-tip="run_agent(role=implement, capabilities=[...])：其余的 capability。
+串行写没有合并：后写的 author 看得到先写的文件，共享文件归谁的问题不存在。
+
+谁定的：controller，在它这一轮的回答里点名
+
+v1 新增"><rect x="439.5" y="246" width="59.0" height="20" rx="4"/><text x="469.0" y="260" text-anchor="middle">写首版 2</text></g><g class="blk w-ctrl" data-tip="author 会话：在第一批的基础上写其余的 capability。"><rect x="439.5" y="318" width="59.0" height="20" rx="4"/><rect x="439.5" y="318" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="471.0" y="332" text-anchor="middle">author 2</text></g><g class="blk w-hard" data-tip="finish_draft：没有还没写的 capability 了，就交出。
+parallel 关着：draft job 不提前验证，写完就交。
+
+谁定的：mainline（程序的固定规则），没有问 controller"><rect x="501.5" y="246" width="59.0" height="20" rx="4"/><text x="531.0" y="260" text-anchor="middle">交出草稿</text></g><g class="blk w-wait" data-tip="draft job 已经结束，首版放在那里等 main job 来取。
+串行写首版比今天慢，这段空等会比今天短，也可能反过来变成 main job 等它。"><rect x="563.5" y="246" width="245.0" height="20" rx="4"/><text x="686.0" y="260" text-anchor="middle">等 main job 封存</text></g><path class="link" d="M531.0 246.0 V201.0 H841.0 V62.0" marker-end="url(#arr)"/><text class="t-note" x="686.0" y="196.0" text-anchor="middle">main job 封存后来取</text></svg></div><p class="swipe">左右滑动查看 →</p>
+    <figcaption>两个作业之间仍然重叠，这是 pair 管的；每个作业内部没有并行，这是 parallel 管的。和今天的 ③ 比：draft job 不再整行灰色，首版由它自己的 controller 排。</figcaption></figure>
+  </div>
+  <div class="card tips focusable mode" id="v1-d">
+    <h3><span class="no">④′</span><span>两个作业重叠，内部也并行，draft job 提前验证</span><span class="sw2">pair 开 · parallel 开</span></h3>
+    <div class="chips"><span class="who w-ctrl">designer：main job 的 controller，同时几个</span><span class="who w-ctrl">首版：draft job 的 controller，并行组</span><span class="who w-ctrl">draft job：提前验证并修复</span><span class="who w-ctrl">导入：main job 的 controller 定等不等</span></div>
+    <div class="legend" data-for="v1-d"><span class="hint">颜色 = 谁决定这一步（点一下只看一类）</span><button type="button" class="lg" data-kind="hard" aria-pressed="false"><span class="sw w-hard"></span>程序写死</button><button type="button" class="lg" data-kind="ctrl" aria-pressed="false"><span class="sw w-ctrl"></span>controller 决定</button></div>
+    <figure><div class="scroll"><svg class="fig" viewBox="0 0 1194 523" role="img" aria-label="v1，pair 开、parallel 开：两个作业同时跑。main job 的 controller 安排几个 test designer 同时写；draft job 的 controller 用并行组写首版，用固定的 check 提前验证并并行修复，直到 main job 封存。导入时等不等由 main job 的 controller 定，之后它编排对比、修复和交付" style="min-width:1026px"><defs><pattern id="hatch-follow" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="7" height="7" style="fill:var(--w-hard)"/><rect width="3.5" height="7" style="fill:var(--w-ctrl)"/></pattern><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker><marker id="arr-m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:var(--muted)"/></marker></defs><text class="t-lane" x="0" y="26">main job</text><rect x="124" y="36" width="1062" height="28" rx="4" style="fill:var(--par-bg)"/><text class="t-lane2" x="118" y="54" text-anchor="end">控制层</text><text class="t-lane2" x="118" y="90" text-anchor="end">verifier</text><text class="t-lane2" x="118" y="126" text-anchor="end">designer · reviewer</text><text class="t-lane2" x="118" y="231" text-anchor="end">author</text><path class="bracket " d="M130 33 V29 H250 V33"/><text class="t-phase " x="190.0" y="24" text-anchor="middle">mainline</text><path class="bracket ctrl" d="M254 33 V29 H560 V33"/><text class="t-phase strong" x="407.0" y="24" text-anchor="middle">controller 排 test designer（v1 新增）</text><path class="bracket " d="M564 33 V29 H684 V33"/><text class="t-phase " x="624.0" y="24" text-anchor="middle">mainline</text><path class="bracket ctrl" d="M688 33 V29 H1180 V33"/><text class="t-phase strong" x="934.0" y="24" text-anchor="middle">controller 编排：导入、对比、修复、交付</text><g class="blk w-hard" data-tip="create_workspace 和 owner 的准备配方。没有取舍，仍由 mainline 做。
+
+谁定的：mainline（程序的固定规则），没有问 controller"><rect x="129.5" y="40" width="59.0" height="20" rx="4"/><text x="159.0" y="54" text-anchor="middle">准备</text></g><g class="blk w-hard" data-tip="capture_baseline：仍由 mainline 调用。
+
+谁定的：mainline（程序的固定规则），没有问 controller"><rect x="191.5" y="40" width="59.0" height="20" rx="4"/><text x="221.0" y="54" text-anchor="middle">抓基线</text></g><g class="blk w-hard" data-tip="verifier 算出哪些 leaf 没有有效测试。这份名单 controller 改不了。
+pair 的 main job：check 放到计算节点上跑。"><rect x="191.5" y="76" width="59.0" height="20" rx="4"/><text x="221.0" y="90" text-anchor="middle">原版 check</text></g><g class="blk w-ctrl" data-tip="封存之前唯一的一轮：controller 只能回答 design_leaf_tests 怎么排。
+它看到每个要设计的 leaf 的大小（功能点数、知识条目数、源码 token、要迁移的测试数）、owner 的上限、时间窗口；
+看不到源码和测试，不能给 designer 写文字。
+parallel 开着：它定哪些 leaf 同时写、哪个大 leaf 分成几个会话、同时最多几个。
+
+v1 新增"><rect x="253.5" y="40" width="59.0" height="20" rx="4"/><rect x="253.5" y="40" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="285.0" y="54" text-anchor="middle">规划轮</text></g><g class="blk w-ctrl" data-tip="design_leaf_tests(split=...)：一次调用。
+名单上的 leaf 一个都不会少；没点名的照默认开一个会话。
+
+谁定的：controller，在它这一轮的回答里点名
+
+v1 新增"><rect x="315.5" y="40" width="245.0" height="20" rx="4"/><text x="438.0" y="54" text-anchor="middle">设计 leaf 测试（按 controller 的安排）</text></g><g class="blk w-ctrl" data-tip="test designer 会话：leaf L1 的第 1 部分。controller 把这个大 leaf 分成 2 个会话，和别的 leaf 同时写。
+
+v1 新增"><rect x="315.5" y="112" width="59.0" height="20" rx="4"/><rect x="315.5" y="112" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="347.0" y="126" text-anchor="middle">L1·1</text></g><g class="blk w-ctrl" data-tip="test designer 会话：leaf L1 的第 2 部分。
+
+v1 新增"><rect x="315.5" y="135" width="59.0" height="20" rx="4"/><rect x="315.5" y="135" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="347.0" y="149" text-anchor="middle">L1·2</text></g><g class="blk w-ctrl" data-tip="test designer 会话：leaf L2。"><rect x="315.5" y="158" width="59.0" height="20" rx="4"/><rect x="315.5" y="158" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="347.0" y="172" text-anchor="middle">L2</text></g><g class="blk w-ctrl" data-tip="test designer 会话：leaf L3。
+
+同时几个：controller 在 owner 的上限内定
+测试写成什么样：test designer 自己"><rect x="315.5" y="181" width="59.0" height="20" rx="4"/><rect x="315.5" y="181" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="347.0" y="195" text-anchor="middle">L3</text></g><g class="blk w-hard" data-tip="和现在一样：静态门、原版上试跑、knockout。一个测试算不算有效由程序按规则定，和谁排的会话无关。"><rect x="377.5" y="76" width="59.0" height="20" rx="4"/><text x="407.0" y="90" text-anchor="middle">试跑</text></g><g class="blk w-hard" data-tip="test reviewer：每 8 个文件一个，由程序分批；接受还是否决是 reviewer 自己的判断。
+parallel 开着：几个 reviewer 同时。"><rect x="439.5" y="112" width="59.0" height="20" rx="4"/><rect x="439.5" y="112" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="471.0" y="126" text-anchor="middle">评审</text></g><g class="blk w-hard" data-tip="和现在一样：最终试跑，把被接受的测试提交到原版上。"><rect x="501.5" y="76" width="59.0" height="20" rx="4"/><text x="531.0" y="90" text-anchor="middle">检查·提交</text></g><g class="blk w-hard" data-tip="capture_baseline 第二次：仍由 mainline 调用。
+
+谁定的：mainline（程序的固定规则），没有问 controller"><rect x="563.5" y="40" width="59.0" height="20" rx="4"/><text x="593.0" y="54" text-anchor="middle">再抓基线</text></g><g class="blk w-hard" data-tip="带着新测试重跑。"><rect x="563.5" y="76" width="59.0" height="20" rx="4"/><text x="593.0" y="90" text-anchor="middle">原版 check</text></g><g class="blk w-hard" data-tip="seal_contract：仍由 mainline 调用。测试和 baseline 从此不再改。
+
+谁定的：mainline（程序的固定规则），没有问 controller"><rect x="625.5" y="40" width="59.0" height="20" rx="4"/><text x="655.0" y="54" text-anchor="middle">封存</text></g><g class="blk w-ctrl" data-tip="import_draft：main job 封存时 draft job 多半还在修。
+main job 的 controller 决定等它修完，还是停掉它、直接取它最后保存的候选。它不回答就等。
+（这个决定来自 fix-parallel-main 上的一个提交，见“需要你定的”第 5 项。）
+
+谁定的：controller，在它这一轮的回答里点名"><rect x="687.5" y="40" width="121.0" height="20" rx="4"/><text x="748.0" y="54" text-anchor="middle">导入：等或直接取</text></g><g class="blk w-ctrl" data-tip="compare_behavior（全量）：第一次对比。今天这是 mainline 的固定一步；v1 里它是 controller 计划里的一步。
+没有全量对比的证据就交付不了，这条规则不变。
+
+谁定的：controller，在它这一轮的回答里点名
+
+v1：封存之后每一步都先问 controller（今天要等到第一次全量对比之后）"><rect x="811.5" y="40" width="59.0" height="20" rx="4"/><text x="841.0" y="54" text-anchor="middle">对比</text></g><g class="blk w-ctrl" data-tip="verifier 在首版上跑全部 check，和封存的 baseline 逐项比。"><rect x="811.5" y="76" width="59.0" height="20" rx="4"/><text x="841.0" y="90" text-anchor="middle">候选 check</text></g><g class="blk w-ctrl" data-tip="controller 的一轮：看对比结果，决定修什么、怎么修。"><rect x="873.5" y="40" width="59.0" height="20" rx="4"/><rect x="873.5" y="40" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="905.0" y="54" text-anchor="middle">轮 2</text></g><g class="blk w-ctrl" data-tip="run_parallel_agents(group=split)，几个 repair 请求同时修；也可以并排试 2 个版本。
+只在 parallel 开着时可用。修完由程序合并成新候选。
+
+谁定的：controller，在它这一轮的回答里点名"><rect x="935.5" y="40" width="59.0" height="20" rx="4"/><text x="965.0" y="54" text-anchor="middle">修复组</text></g><g class="blk w-ctrl" data-tip="repair author：修 controller 分给它的那部分失败。"><rect x="935.5" y="217" width="59.0" height="20" rx="4"/><rect x="935.5" y="217" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="967.0" y="231" text-anchor="middle">repair 1</text></g><g class="blk w-ctrl" data-tip="repair author：和 repair 1 同时进行。"><rect x="935.5" y="240" width="59.0" height="20" rx="4"/><rect x="935.5" y="240" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="967.0" y="254" text-anchor="middle">repair 2</text></g><g class="blk w-ctrl" data-tip="compare_behavior：先筛查受影响的 check，再全量。
+
+谁定的：controller，在它这一轮的回答里点名"><rect x="997.5" y="40" width="59.0" height="20" rx="4"/><text x="1027.0" y="54" text-anchor="middle">对比</text></g><g class="blk w-ctrl" data-tip="verifier 在新候选上跑 check。"><rect x="997.5" y="76" width="59.0" height="20" rx="4"/><text x="1027.0" y="90" text-anchor="middle">候选 check</text></g><g class="blk w-ctrl" data-tip="controller 的又一轮：全部通过就收尾；还有失败就再修（图里只画一次修复）。"><rect x="1059.5" y="40" width="59.0" height="20" rx="4"/><rect x="1059.5" y="40" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="1091.0" y="54" text-anchor="middle">轮 3</text></g><g class="blk w-ctrl" data-tip="select_candidate → deliver。
+
+谁定的：controller，在它这一轮的回答里点名"><rect x="1121.5" y="40" width="59.0" height="20" rx="4"/><text x="1151.0" y="54" text-anchor="middle">选定·交付</text></g><text class="t-lane" x="0" y="324">draft job</text><rect x="124" y="334" width="1062" height="28" rx="4" style="fill:var(--par-bg)"/><text class="t-lane2" x="118" y="352" text-anchor="end">控制层</text><text class="t-lane2" x="118" y="388" text-anchor="end">verifier</text><text class="t-lane2" x="118" y="424" text-anchor="end">author</text><path class="bracket " d="M130 331 V327 H312 V331"/><text class="t-phase " x="221.0" y="322" text-anchor="middle">mainline</text><path class="bracket ctrl" d="M316 331 V327 H498 V331"/><text class="t-phase strong" x="407.0" y="322" text-anchor="middle">controller：并行写首版，提前验证</text><path class="bracket ctrl" d="M502 331 V327 H684 V331"/><text class="t-phase strong" x="593.0" y="322" text-anchor="middle">controller：并行修复</text><g class="blk w-hard" data-tip="draft job 在仓库的第二个克隆上工作，和 main job 互不干扰。
+create_workspace 加 owner 的准备配方。
+
+谁定的：mainline（程序的固定规则），没有问 controller"><rect x="129.5" y="338" width="59.0" height="20" rx="4"/><text x="159.0" y="352" text-anchor="middle">准备</text></g><g class="blk w-hard" data-tip="capture_baseline 的轻量版。
+
+谁定的：mainline（程序的固定规则），没有问 controller"><rect x="191.5" y="338" width="59.0" height="20" rx="4"/><text x="221.0" y="352" text-anchor="middle">抓基线</text></g><g class="blk w-hard" data-tip="verifier 只跑原版自带的 check，不做 knockout，在本机跑。
+draft job 不设计测试，所以它的冻结只有几分钟。"><rect x="191.5" y="374" width="59.0" height="20" rx="4"/><text x="221.0" y="388" text-anchor="middle">原版 check</text></g><g class="blk w-hard" data-tip="seal_contract：draft job 自己这份较轻的合同。
+
+谁定的：mainline（程序的固定规则），没有问 controller"><rect x="253.5" y="338" width="59.0" height="20" rx="4"/><text x="283.0" y="352" text-anchor="middle">封存</text></g><g class="blk w-ctrl" data-tip="draft job 的 controller 排首版：哪些 capability 一起写、分几个请求、谁负责共享文件。
+它不回答时，mainline 按程序切好的 scope 分层写；它漏掉的由 mainline 补写。
+
+v1：封存之后每一步都先问 controller（今天要等到第一次全量对比之后）"><rect x="315.5" y="338" width="59.0" height="20" rx="4"/><rect x="315.5" y="338" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="347.0" y="352" text-anchor="middle">规划轮</text></g><g class="blk w-ctrl" data-tip="run_parallel_agents(group=split)：几个 author 同时写，各在自己的 workspace 里，写完由程序合并。
+请求可以按 capability 自由分组（W4），可以写明谁负责共享文件（W3）。
+
+谁定的：controller，在它这一轮的回答里点名"><rect x="377.5" y="338" width="59.0" height="20" rx="4"/><text x="407.0" y="352" text-anchor="middle">并行组</text></g><g class="blk w-ctrl" data-tip="author 会话。
+
+怎么分组、给什么指示：controller
+同时最多几个：owner 的 max_agents
+代码怎么写：author 自己"><rect x="377.5" y="410" width="59.0" height="20" rx="4"/><rect x="377.5" y="410" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="409.0" y="424" text-anchor="middle">能力组 A</text></g><g class="blk w-ctrl" data-tip="author 会话。
+
+怎么分组、给什么指示：controller
+同时最多几个：owner 的 max_agents
+代码怎么写：author 自己"><rect x="377.5" y="433" width="59.0" height="20" rx="4"/><rect x="377.5" y="433" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="409.0" y="447" text-anchor="middle">能力组 B</text></g><g class="blk w-ctrl" data-tip="author 会话。
+
+怎么分组、给什么指示：controller
+同时最多几个：owner 的 max_agents
+代码怎么写：author 自己"><rect x="377.5" y="456" width="59.0" height="20" rx="4"/><rect x="377.5" y="456" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="409.0" y="470" text-anchor="middle">能力组 C</text></g><g class="blk w-ctrl" data-tip="author 会话。
+
+怎么分组、给什么指示：controller
+同时最多几个：owner 的 max_agents
+代码怎么写：author 自己"><rect x="377.5" y="479" width="59.0" height="20" rx="4"/><rect x="377.5" y="479" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="409.0" y="493" text-anchor="middle">能力组 D</text></g><g class="blk w-ctrl" data-tip="compare_behavior：draft job 用已经固定的那部分测试（原版自带的 check）先对比自己写的首版。
+main job 设计的测试这时还没封存，不在其中。
+只在 parallel 开着时有这一步。这里看到的结果不算证据：main job 导入后重新全量对比。
+
+谁定的：controller，在它这一轮的回答里点名"><rect x="439.5" y="338" width="59.0" height="20" rx="4"/><text x="469.0" y="352" text-anchor="middle">提前验证</text></g><g class="blk w-ctrl" data-tip="verifier 在 draft job 里跑原版自带的 check。"><rect x="439.5" y="374" width="59.0" height="20" rx="4"/><text x="469.0" y="388" text-anchor="middle">固定的 check</text></g><g class="blk w-ctrl" data-tip="draft job 的 controller 看提前验证的结果，决定先修什么。"><rect x="501.5" y="338" width="59.0" height="20" rx="4"/><rect x="501.5" y="338" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="533.0" y="352" text-anchor="middle">轮 2</text></g><g class="blk w-ctrl" data-tip="几个 repair author 同时修提前验证出来的失败。
+图里 main job 正好在修复进行中封存。
+
+谁定的：controller，在它这一轮的回答里点名"><rect x="563.5" y="338" width="121.0" height="20" rx="4"/><text x="624.0" y="352" text-anchor="middle">修复组</text></g><g class="blk w-ctrl" data-tip="repair author。"><rect x="563.5" y="410" width="121.0" height="20" rx="4"/><rect x="563.5" y="410" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="626.0" y="424" text-anchor="middle">repair 1</text></g><g class="blk w-ctrl" data-tip="repair author。"><rect x="563.5" y="433" width="121.0" height="20" rx="4"/><rect x="563.5" y="433" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="626.0" y="447" text-anchor="middle">repair 2</text></g><g class="blk w-hard" data-tip="finish_draft：main job 一封存（或它的 controller 决定直接取），draft job 交出手上的候选。
+别的结束方式：首版通过了提前验证；尝试次数、时间或 token 用完。
+
+谁定的：mainline（程序的固定规则），没有问 controller"><rect x="687.5" y="338" width="59.0" height="20" rx="4"/><text x="717.0" y="352" text-anchor="middle">交出草稿</text></g><path class="link" d="M655.0 60.0 V293.0 H707.0 V336.0" marker-end="url(#arr)"/><text class="t-note" x="648.0" y="296.0" text-anchor="end">main job 封存 → 交出</text><path class="link" d="M727.0 338.0 V62.0" marker-end="url(#arr)"/><text class="t-note" x="734.0" y="288.0" text-anchor="start">交出的首版</text></svg></div><p class="swipe">左右滑动查看 →</p>
+    <figcaption>和今天的 ④ 最接近。多的是：main job 冻结里 controller 排 designer；导入时等不等由 controller 定；第一次对比进了 controller 的计划。提前验证用的是原版自带的 check，结果不算证据，main job 导入后重新全量对比。</figcaption></figure>
+  </div>
+</section>
+
+<section id="scope">
+  <div class="part">第三部分　细节</div>
+  <h2>v1 改什么：我的理解</h2>
+  <div class="cards wide">
+    <div class="card"><span class="n">一、更多流程交给 controller 编排</span>
+      <ul class="tight">
+        <li><b>封存之前</b>：第一次 baseline 之后问 controller 一轮，由它排 test designer。这是新建的。</li>
+        <li><b>封存之后</b>：每一步都先问 controller，包括首版、保存、第一次全量对比。今天要等到第一次对比之后；开了 parallel 才在写首版前多问一轮。</li>
+        <li><b>draft job</b>：总有自己的 controller。今天只有开了 parallel 才有。</li>
+        <li><b>导入</b>：parallel 开着时，等不等 draft job 由 main job 的 controller 定。</li>
+      </ul></div>
+    <div class="card"><span class="n">二、两个开关各管一件事</span>
+      <ul class="tight">
+        <li><b>pair</b>：draft job 和 main job 是否重叠。不变。</li>
+        <li><b>parallel</b>：其余所有并行。开着时可用的并行流程：多个 author 同时写；同时给多个 leaf 写测试；同时修几处；draft job 提前验证。</li>
+        <li><b>parallel 关着</b>：所有会话一个接一个，程序不划分 scope。谁来编排不看这个开关，开或关都是 controller。</li>
+      </ul></div>
+    <div class="card"><span class="n">三、v1 不改的</span>
+      <ul class="tight">
+        <li><b>证据规则</b>：给哪些 leaf 设计测试、门、试跑、knockout、评审裁决、对比怎么判、baseline、封存，全部照旧，仍由程序执行。</li>
+        <li><b>mainline 还剩什么</b>：没有取舍的步骤（准备、抓 baseline、封存、导入的机械部分）；controller 不回答时兜底；补上它漏掉的 leaf 或 capability。</li>
+        <li><b>owner 的上限</b>：同时几个 author、同时几个 designer，上限仍是 owner 的。</li>
+      </ul></div>
+  </div>
+  <div class="card"><h3>我自己补的三处理解，不对请纠正</h3>
+    <ul class="plain">
+      <li><b>“verify 提前引入 draft job，先跑一部分固定好的测试”</b>：我理解为今天 ④ 里 draft job 的做法，写完首版后用原版自带的 check 先对比、先修。这部分测试从一开始就是固定的；main job 设计的测试那时还没封存，不在其中。结果不算证据，main job 导入后重新全量对比。v1 里它只在 parallel 开着时有；关着时 draft job 写完就交。</li>
+      <li><b>parallel 关着时 test reviewer 也一次一个</b>：你举的例子里没有 reviewer，我按“所有会话一个接一个”处理。</li>
+      <li><b>机器一级的并发不算在内</b>：同时跑几个 check、几个 knockout 是程序执行检查的方式，不是会话。关着时仍按 owner 的设置和今天的默认值，开着时放宽。</li>
+    </ul></div>
+</section>
+
+<section id="layers">
+  <h2>分层：v1 之后是什么样</h2>
+  <div class="card"><figure><div class="scroll"><svg class="fig" viewBox="0 0 1100 590" role="img" style="min-width:900px" aria-label="v1 的分层：host 在上，中间是作业控制层的 mainline 和 controller，下面是 author、test designer、verifier。v1 里 controller 接管 author 和 test designer 两条线的拆分与并行，mainline 对 author 退到只兜底，对 test designer 仍然决定给哪些 leaf 设计；verifier 这条线不变"><defs><pattern id="hatch-follow" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="7" height="7" style="fill:var(--w-hard)"/><rect width="3.5" height="7" style="fill:var(--w-ctrl)"/></pattern><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker><marker id="arr-m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:var(--muted)"/></marker></defs><text x="40" y="16" style="font-size:11px;fill:var(--accent);font-family:var(--font-mono)">第 1 层　host（v1 不变）</text><rect x="330" y="24" width="440" height="56" rx="8" style="fill:var(--surface);stroke:var(--w-agent-ink)" stroke-width="1.5"/><rect x="330" y="24" width="6" height="56" rx="3" style="fill:var(--w-agent)"/><text x="346" y="46" style="font-size:13px;font-weight:700">host agent</text><text x="346" y="64" style="font-size:11px;fill:var(--muted)">写合同和上限、提交；运行中只观察</text><path class="arrow" d="M550 80 L550 124" marker-end="url(#arr)"/><rect x="40" y="126" width="1020" height="128" rx="12" style="fill:none;stroke:var(--line)" stroke-width="1.5" stroke-dasharray="6 4"/><text x="56" y="146" style="font-size:11px;fill:var(--accent);font-family:var(--font-mono)">第 2 层　作业控制层（main job 和 draft job 各一套）</text><rect x="70" y="158" width="430" height="82" rx="8" style="fill:var(--surface);stroke:var(--w-hard-ink)" stroke-width="1.5"/><rect x="70" y="158" width="6" height="82" rx="3" style="fill:var(--w-hard)"/><text x="86" y="180" style="font-size:13px;font-weight:700">mainline（程序，固定规则）</text><text x="86" y="198" style="font-size:11px;fill:var(--muted)">v1：只做没有取舍的步骤、兜底、补齐遗漏</text><text x="86" y="214" style="font-size:11px;fill:var(--muted)">证据规则仍由它执行</text><rect x="600" y="158" width="430" height="82" rx="8" style="fill:var(--surface);stroke:var(--w-ctrl-ink)" stroke-width="1.5"/><rect x="600" y="158" width="6" height="82" rx="3" style="fill:var(--w-ctrl)"/><text x="616" y="180" style="font-size:13px;font-weight:700">controller（模型）</text><text x="616" y="198" style="font-size:11px;fill:var(--muted)">v1：封存前排 test designer；封存后每一步</text><text x="616" y="214" style="font-size:11px;fill:var(--muted)">都先问它。parallel 开着才能安排并行</text><path class="arrow" d="M500 186 L598 186" marker-end="url(#arr)"/><text x="549" y="179" text-anchor="middle" style="font-size:10.5px;fill:var(--muted)">问</text><path class="arrow" d="M598 214 L502 214" marker-end="url(#arr)"/><text x="549" y="207" text-anchor="middle" style="font-size:10.5px;fill:var(--muted)">答</text><text x="40" y="282" style="font-size:11px;fill:var(--accent);font-family:var(--font-mono)">第 3 层　执行层</text><path d="M285 240 V296 M110 296 H810" style="fill:none;stroke:var(--w-hard-ink)" stroke-width="2"/><path d="M900 240 V320 M250 320 H950" style="fill:none;stroke:var(--w-ctrl-ink)" stroke-width="2.5"/><path d="M110 296 V339" style="fill:none;stroke:var(--w-hard-ink)" stroke-width="2" stroke-dasharray="4 4"/><circle cx="110" cy="344" r="5" style="fill:var(--surface);stroke:var(--w-hard-ink)" stroke-width="1.5"/><path d="M460 296 V339" style="fill:none;stroke:var(--w-hard-ink)" stroke-width="2"/><circle cx="460" cy="344" r="5" style="fill:var(--w-hard);stroke:var(--w-hard-ink)" stroke-width="1.5"/><path d="M810 296 V339" style="fill:none;stroke:var(--w-hard-ink)" stroke-width="2"/><circle cx="810" cy="344" r="5" style="fill:var(--w-hard);stroke:var(--w-hard-ink)" stroke-width="1.5"/><path d="M250 320 V339" style="fill:none;stroke:var(--w-ctrl-ink)" stroke-width="3.5"/><circle cx="250" cy="344" r="6" style="fill:var(--w-ctrl);stroke:var(--w-ctrl-ink)" stroke-width="1.5"/><path d="M600 320 V339" style="fill:none;stroke:var(--w-ctrl-ink)" stroke-width="3.5"/><circle cx="600" cy="344" r="6" style="fill:var(--w-ctrl);stroke:var(--w-ctrl-ink)" stroke-width="1.5"/><path d="M950 320 V339" style="fill:none;stroke:var(--w-ctrl-ink)" stroke-width="2"/><circle cx="950" cy="344" r="5" style="fill:var(--w-ctrl);stroke:var(--w-ctrl-ink)" stroke-width="1.5"/><rect x="40" y="344" width="320" height="212" rx="8" style="fill:var(--surface);stroke:var(--w-agent-ink)" stroke-width="1.5"/><rect x="40" y="344" width="6" height="212" rx="3" style="fill:var(--w-agent)"/><text x="56" y="366" style="font-size:13px;font-weight:700">author</text><text x="56" y="384" style="font-size:11px;fill:var(--muted)">首版和修复</text><circle cx="60" cy="402" r="5" style="fill:var(--w-ctrl);stroke:var(--w-ctrl-ink)" stroke-width="1.5"/><text x="74" y="406" style="font-size:11px;font-weight:700;fill:var(--w-ctrl-ink)">controller</text><text x="74" y="422" style="font-size:11px;fill:var(--ink)">现在：只在 parallel 开着时切首版、拆修复</text><text x="74" y="437" style="font-size:11px;fill:var(--ink)">v1：开或关都由它排，两个作业都是；</text><text x="74" y="452" style="font-size:11px;fill:var(--ink)">parallel 开着才并行</text><circle cx="60" cy="482" r="5" style="fill:none;stroke:var(--w-hard-ink)" stroke-width="1.5" stroke-dasharray="2 2"/><text x="74" y="486" style="font-size:11px;font-weight:700;fill:var(--w-hard-ink)">mainline</text><text x="74" y="502" style="font-size:11px;fill:var(--muted)">现在：parallel 关着时按层写首版</text><text x="74" y="517" style="font-size:11px;fill:var(--muted)">v1：只兜底（controller 不答时）、</text><text x="74" y="532" style="font-size:11px;fill:var(--muted)">补写它漏掉的部分</text><rect x="390" y="344" width="320" height="212" rx="8" style="fill:var(--surface);stroke:var(--w-agent-ink)" stroke-width="1.5"/><rect x="390" y="344" width="6" height="212" rx="3" style="fill:var(--w-agent)"/><text x="406" y="366" style="font-size:13px;font-weight:700">test designer</text><text x="406" y="384" style="font-size:11px;fill:var(--muted)">给缺测试的 leaf 写测试（test reviewer 不变）</text><circle cx="410" cy="402" r="5" style="fill:var(--w-ctrl);stroke:var(--w-ctrl-ink)" stroke-width="1.5"/><text x="424" y="406" style="font-size:11px;font-weight:700;fill:var(--w-ctrl-ink)">controller</text><rect x="503" y="394" width="46" height="15" rx="7" style="fill:var(--w-agent)"/><text x="526" y="405" text-anchor="middle" style="font-size:10px;font-weight:700;fill:var(--on-series)">v1 新增</text><text x="424" y="422" style="font-size:11px;fill:var(--ink)">现在：管不到</text><text x="424" y="437" style="font-size:11px;fill:var(--ink)">v1：定先后、一个 leaf 分几个会话；</text><text x="424" y="452" style="font-size:11px;fill:var(--ink)">parallel 开着才同时几个；不能写指示</text><circle cx="410" cy="482" r="5" style="fill:var(--w-hard);stroke:var(--w-hard-ink)" stroke-width="1.5"/><text x="424" y="486" style="font-size:11px;font-weight:700;fill:var(--w-hard-ink)">mainline</text><text x="424" y="502" style="font-size:11px;fill:var(--ink)">仍然定：给哪些 leaf 设计（一个不能少）、</text><text x="424" y="517" style="font-size:11px;fill:var(--ink)">门、试跑、评审、提交；</text><text x="424" y="532" style="font-size:11px;fill:var(--ink)">controller 漏掉的 leaf 由它补上</text><rect x="740" y="344" width="320" height="212" rx="8" style="fill:var(--surface);stroke:var(--w-hard-ink)" stroke-width="1.5"/><rect x="740" y="344" width="6" height="212" rx="3" style="fill:var(--w-hard)"/><text x="756" y="366" style="font-size:13px;font-weight:700">verifier（程序）</text><text x="756" y="384" style="font-size:11px;fill:var(--muted)">v1：封存后的对比都归 controller</text><circle cx="760" cy="402" r="5" style="fill:var(--w-ctrl);stroke:var(--w-ctrl-ink)" stroke-width="1.5"/><text x="774" y="406" style="font-size:11px;font-weight:700;fill:var(--w-ctrl-ink)">controller</text><text x="774" y="422" style="font-size:11px;fill:var(--ink)">现在：第一次全量对比之后才归它</text><text x="774" y="437" style="font-size:11px;fill:var(--ink)">v1：封存后每一次对比，含第一次；</text><text x="774" y="452" style="font-size:11px;fill:var(--ink)">parallel 开着时 draft job 提前验证</text><circle cx="760" cy="482" r="5" style="fill:var(--w-hard);stroke:var(--w-hard-ink)" stroke-width="1.5"/><text x="774" y="486" style="font-size:11px;font-weight:700;fill:var(--w-hard-ink)">mainline</text><text x="774" y="502" style="font-size:11px;fill:var(--ink)">冻结里的 baseline 和 knockout、封存</text><text x="774" y="517" style="font-size:11px;fill:var(--ink)">（留给后续版本）</text><text x="550" y="578" text-anchor="middle" style="font-size:10.5px;fill:var(--muted)">粗紫线 = v1 里 controller 接管编排的两条线　　虚线灰 = mainline 退到只兜底</text></svg></div><p class="swipe">左右滑动查看 →</p>
+    <figcaption>和现状（见 <a href="../nanolize-pipeline-map/#roles">流程全图的分层图</a>）相比：author 那条线从“开了 parallel 才有”变成常态；test designer 那条线是新建的；verifier 那条线从“第一次全量对比之后”提前到“封存之后”。mainline 对 author 退到只兜底和补漏；对 test designer 它仍然决定给哪些 leaf 设计；证据规则都留在它手里。</figcaption></figure></div>
+</section>
+
+<section id="inventory">
+  <h2>逐项清单：每个决定现在谁定，v1 谁定</h2>
+  <p class="body">加粗的行是 v1 要改的，最后一列是对应的工作包。灰色的行 v1 不动。</p>
+  <div class="card"><div class="scroll"><table style="min-width:58rem">
+    <thead><tr><th>决定</th><th>现在（新分支 @ 21d8a28e）</th><th>v1</th><th>工作包</th></tr></thead>
+    <tbody><tr class="grp"><th colspan="4">流程编排</th></tr><tr><th scope="row">准备、抓 baseline、封存</th><td>mainline</td><td class="same">不变：没有取舍，或者是证据规则</td><td class="mono"></td></tr><tr><th scope="row">封存之前 controller 何时被问</th><td>从不</td><td class=""><b>第一次 baseline 之后问一轮，只能排 test designer</b></td><td class="mono">W7</td></tr><tr><th scope="row">封存之后 controller 何时被问</th><td>第一次全量对比之后；parallel 开着时写首版前多问一轮</td><td class=""><b>每一步都先问，开或关都是</b></td><td class="mono">W1</td></tr><tr><th scope="row">保存、第一次全量对比</th><td>mainline 的固定步骤</td><td class=""><b>controller 计划里的一步；没有全量对比的证据不能交付，这条不变</b></td><td class="mono">W1</td></tr><tr><th scope="row">draft job 里有没有 controller</th><td>只在 parallel 开着时</td><td class=""><b>总是有</b></td><td class="mono">W1</td></tr><tr><th scope="row">draft job 提前验证（用原版自带的 check 先对比、先修）</th><td>只在 parallel 开着时</td><td class=""><b>不变：只在 parallel 开着时。关着时写完就交</b></td><td class="mono">W10</td></tr><tr><th scope="row">main job 导入时等不等 draft job</th><td>mainline：一律等，最多等剩余时间的一半</td><td class=""><b>parallel 开着：main job 的 controller 定。关着：draft job 没在修，直接导入</b></td><td class="mono">W11</td></tr><tr><th scope="row">controller 不回答时</th><td>mainline 兜底；规划轮和修复轮的失败算在一起，连续 3 次就整次不再问</td><td class=""><b>mainline 兜底不变；规划轮的失败单独计数</b></td><td class="mono">W2</td></tr><tr class="grp"><th colspan="4">author</th></tr><tr><th scope="row">首版由谁来排</th><td>parallel 开着：controller。关着：mainline 按层写</td><td class=""><b>controller，开或关、两个作业都是；mainline 只兜底</b></td><td class="mono">W1</td></tr><tr><th scope="row">parallel 关着时首版怎么写</th><td>程序切好 scope 分层写，同一层最多 4 个 author 同时</td><td class=""><b>一次一个 author。程序不划分 scope；一次写完还是按 capability 分几次串行写，由 controller 定</b></td><td class="mono">W10</td></tr><tr><th scope="row">parallel 开着时首版怎么写</th><td>controller 开并行组，只能按程序切好的 scope 分（每个不超过 45,000 token）。按 capability 分的话程序就停止记账，漏写的没人补</td><td class=""><b>并行组不变；controller 还可以按 capability 自由分组，程序照样记账、补漏</b></td><td class="mono">W4</td></tr><tr><th scope="row">修复时几个 author 同时</th><td>开着：controller 可以开修复组。关着：一次一个，另有一组 workspace 工具最多 2 个同时</td><td class=""><b>开着不变。关着：严格一次一个</b></td><td class="mono">W10</td></tr><tr><th scope="row">共享文件（包的 __init__.py 等）谁写</th><td>程序给并行组里每个 author 同一句“不许碰共享文件”；controller 只能在指示里反着说</td><td class=""><b>开着：controller 在请求里指定谁负责。关着：串行写，没有这个问题</b></td><td class="mono">W3</td></tr><tr><th scope="row">同时几个 author</th><td>开着：owner 的 max_agents（2–8）。关着：分层写时最多 4</td><td class=""><b>开着不变。关着：1</b></td><td class="mono">W10</td></tr><tr><th scope="row">两个 author 改了同一文件听谁的</th><td>程序：靠前的请求保留</td><td class="same">不变（只在并行组里会发生）</td><td class="mono"></td></tr><tr class="grp"><th colspan="4">test designer</th></tr><tr><th scope="row">给哪些 leaf 设计测试</th><td>程序，按 baseline 的结果算</td><td class="same">不变：程序算，一个不能少</td><td class="mono"></td></tr><tr><th scope="row">会话的先后顺序</th><td>程序：按 leaf 的名字排</td><td class=""><b>controller</b></td><td class="mono">W5 W6</td></tr><tr><th scope="row">一个 leaf 开几个 designer 会话</th><td>程序：1 个（要迁移的原版测试每多 40 个再加 1 个）</td><td class=""><b>controller：1 到 4 个；程序把这个 leaf 的功能点和知识条目分给各会话</b></td><td class="mono">W5 W6</td></tr><tr><th scope="row">同时几个 designer 会话</th><td>全部同时开，最多 32；owner 给了 runner_workers 就按它。不看 parallel 开关</td><td class=""><b>parallel 关着：1。开着：controller 在 owner 的上限内定</b></td><td class="mono">W5 W10</td></tr><tr><th scope="row">同时几个 reviewer 会话</th><td>全部同时开。不看 parallel 开关</td><td class=""><b>parallel 关着：1。开着：不变</b></td><td class="mono">W10</td></tr><tr><th scope="row">给 designer 的文字指示</th><td>没有，提示词由程序拼</td><td class="same">仍然没有：controller 只给结构，不给文字</td><td class="mono"></td></tr><tr><th scope="row">测试写什么</th><td>test designer</td><td class="same">不变</td><td class="mono"></td></tr><tr><th scope="row">门、试跑、knockout、评审裁决、提交</th><td>程序和 test reviewer</td><td class="same">不变</td><td class="mono"></td></tr><tr><th scope="row">reviewer 怎么分批</th><td>程序：每 8 个文件一个</td><td class="same">不变（见需要你定的第 6 项）</td><td class="mono"></td></tr></tbody></table></div></div>
+</section>
+
+<section id="now-details">
+  <h2>现在的细节：四种组合逐项对比</h2>
+  
+  <div class="card notice"><h3>先说一件事：main 回滚了 PR #45，新分支仍然含它</h3>
+    <p>新分支建在 PR #45 的合并点（21d8a28e）上。之后 main 在 2026-11-20 合了 PR #47，把 PR #45 整个回滚了。所以这页说的“现在”是<b>新分支的代码</b>，和今天的 main 不一样。PR #45 里和流程有关的有三件事：</p>
+    <ul class="tight">
+      <li><b>parallel 开着时，controller 切首版，draft job 写完接着对比和修复。</b>第一部分 ② ④ 两张图里用蓝色虚线标出的部分。今天的 main 上没有。</li>
+      <li><b>worker 多于一个时，baseline 的 check 和 knockout 的对照同时跑。</b>冻结里 verifier 的块变短，图的形状不变。今天的 main 上没有。</li>
+      <li>run 页面画出两个作业和并行组；main job 的 token 计数算上 draft job 的 controller。</li>
+    </ul>
+    <p>这对方案的影响见<a href="#decide">需要你定的第 7 项</a>。</p></div>
+
   
   <div class="card"><h3>逐项对比</h3>
     <div class="scroll"><table class="cmp" style="min-width:62rem">
@@ -722,205 +1096,25 @@ controller 在规划轮里通常会放行 mainline 一直做到这一步；不�
     <ul class="plain">
       <li><b>pair 管的是首版在哪写。</b>关着时首版排在封存后面，和冻结是串行的。开着时 draft job 和 main job 的冻结同时进行，冻结做完时首版通常已经写好。</li>
       <li><b>parallel 管的是首版和修复由谁切。</b>关着时首版由 mainline 按层写，修复一次一个 author。开着时两处都归 controller，draft job 也因此有了自己的 controller。</li>
-      <li><b>两个开关都碰不到冻结。</b>四张图里完整冻结的那 8 格一模一样，全是灰色：test designer 开几个、同时几个，在任何组合下都是程序定的。这就是 v1 要新建的那条线。</li>
+      <li><b>两个开关都碰不到冻结。</b>四张图里完整冻结的那 8 格一模一样，全是灰色：test designer 开几个、同时几个，在任何组合下都是程序定的。</li>
       <li><b>② ④ 里紫色的首版部分来自 PR #45。</b>今天的 main 上，parallel 开着也只影响第一次全量对比之后的修复，以及机器并发。</li>
     </ul></div>
-  
-  <div class="card"><h3>v1 做完之后，这四种组合怎么变</h3>
-    <p>11-20 你定的：<b>parallel 关着时 author 会话也由 controller 控制，但一个接一个写，程序不再划分 scope。</b>所以 v1 里仍然是四种形状，两个开关的含义变得各管一件事：</p>
-    <ul class="tight">
-      <li><b>pair</b>：首版在哪写。和今天一样。</li>
-      <li><b>parallel</b>：author 会话并行还是串行。谁来规划不再看这个开关，四种组合下都是 controller。</li>
-      <li><b>冻结</b>：四种组合下都多一轮 controller 来排 test designer。designer 的并发不看 parallel 开关（见“需要你定的”第 9 项）。</li>
-    </ul>
-    <div class="scroll"><table class="matrix" style="min-width:46rem">
-      <thead><tr><th></th><th>parallel 关（默认）</th><th>parallel 开</th></tr></thead>
-      <tbody>
-        <tr><th scope="row">pair 关<br><span class="muted" style="font-weight:400">一个作业</span></th><td><a href="#mode-v1-serial">①′ 一个作业，author 一个接一个</a><p>冻结里 controller 排 test designer。封存后 controller 决定一次写完，还是按 capability 分几次串行写。修复一次一个 author。程序不划分 scope。</p><div class="chips"><span class="who w-ctrl">designer：controller 排</span><span class="who w-ctrl">首版：controller，串行</span><span class="who w-ctrl">修复：controller，一次一个 author</span></div></td><td><a href="#mode-v1-parallel">②′ 一个作业，author 可以并行</a><p>冻结同 ①′。封存后 controller 用并行组写首版，第一次对比后可以开并行修复组。上限是 owner 的。</p><div class="chips"><span class="who w-ctrl">designer：controller 排</span><span class="who w-ctrl">首版：controller，并行组</span><span class="who w-ctrl">修复：controller，可开并行组</span></div></td></tr>
-        <tr><th scope="row">pair 开<br><span class="muted" style="font-weight:400">两个作业</span></th><td><a href="#flow">③′ 两个作业，draft job 串行写</a><p>draft job 有自己的 controller：author 一个接一个写首版，写完接着自己对比、串行修复，直到 main job 封存。不再空等。</p><div class="chips"><span class="who w-ctrl">designer：main job 的 controller 排</span><span class="who w-ctrl">首版：draft job 的 controller，串行</span><span class="who w-ctrl">修复：各自的 controller，一次一个 author</span></div></td><td><a href="#flow">④′ 两个作业，draft job 并行写</a><p>和今天的 ④ 相比，多的是 main job 冻结里那一轮，以及共享文件由 controller 指定负责人、按 capability 自由分组。</p><div class="chips"><span class="who w-ctrl">designer：main job 的 controller 排</span><span class="who w-ctrl">首版：draft job 的 controller，并行组</span><span class="who w-ctrl">修复：各自的 controller，可开并行组</span></div></td></tr>
-      </tbody></table></div>
-    <p class="sub">和今天比，变化最大的是 parallel 关着的两格：今天它们的首版由 mainline 按层写，同一层最多 4 个 author 同时；v1 里改成 controller 排、一次一个。两个作业的图只画了 parallel 开着的那张（<a href="#flow">v1 的流程示意</a>）；关着时 draft job 那一行换成下面 ①′ 图里“一个接一个”的写法。</p></div>
-  <div class="card tips focusable mode" id="mode-v1-serial">
-    <h3><span class="no">①′</span><span>v1：一个作业，author 一个接一个</span><span class="sw2">pair 关 · parallel 关</span></h3>
-    <div class="legend" data-for="mode-v1-serial"><span class="hint">颜色 = 谁决定这一步（点一下只看一类）</span><button type="button" class="lg" data-kind="hard" aria-pressed="false"><span class="sw w-hard"></span>程序写死</button><button type="button" class="lg" data-kind="ctrl" aria-pressed="false"><span class="sw w-ctrl"></span>controller 决定</button><span class="lg"><span class="sw w-follow"></span>mainline 照固定顺序做，controller 放行</span></div>
-    <figure><div class="scroll"><svg class="fig" viewBox="0 0 1340 261" role="img" aria-label="v1 里 pair 关、parallel 关的流程示意：冻结里 controller 安排 test designer；封存后 controller 让 author 一个接一个写首版，程序不划分 scope；第一次对比后 controller 逐轮决定，修复一次一个 author" style="min-width:1152px"><defs><pattern id="hatch-follow" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="7" height="7" style="fill:var(--w-hard)"/><rect width="3.5" height="7" style="fill:var(--w-ctrl)"/></pattern><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker><marker id="arr-m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:var(--muted)"/></marker></defs><text class="t-lane" x="0" y="26">唯一的作业</text><rect x="124" y="36" width="1208" height="28" rx="4" style="fill:var(--par-bg)"/><text class="t-lane2" x="118" y="54" text-anchor="end">控制层</text><text class="t-lane2" x="118" y="90" text-anchor="end">verifier</text><text class="t-lane2" x="118" y="126" text-anchor="end">designer · reviewer</text><text class="t-lane2" x="118" y="231" text-anchor="end">author</text><path class="bracket " d="M130 33 V29 H246 V33"/><text class="t-phase " x="188.0" y="24" text-anchor="middle">mainline</text><path class="bracket ctrl" d="M250 33 V29 H546 V33"/><text class="t-phase strong" x="398.0" y="24" text-anchor="middle">controller 排 test designer（v1 新增）</text><path class="bracket " d="M550 33 V29 H666 V33"/><text class="t-phase " x="608.0" y="24" text-anchor="middle">mainline</text><path class="bracket ctrl" d="M670 33 V29 H906 V33"/><text class="t-phase strong" x="788.0" y="24" text-anchor="middle">controller 的首版计划：author 一个接一个</text><path class="bracket ctrl" d="M910 33 V29 H1326 V33"/><text class="t-phase strong" x="1118.0" y="24" text-anchor="middle">controller 逐轮决定：修复、对比、交付</text><g class="blk w-hard" data-tip="和现在一样。
-
-谁定的：mainline（程序的固定规则），没有问 controller"><rect x="129.5" y="40" width="57.0" height="20" rx="4"/><text x="158.0" y="54" text-anchor="middle">准备</text></g><g class="blk w-hard" data-tip="和现在一样，由 mainline 调用。
-
-谁定的：mainline（程序的固定规则），没有问 controller"><rect x="189.5" y="40" width="57.0" height="20" rx="4"/><text x="218.0" y="54" text-anchor="middle">抓基线</text></g><g class="blk w-hard" data-tip="verifier 算出哪些 leaf 没有有效测试。这份名单 controller 改不了。"><rect x="189.5" y="76" width="57.0" height="20" rx="4"/><text x="218.0" y="90" text-anchor="middle">原版 check</text></g><g class="blk w-ctrl" data-tip="封存之前唯一的一轮：controller 只能回答 design_leaf_tests 的拆分。
-它看到每个要设计的 leaf 的大小（功能点数、知识条目数、源码 token、要迁移的测试数）、owner 的并发上限、时间窗口；
-看不到源码和测试，不能给 designer 写文字。
-
-v1 新增"><rect x="249.5" y="40" width="57.0" height="20" rx="4"/><rect x="249.5" y="40" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="280.0" y="54" text-anchor="middle">规划轮</text></g><g class="blk w-ctrl" data-tip="design_leaf_tests(split=...)：哪些 leaf 先开、哪个大 leaf 分成几个会话、同时最多几个。
-名单上的 leaf 一个都不会少；没点名的照默认开一个会话。
-
-谁定的：controller，在它这一轮的回答里点名
-
-v1 新增"><rect x="309.5" y="40" width="237.0" height="20" rx="4"/><text x="428.0" y="54" text-anchor="middle">设计 leaf 测试（带 controller 的 split）</text></g><g class="blk w-ctrl" data-tip="test designer 会话：leaf L1 的第 1 部分。controller 把这个大 leaf 分成 2 个会话。
-
-v1 新增"><rect x="309.5" y="112" width="57.0" height="20" rx="4"/><rect x="309.5" y="112" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="340.0" y="126" text-anchor="middle">L1·1</text></g><g class="blk w-ctrl" data-tip="test designer 会话：leaf L1 的第 2 部分。
-
-v1 新增"><rect x="309.5" y="135" width="57.0" height="20" rx="4"/><rect x="309.5" y="135" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="340.0" y="149" text-anchor="middle">L1·2</text></g><g class="blk w-ctrl" data-tip="test designer 会话：leaf L2，一个会话。"><rect x="309.5" y="158" width="57.0" height="20" rx="4"/><rect x="309.5" y="158" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="340.0" y="172" text-anchor="middle">L2</text></g><g class="blk w-ctrl" data-tip="test designer 会话：leaf L3，一个会话。"><rect x="309.5" y="181" width="57.0" height="20" rx="4"/><rect x="309.5" y="181" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="340.0" y="195" text-anchor="middle">L3</text></g><g class="blk w-hard" data-tip="和现在一样：一个测试算不算有效由程序按规则定，和谁排的会话无关。"><rect x="369.5" y="76" width="57.0" height="20" rx="4"/><text x="398.0" y="90" text-anchor="middle">试跑</text></g><g class="blk w-hard" data-tip="test reviewer：v1 不改，每 8 个文件一个，由程序分批。"><rect x="429.5" y="112" width="57.0" height="20" rx="4"/><rect x="429.5" y="112" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="460.0" y="126" text-anchor="middle">评审</text></g><g class="blk w-hard" data-tip="和现在一样。"><rect x="489.5" y="76" width="57.0" height="20" rx="4"/><text x="518.0" y="90" text-anchor="middle">检查·提交</text></g><g class="blk w-hard" data-tip="和现在一样，由 mainline 调用。
-
-谁定的：mainline（程序的固定规则），没有问 controller"><rect x="549.5" y="40" width="57.0" height="20" rx="4"/><text x="578.0" y="54" text-anchor="middle">再抓基线</text></g><g class="blk w-hard" data-tip="带着新测试重跑。"><rect x="549.5" y="76" width="57.0" height="20" rx="4"/><text x="578.0" y="90" text-anchor="middle">原版 check</text></g><g class="blk w-hard" data-tip="seal_contract 仍由 mainline 调用。
-
-谁定的：mainline（程序的固定规则），没有问 controller"><rect x="609.5" y="40" width="57.0" height="20" rx="4"/><text x="638.0" y="54" text-anchor="middle">封存</text></g><g class="blk w-ctrl" data-tip="controller 排首版。parallel 关着：一次只有一个 author 会话，程序不划分 scope。
-它决定一次写完，还是按 capability 分几次、一个接一个写；每次给什么指示。
-它看到每个 capability 的原版 token 数，用来判断一次调用有多大。
-它不回答时，mainline 发一次写全部的调用。
-
-v1 新增"><rect x="669.5" y="40" width="57.0" height="20" rx="4"/><rect x="669.5" y="40" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="700.0" y="54" text-anchor="middle">规划轮</text></g><g class="blk w-ctrl" data-tip="run_agent(role=implement, capabilities=[...])：controller 点名的第一批 capability。
-写完先 save_candidate 存成候选（图里没有单独画），下一个 author 接着这些文件写。
-图里画的是分两次写；小项目可以一次写完。
-
-谁定的：controller，在它这一轮的回答里点名
-
-v1 新增"><rect x="729.5" y="40" width="57.0" height="20" rx="4"/><text x="758.0" y="54" text-anchor="middle">写首版 1</text></g><g class="blk w-ctrl" data-tip="author 会话：写 controller 点名的第一批 capability。
-
-写哪些、给什么指示：controller
-同时几个：1（parallel 关）
-代码怎么写：author 自己"><rect x="729.5" y="217" width="57.0" height="20" rx="4"/><rect x="729.5" y="217" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="760.0" y="231" text-anchor="middle">author 1</text></g><g class="blk w-ctrl" data-tip="run_agent(role=implement, capabilities=[...])：其余的 capability，写完同样先保存。
-串行写没有合并：后写的 author 看得到先写的文件，共享文件谁写的问题不存在。
-
-谁定的：controller，在它这一轮的回答里点名
-
-v1 新增"><rect x="789.5" y="40" width="57.0" height="20" rx="4"/><text x="818.0" y="54" text-anchor="middle">写首版 2</text></g><g class="blk w-ctrl" data-tip="author 会话：在第一批的基础上写其余的 capability。"><rect x="789.5" y="217" width="57.0" height="20" rx="4"/><rect x="789.5" y="217" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="820.0" y="231" text-anchor="middle">author 2</text></g><g class="blk w-follow" data-tip="第一次全量对比：仍是 mainline 的一步。"><rect x="849.5" y="40" width="57.0" height="20" rx="4"/><text x="878.0" y="54" text-anchor="middle">对比</text></g><g class="blk w-follow" data-tip="和现在一样。"><rect x="849.5" y="76" width="57.0" height="20" rx="4"/><text x="878.0" y="90" text-anchor="middle">候选 check</text></g><g class="blk w-ctrl" data-tip="controller 的一轮：看第一次全量对比的结果，决定修什么、怎么修。
-从这里起每一步都先问它（它也可以放行 mainline 做若干步）。"><rect x="909.5" y="40" width="57.0" height="20" rx="4"/><rect x="909.5" y="40" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="940.0" y="54" text-anchor="middle">轮 3</text></g><g class="blk w-ctrl" data-tip="run_agent(role=repair)：一次一个 author。
-v1 里 parallel 关着就是串行：并行组不可用，workspace 那组工具也一次只跑一个。
-
-谁定的：controller，在它这一轮的回答里点名"><rect x="969.5" y="40" width="117.0" height="20" rx="4"/><text x="1028.0" y="54" text-anchor="middle">修复（run_agent）</text></g><g class="blk w-ctrl" data-tip="repair author：修 controller 点名的失败。
-
-修什么、给什么指示：controller
-怎么改：author 自己"><rect x="969.5" y="217" width="117.0" height="20" rx="4"/><rect x="969.5" y="217" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="1030.0" y="231" text-anchor="middle">1 个 repair author</text></g><g class="blk w-ctrl" data-tip="save_candidate：把 author 的草稿存成新候选（集成检查、与原版重复度检查在这里）。
-
-谁定的：controller，在它这一轮的回答里点名"><rect x="1089.5" y="40" width="57.0" height="20" rx="4"/><text x="1118.0" y="54" text-anchor="middle">保存</text></g><g class="blk w-ctrl" data-tip="compare_behavior：先筛查受影响的 check，再全量。
-
-谁定的：controller，在它这一轮的回答里点名"><rect x="1149.5" y="40" width="57.0" height="20" rx="4"/><text x="1178.0" y="54" text-anchor="middle">对比</text></g><g class="blk w-ctrl" data-tip="verifier 在新候选上跑 check，和封存的 baseline 逐项比。"><rect x="1149.5" y="76" width="57.0" height="20" rx="4"/><text x="1178.0" y="90" text-anchor="middle">候选 check</text></g><g class="blk w-ctrl" data-tip="controller 的又一轮：全部通过就收尾；还有失败就再修（图里只画一次修复）。"><rect x="1209.5" y="40" width="57.0" height="20" rx="4"/><rect x="1209.5" y="40" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="1240.0" y="54" text-anchor="middle">轮 4</text></g><g class="blk w-ctrl" data-tip="select_candidate → deliver：选定要交付的候选，按交付验收给出最终状态。
-
-谁定的：controller，在它这一轮的回答里点名"><rect x="1269.5" y="40" width="57.0" height="20" rx="4"/><text x="1298.0" y="54" text-anchor="middle">选定·交付</text></g></svg></div><p class="swipe">左右滑动查看 →</p>
-    <figcaption>示意图，不是实测。author 那一行任何时刻只有一个块。图里首版分两次写，是 controller 的选择；小项目它可以一次写完。两次之间各有一次保存，没有单独画。程序不划分 scope，也就没有层、没有合并、没有共享文件归谁的问题。</figcaption></figure>
-  </div>
-  <div class="card tips focusable mode" id="mode-v1-parallel">
-    <h3><span class="no">②′</span><span>v1：一个作业，author 可以并行</span><span class="sw2">pair 关 · parallel 开</span></h3>
-    <div class="legend" data-for="mode-v1-parallel"><span class="hint">颜色 = 谁决定这一步（点一下只看一类）</span><button type="button" class="lg" data-kind="hard" aria-pressed="false"><span class="sw w-hard"></span>程序写死</button><button type="button" class="lg" data-kind="ctrl" aria-pressed="false"><span class="sw w-ctrl"></span>controller 决定</button><span class="lg"><span class="sw w-follow"></span>mainline 照固定顺序做，controller 放行</span></div>
-    <figure><div class="scroll"><svg class="fig" viewBox="0 0 1256 330" role="img" aria-label="v1 里 pair 关、parallel 开的流程示意：第一次 baseline 之后多一轮 controller 安排 test designer 的拆分和并行；封存后 controller 用一个并行组写首版；第一次对比后 controller 逐轮决定，可以开并行修复组" style="min-width:1080px"><defs><pattern id="hatch-follow" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="7" height="7" style="fill:var(--w-hard)"/><rect width="3.5" height="7" style="fill:var(--w-ctrl)"/></pattern><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker><marker id="arr-m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:var(--muted)"/></marker></defs><text class="t-lane" x="0" y="26">唯一的作业</text><rect x="124" y="36" width="1124" height="28" rx="4" style="fill:var(--par-bg)"/><text class="t-lane2" x="118" y="54" text-anchor="end">控制层</text><text class="t-lane2" x="118" y="90" text-anchor="end">verifier</text><text class="t-lane2" x="118" y="126" text-anchor="end">designer · reviewer</text><text class="t-lane2" x="118" y="231" text-anchor="end">author</text><path class="bracket " d="M130 33 V29 H250 V33"/><text class="t-phase " x="190.0" y="24" text-anchor="middle">mainline</text><path class="bracket ctrl" d="M254 33 V29 H560 V33"/><text class="t-phase strong" x="407.0" y="24" text-anchor="middle">controller 排 test designer（v1 新增）</text><path class="bracket " d="M564 33 V29 H684 V33"/><text class="t-phase " x="624.0" y="24" text-anchor="middle">mainline</text><path class="bracket ctrl" d="M688 33 V29 H870 V33"/><text class="t-phase strong" x="779.0" y="24" text-anchor="middle">controller 的首版计划</text><path class="bracket ctrl" d="M874 33 V29 H1242 V33"/><text class="t-phase strong" x="1058.0" y="24" text-anchor="middle">controller 逐轮决定：修复、对比、交付</text><g class="blk w-hard" data-tip="和现在一样。
-
-谁定的：mainline（程序的固定规则），没有问 controller"><rect x="129.5" y="40" width="59.0" height="20" rx="4"/><text x="159.0" y="54" text-anchor="middle">准备</text></g><g class="blk w-hard" data-tip="和现在一样，由 mainline 调用。
-
-谁定的：mainline（程序的固定规则），没有问 controller"><rect x="191.5" y="40" width="59.0" height="20" rx="4"/><text x="221.0" y="54" text-anchor="middle">抓基线</text></g><g class="blk w-hard" data-tip="verifier 算出哪些 leaf 没有有效测试。这份名单 controller 改不了。"><rect x="191.5" y="76" width="59.0" height="20" rx="4"/><text x="221.0" y="90" text-anchor="middle">原版 check</text></g><g class="blk w-ctrl" data-tip="封存之前唯一的一轮：controller 只能回答 design_leaf_tests 的拆分。
-它看到每个要设计的 leaf 的大小（功能点数、知识条目数、源码 token、要迁移的测试数）、owner 的并发上限、时间窗口；
-看不到源码和测试，不能给 designer 写文字。
-
-v1 新增"><rect x="253.5" y="40" width="59.0" height="20" rx="4"/><rect x="253.5" y="40" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="285.0" y="54" text-anchor="middle">规划轮</text></g><g class="blk w-ctrl" data-tip="design_leaf_tests(split=...)：哪些 leaf 先开、哪个大 leaf 分成几个会话、同时最多几个。
-名单上的 leaf 一个都不会少；没点名的照默认开一个会话。
-
-谁定的：controller，在它这一轮的回答里点名
-
-v1 新增"><rect x="315.5" y="40" width="245.0" height="20" rx="4"/><text x="438.0" y="54" text-anchor="middle">设计 leaf 测试（带 controller 的 split）</text></g><g class="blk w-ctrl" data-tip="test designer 会话：leaf L1 的第 1 部分。controller 把这个大 leaf 分成 2 个会话。
-
-v1 新增"><rect x="315.5" y="112" width="59.0" height="20" rx="4"/><rect x="315.5" y="112" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="347.0" y="126" text-anchor="middle">L1·1</text></g><g class="blk w-ctrl" data-tip="test designer 会话：leaf L1 的第 2 部分。
-
-v1 新增"><rect x="315.5" y="135" width="59.0" height="20" rx="4"/><rect x="315.5" y="135" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="347.0" y="149" text-anchor="middle">L1·2</text></g><g class="blk w-ctrl" data-tip="test designer 会话：leaf L2，一个会话。"><rect x="315.5" y="158" width="59.0" height="20" rx="4"/><rect x="315.5" y="158" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="347.0" y="172" text-anchor="middle">L2</text></g><g class="blk w-ctrl" data-tip="test designer 会话：leaf L3，一个会话。"><rect x="315.5" y="181" width="59.0" height="20" rx="4"/><rect x="315.5" y="181" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="347.0" y="195" text-anchor="middle">L3</text></g><g class="blk w-hard" data-tip="和现在一样：一个测试算不算有效由程序按规则定，和谁排的会话无关。"><rect x="377.5" y="76" width="59.0" height="20" rx="4"/><text x="407.0" y="90" text-anchor="middle">试跑</text></g><g class="blk w-hard" data-tip="test reviewer：v1 不改，每 8 个文件一个，由程序分批。"><rect x="439.5" y="112" width="59.0" height="20" rx="4"/><rect x="439.5" y="112" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="471.0" y="126" text-anchor="middle">评审</text></g><g class="blk w-hard" data-tip="和现在一样。"><rect x="501.5" y="76" width="59.0" height="20" rx="4"/><text x="531.0" y="90" text-anchor="middle">检查·提交</text></g><g class="blk w-hard" data-tip="和现在一样，由 mainline 调用。
-
-谁定的：mainline（程序的固定规则），没有问 controller"><rect x="563.5" y="40" width="59.0" height="20" rx="4"/><text x="593.0" y="54" text-anchor="middle">再抓基线</text></g><g class="blk w-hard" data-tip="带着新测试重跑。"><rect x="563.5" y="76" width="59.0" height="20" rx="4"/><text x="593.0" y="90" text-anchor="middle">原版 check</text></g><g class="blk w-hard" data-tip="seal_contract 仍由 mainline 调用。
-
-谁定的：mainline（程序的固定规则），没有问 controller"><rect x="625.5" y="40" width="59.0" height="20" rx="4"/><text x="655.0" y="54" text-anchor="middle">封存</text></g><g class="blk w-ctrl" data-tip="controller 切首版。现在只有 parallel 开着才有这一轮；v1 里每个 controller 作业都有。"><rect x="687.5" y="40" width="59.0" height="20" rx="4"/><rect x="687.5" y="40" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="719.0" y="54" text-anchor="middle">规划轮</text></g><g class="blk w-ctrl" data-tip="run_parallel_agents：v1 里不再检查 parallel 开关。
-请求可以按 capability 自由分组（W4），可以写明谁负责共享文件（W3）。
-
-谁定的：controller，在它这一轮的回答里点名"><rect x="749.5" y="40" width="59.0" height="20" rx="4"/><text x="779.0" y="54" text-anchor="middle">并行组</text></g><g class="blk w-ctrl" data-tip="author 会话。controller 可以不按程序切好的 scope 分；程序照样记账，漏掉的由 mainline 补写。"><rect x="749.5" y="217" width="59.0" height="20" rx="4"/><rect x="749.5" y="217" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="781.0" y="231" text-anchor="middle">能力组 A</text></g><g class="blk w-ctrl" data-tip="author 会话。controller 可以不按程序切好的 scope 分；程序照样记账，漏掉的由 mainline 补写。"><rect x="749.5" y="240" width="59.0" height="20" rx="4"/><rect x="749.5" y="240" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="781.0" y="254" text-anchor="middle">能力组 B</text></g><g class="blk w-ctrl" data-tip="author 会话。controller 可以不按程序切好的 scope 分；程序照样记账，漏掉的由 mainline 补写。"><rect x="749.5" y="263" width="59.0" height="20" rx="4"/><rect x="749.5" y="263" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="781.0" y="277" text-anchor="middle">能力组 C</text></g><g class="blk w-ctrl" data-tip="author 会话。controller 可以不按程序切好的 scope 分；程序照样记账，漏掉的由 mainline 补写。"><rect x="749.5" y="286" width="59.0" height="20" rx="4"/><rect x="749.5" y="286" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="781.0" y="300" text-anchor="middle">能力组 D</text></g><g class="blk w-follow" data-tip="第一次全量对比：仍是 mainline 的一步。"><rect x="811.5" y="40" width="59.0" height="20" rx="4"/><text x="841.0" y="54" text-anchor="middle">对比</text></g><g class="blk w-follow" data-tip="和现在一样。"><rect x="811.5" y="76" width="59.0" height="20" rx="4"/><text x="841.0" y="90" text-anchor="middle">候选 check</text></g><g class="blk w-ctrl" data-tip="controller 的一轮：看第一次全量对比的结果，决定修什么、怎么修。
-从这里起每一步都先问它（它也可以放行 mainline 做若干步）。"><rect x="873.5" y="40" width="59.0" height="20" rx="4"/><rect x="873.5" y="40" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="905.0" y="54" text-anchor="middle">轮 3</text></g><g class="blk w-ctrl" data-tip="run_parallel_agents(group=split)，几个 repair 请求：失败分在互不相交的文件里时，controller 可以让几个 author 同时修。
-它也可以开 speculate 组：同一个问题并排写 2 个版本，之后各自对比、留好的。
-v1 里这两种组不再检查 parallel 开关。
-
-谁定的：controller，在它这一轮的回答里点名"><rect x="935.5" y="40" width="121.0" height="20" rx="4"/><text x="996.0" y="54" text-anchor="middle">并行修复组（split）</text></g><g class="blk w-ctrl" data-tip="repair author：修 controller 分给它的那部分失败。
-
-拆成几个请求、各修哪些 check：controller
-同时最多几个：owner 的 max_agents"><rect x="935.5" y="217" width="121.0" height="20" rx="4"/><rect x="935.5" y="217" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="998.0" y="231" text-anchor="middle">repair 1</text></g><g class="blk w-ctrl" data-tip="repair author：和 repair 1 同时进行，结束后程序把两边的改动合并成一个新候选。"><rect x="935.5" y="240" width="121.0" height="20" rx="4"/><rect x="935.5" y="240" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="998.0" y="254" text-anchor="middle">repair 2</text></g><g class="blk w-ctrl" data-tip="compare_behavior：先筛查受影响的 check，再全量。
-
-谁定的：controller，在它这一轮的回答里点名"><rect x="1059.5" y="40" width="59.0" height="20" rx="4"/><text x="1089.0" y="54" text-anchor="middle">对比</text></g><g class="blk w-ctrl" data-tip="verifier 在新候选上跑 check，和封存的 baseline 逐项比。"><rect x="1059.5" y="76" width="59.0" height="20" rx="4"/><text x="1089.0" y="90" text-anchor="middle">候选 check</text></g><g class="blk w-ctrl" data-tip="controller 的又一轮：全部通过就收尾；还有失败就再修（图里只画一次修复）。"><rect x="1121.5" y="40" width="59.0" height="20" rx="4"/><rect x="1121.5" y="40" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="1153.0" y="54" text-anchor="middle">轮 4</text></g><g class="blk w-ctrl" data-tip="select_candidate → deliver：选定要交付的候选，按交付验收给出最终状态。
-
-谁定的：controller，在它这一轮的回答里点名"><rect x="1183.5" y="40" width="59.0" height="20" rx="4"/><text x="1213.0" y="54" text-anchor="middle">选定·交付</text></g></svg></div><p class="swipe">左右滑动查看 →</p>
-    <figcaption>示意图，不是实测。和今天的 ② 比，多的是第一次 baseline 之后那一轮 controller，designer 那一行变成紫色。试跑、评审、提交、baseline、封存仍是灰色。</figcaption></figure>
-  </div>
-
 </section>
 
-<section id="inventory">
-  <h2>逐项清单：每个拆分和并行的决定，现在谁定，v1 谁定</h2>
-  <p class="body">加粗的行是 v1 要改的，最后一列是对应的工作包。灰色的行 v1 不动。</p>
-  <div class="card"><div class="scroll"><table style="min-width:58rem">
-    <thead><tr><th>决定</th><th>现在（新分支 @ 21d8a28e）</th><th>v1</th><th>工作包</th></tr></thead>
-    <tbody><tr class="grp"><th colspan="4">author</th></tr><tr><th scope="row">首版由谁来排</th><td>parallel 开着：controller。关着：mainline 按层写，第一次全量对比之前不问 controller</td><td class=""><b>controller，开或关、两个作业都是；mainline 只兜底</b></td><td class="mono">W1</td></tr><tr><th scope="row">parallel 关着时首版怎么写</th><td>程序切好 scope 分层写，同一层最多 4 个 author 同时</td><td class=""><b>一次一个 author。程序不划分 scope；一次写完还是按 capability 分几次串行写，由 controller 定</b></td><td class="mono">W10</td></tr><tr><th scope="row">parallel 开着时首版怎么写</th><td>controller 开并行组，只能按程序切好的 scope 分（每个不超过 45,000 token）。按 capability 分的话程序就停止记账，漏写的没人补</td><td class=""><b>并行组不变；controller 还可以按 capability 自由分组，程序照样记账、补漏</b></td><td class="mono">W4</td></tr><tr><th scope="row">draft job 里有没有 controller</th><td>只在 parallel 开着时</td><td class=""><b>总是有</b></td><td class="mono">W1</td></tr><tr><th scope="row">修复时几个 author 同时</th><td>开着：controller 可以开修复组。关着：一次一个，另有一组 workspace 工具最多 2 个同时</td><td class=""><b>开着不变。关着：严格一次一个</b></td><td class="mono">W10</td></tr><tr><th scope="row">共享文件（包的 __init__.py 等）谁写</th><td>程序给并行组里每个 author 同一句“不许碰共享文件”；controller 只能在指示里反着说</td><td class=""><b>开着：controller 在请求里指定谁负责，程序按它的指定告诉每个 author。关着：串行写，没有这个问题</b></td><td class="mono">W3</td></tr><tr><th scope="row">controller 不回答时</th><td>mainline 按层写首版、单个 repair 修复；规划轮的失败和修复轮的失败算在一起，连续 3 次就整次不再问</td><td class=""><b>开着：做法不变。关着：mainline 发一次写全部的调用。规划轮的失败单独计数，不连累后面的修复</b></td><td class="mono">W2 W10</td></tr><tr><th scope="row">同时几个 author</th><td>开着：owner 的 max_agents（2–8）。关着：分层写时最多 4</td><td class=""><b>开着不变。关着：1</b></td><td class="mono">W10</td></tr><tr><th scope="row">两个 author 改了同一文件听谁的</th><td>程序：靠前的请求保留</td><td class="same">不变（只在并行组里会发生）</td><td class="mono"></td></tr><tr class="grp"><th colspan="4">test designer</th></tr><tr><th scope="row">controller 何时被问</th><td>封存之前从不</td><td class=""><b>第一次 baseline 之后、设计之前问一轮；这一轮只能排 test designer</b></td><td class="mono">W7</td></tr><tr><th scope="row">给哪些 leaf 设计测试</th><td>程序，按 baseline 的结果算</td><td class="same">不变：程序算，一个不能少</td><td class="mono"></td></tr><tr><th scope="row">一个 leaf 开几个 designer 会话</th><td>程序：1 个（要迁移的原版测试每多 40 个再加 1 个）</td><td class=""><b>controller：1 到 4 个；程序把这个 leaf 的功能点和知识条目分给各会话</b></td><td class="mono">W5 W6</td></tr><tr><th scope="row">会话的先后顺序</th><td>程序：按 leaf 的名字排</td><td class=""><b>controller</b></td><td class="mono">W5 W6</td></tr><tr><th scope="row">同时几个 designer 会话</th><td>owner 的 runner_workers；没给就全部同时，最多 32</td><td class=""><b>controller 在 owner 的上限内定；程序保证每个会话都来得及开始</b></td><td class="mono">W5 W6</td></tr><tr><th scope="row">给 designer 的文字指示</th><td>没有，提示词由程序拼</td><td class="same">仍然没有：controller 只给结构，不给文字</td><td class="mono"></td></tr><tr><th scope="row">测试写什么</th><td>test designer</td><td class="same">不变</td><td class="mono"></td></tr><tr><th scope="row">门、试跑、knockout、评审、提交</th><td>程序和 test reviewer</td><td class="same">不变</td><td class="mono"></td></tr><tr><th scope="row">reviewer 怎么分批</th><td>程序：每 8 个文件一个</td><td class="same">不变（见需要你定的第 6 项）</td><td class="mono"></td></tr></tbody></table></div></div>
-</section>
-
-<section id="flow">
-  <h2>v1 的流程示意</h2>
-  <p class="body">这张画的是 pair 开、parallel 开的组合（对应上一节的 ④′）。和流程全图一样按分层画：每个作业第一行是控制层发出的工具调用，下面几行是这些调用让谁干活；灰色是 mainline 决定的，紫色是 controller 决定的。这是示意图，不是实测。和现在相比有三处不同：main job 在第一次 baseline 之后多了一轮 controller；designer 那一行从灰色变成紫色；draft job 的紫色部分不再需要 owner 打开 parallel。</p>
-  <div class="card tips focusable" id="fig-v1">
-    <div class="legend" data-for="fig-v1"><span class="hint">颜色 = 谁决定这一步（点一下只看一类）</span><button type="button" class="lg" data-kind="hard" aria-pressed="false"><span class="sw w-hard"></span>程序写死</button><button type="button" class="lg" data-kind="ctrl" aria-pressed="false"><span class="sw w-ctrl"></span>controller 决定</button><span class="lg"><span class="sw w-follow"></span>mainline 照固定顺序做，controller 放行</span><span class="lg"><span class="sw w-wait"></span>等待</span></div>
-    <figure><div class="scroll"><svg class="fig" viewBox="0 0 1196 446" role="img" aria-label="v1 的流程示意，按分层画：main job 在第一次 baseline 之后多一轮 controller，由它安排 test designer 的拆分和并行；draft job 的首版和修复由 controller 安排，不再需要 parallel 开关" style="min-width:1028px"><defs><pattern id="hatch-follow" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="7" height="7" style="fill:var(--w-hard)"/><rect width="3.5" height="7" style="fill:var(--w-ctrl)"/></pattern><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker><marker id="arr-m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:var(--muted)"/></marker></defs><text class="t-lane" x="0" y="26">main job</text><rect x="124" y="36" width="1064" height="28" rx="4" style="fill:var(--par-bg)"/><text class="t-lane2" x="118" y="54" text-anchor="end">控制层</text><text class="t-lane2" x="118" y="90" text-anchor="end">verifier</text><text class="t-lane2" x="118" y="126" text-anchor="end">designer · reviewer</text><path class="bracket " d="M130 33 V29 H324 V33"/><text class="t-phase " x="227.0" y="24" text-anchor="middle">mainline 掌控</text><path class="bracket ctrl" d="M328 33 V29 H786 V33"/><text class="t-phase strong" x="557.0" y="24" text-anchor="middle">controller 排 test designer（v1 新增）</text><path class="bracket " d="M790 33 V29 H1182 V33"/><text class="t-phase " x="986.0" y="24" text-anchor="middle">mainline 掌控</text><g class="blk w-hard" data-tip="create_workspace。
-
-控制层的 mainline 一半：固定规则，不问 controller"><rect x="129.5" y="40" width="63.0" height="20" rx="4"/><text x="161.0" y="54" text-anchor="middle">建工作区</text></g><g class="blk w-hard" data-tip="prepare_environment ×2。
-
-控制层的 mainline 一半：固定规则，不问 controller"><rect x="195.5" y="40" width="63.0" height="20" rx="4"/><text x="227.0" y="54" text-anchor="middle">备环境</text></g><g class="blk w-hard" data-tip="capture_baseline：和现在一样，由 mainline 调用。
-
-控制层的 mainline 一半：固定规则，不问 controller"><rect x="261.5" y="40" width="63.0" height="20" rx="4"/><text x="293.0" y="54" text-anchor="middle">抓基线</text></g><g class="blk w-hard" data-tip="verifier 在原版上跑 check、做 knockout，算出哪些 leaf 没有有效测试。
-这份名单是程序算的，controller 改不了。"><rect x="261.5" y="76" width="63.0" height="20" rx="4"/><text x="293.0" y="90" text-anchor="middle">原版 check</text></g><g class="blk w-ctrl" data-tip="controller 的一轮，只在这里问一次（封存之前）。
-它看到：每个要设计测试的 leaf 的大小（功能点数、知识条目数、源码 token、要迁移的原版测试数）、owner 的并发上限、时间窗口。
-它只能回答一件事：design_leaf_tests 的拆分。
-它看不到源码和测试，也不能给 designer 写文字。
-
-v1 新增"><rect x="327.5" y="40" width="63.0" height="20" rx="4"/><rect x="327.5" y="40" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="361.0" y="54" text-anchor="middle">规划轮</text></g><g class="blk w-ctrl" data-tip="design_leaf_tests(split=...)：一次调用。
-split 说明：哪些 leaf 先开、哪个大 leaf 分成几个会话、同时最多几个。
-没被点名的 leaf 照默认（一个会话）；名单上的 leaf 一个都不会少。
-
-控制层的 controller 一半
-
-v1 新增"><rect x="393.5" y="40" width="393.0" height="20" rx="4"/><text x="590.0" y="54" text-anchor="middle">设计 leaf 测试（design_leaf_tests，带 controller 给的 split）</text></g><g class="blk w-ctrl" data-tip="test designer 会话：leaf L1 的第 1 部分。
-controller 把这个大 leaf 分成 2 个会话；程序把它的功能点和知识条目按固定规则分给两个会话。
-测试写什么仍是 designer 自己的事。
-
-v1 新增"><rect x="393.5" y="112" width="129.0" height="20" rx="4"/><rect x="393.5" y="112" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="460.0" y="126" text-anchor="middle">L1 · 第 1 部分</text></g><g class="blk w-ctrl" data-tip="test designer 会话：leaf L1 的第 2 部分。
-
-v1 新增"><rect x="393.5" y="135" width="129.0" height="20" rx="4"/><rect x="393.5" y="135" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="460.0" y="149" text-anchor="middle">L1 · 第 2 部分</text></g><g class="blk w-ctrl" data-tip="test designer 会话：leaf L2（一个会话，和现在一样）。
-它排在第一批是 controller 定的顺序。"><rect x="393.5" y="158" width="129.0" height="20" rx="4"/><rect x="393.5" y="158" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="460.0" y="172" text-anchor="middle">L2</text></g><g class="blk w-ctrl" data-tip="test designer 会话：leaf L3。"><rect x="393.5" y="181" width="129.0" height="20" rx="4"/><rect x="393.5" y="181" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="460.0" y="195" text-anchor="middle">L3</text></g><g class="blk w-ctrl" data-tip="test designer 会话：leaf L4。
-这次 controller 定的是同时最多 4 个，所以 L4、L5 等前面有空位再开。"><rect x="525.5" y="112" width="63.0" height="20" rx="4"/><rect x="525.5" y="112" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="559.0" y="126" text-anchor="middle">L4</text></g><g class="blk w-ctrl" data-tip="test designer 会话：leaf L5。"><rect x="525.5" y="135" width="63.0" height="20" rx="4"/><rect x="525.5" y="135" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="559.0" y="149" text-anchor="middle">L5</text></g><g class="blk w-hard" data-tip="和现在一样：静态门、原版上试跑、knockout。
-谁的测试算有效，由程序按规则定，不看是谁排的会话。"><rect x="591.5" y="76" width="63.0" height="20" rx="4"/><text x="623.0" y="90" text-anchor="middle">试跑</text></g><g class="blk w-hard" data-tip="test reviewer：v1 不改，每 8 个文件一个，由程序分批。"><rect x="657.5" y="112" width="63.0" height="20" rx="4"/><rect x="657.5" y="112" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="691.0" y="126" text-anchor="middle">评审 1</text></g><g class="blk w-hard" data-tip="test reviewer：v1 不改。"><rect x="657.5" y="135" width="63.0" height="20" rx="4"/><rect x="657.5" y="135" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="691.0" y="149" text-anchor="middle">评审 2</text></g><g class="blk w-hard" data-tip="最终试跑，提交到原版上。和现在一样。"><rect x="723.5" y="76" width="63.0" height="20" rx="4"/><text x="755.0" y="90" text-anchor="middle">检查·提交</text></g><g class="blk w-hard" data-tip="capture_baseline：设计提交了文件，欠一次重抓。仍由 mainline 调用。
-
-控制层的 mainline 一半：固定规则，不问 controller"><rect x="789.5" y="40" width="63.0" height="20" rx="4"/><text x="821.0" y="54" text-anchor="middle">再抓基线</text></g><g class="blk w-hard" data-tip="verifier 用完整的 knockout 矩阵再验一遍，包括新设计的测试。"><rect x="789.5" y="76" width="63.0" height="20" rx="4"/><text x="821.0" y="90" text-anchor="middle">原版 check</text></g><g class="blk w-hard" data-tip="seal_contract：仍由 mainline 调用；controller 在封存前的那一轮里调不到它。
-
-控制层的 mainline 一半：固定规则，不问 controller"><rect x="855.5" y="40" width="63.0" height="20" rx="4"/><text x="887.0" y="54" text-anchor="middle">封存</text></g><g class="blk w-wait" data-tip="和现在一样。
-
-控制层的 mainline 一半：固定规则，不问 controller"><rect x="921.5" y="40" width="261.0" height="20" rx="4"/><text x="1052.0" y="54" text-anchor="middle">import_draft：等 draft job</text></g><text class="t-lane" x="0" y="247">draft job</text><rect x="124" y="257" width="1064" height="28" rx="4" style="fill:var(--par-bg)"/><text class="t-lane2" x="118" y="275" text-anchor="end">控制层</text><text class="t-lane2" x="118" y="311" text-anchor="end">verifier</text><text class="t-lane2" x="118" y="347" text-anchor="end">author</text><path class="bracket " d="M130 254 V250 H390 V254"/><text class="t-phase " x="260.0" y="245" text-anchor="middle">mainline 掌控</text><path class="bracket ctrl" d="M394 254 V250 H654 V254"/><text class="t-phase strong" x="524.0" y="245" text-anchor="middle">controller 的首版计划</text><path class="bracket ctrl" d="M658 254 V250 H984 V254"/><text class="t-phase strong" x="821.0" y="245" text-anchor="middle">controller 的修复计划</text><g class="blk w-hard" data-tip="和现在一样。
-
-控制层的 mainline 一半：固定规则，不问 controller"><rect x="129.5" y="261" width="63.0" height="20" rx="4"/><text x="161.0" y="275" text-anchor="middle">建工作区</text></g><g class="blk w-hard" data-tip="和现在一样。
-
-控制层的 mainline 一半：固定规则，不问 controller"><rect x="195.5" y="261" width="63.0" height="20" rx="4"/><text x="227.0" y="275" text-anchor="middle">备环境</text></g><g class="blk w-hard" data-tip="轻量 baseline。
-
-控制层的 mainline 一半：固定规则，不问 controller"><rect x="261.5" y="261" width="63.0" height="20" rx="4"/><text x="293.0" y="275" text-anchor="middle">抓基线</text></g><g class="blk w-hard" data-tip="只跑原有的 check，不做 knockout。"><rect x="261.5" y="297" width="63.0" height="20" rx="4"/><text x="293.0" y="311" text-anchor="middle">原版 check</text></g><g class="blk w-hard" data-tip="draft job 的轻量合同。
-
-控制层的 mainline 一半：固定规则，不问 controller"><rect x="327.5" y="261" width="63.0" height="20" rx="4"/><text x="359.0" y="275" text-anchor="middle">封存</text></g><g class="blk w-ctrl" data-tip="controller 排首版：现在只有 parallel=on 才有这一轮，v1 里每个 controller 作业都有。
-它多看到：每个 capability 的大小、哪些 capability 共用原版文件（只给分组编号，不给路径）。"><rect x="393.5" y="261" width="63.0" height="20" rx="4"/><rect x="393.5" y="261" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="427.0" y="275" text-anchor="middle">规划轮</text></g><g class="blk w-ctrl" data-tip="run_parallel_agents：v1 里不再需要 owner 打开 parallel。
-请求可以按 capability 自由分组；每个请求可以写明它负责哪些共享文件。
-
-控制层的 controller 一半"><rect x="459.5" y="261" width="129.0" height="20" rx="4"/><text x="524.0" y="275" text-anchor="middle">并行组（split）</text></g><g class="blk w-ctrl" data-tip="author 会话。v1 里 controller 可以不按程序切好的 scope 分：
-按 capability 分组照样记账，漏掉的由 mainline 补写。"><rect x="459.5" y="333" width="129.0" height="20" rx="4"/><rect x="459.5" y="333" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="526.0" y="347" text-anchor="middle">能力组 A</text></g><g class="blk w-ctrl" data-tip="author 会话。controller 在请求里指定它负责共享的 __init__.py 等文件，
-程序按这个指定告诉各个 author，不再一律说“不许碰共享文件”。"><rect x="459.5" y="356" width="129.0" height="20" rx="4"/><rect x="459.5" y="356" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="526.0" y="370" text-anchor="middle">能力组 B · 负责共享文件</text></g><g class="blk w-ctrl" data-tip="author 会话。"><rect x="459.5" y="379" width="129.0" height="20" rx="4"/><rect x="459.5" y="379" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="526.0" y="393" text-anchor="middle">能力组 C</text></g><g class="blk w-ctrl" data-tip="author 会话。"><rect x="459.5" y="402" width="129.0" height="20" rx="4"/><rect x="459.5" y="402" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="526.0" y="416" text-anchor="middle">能力组 D</text></g><g class="blk w-follow" data-tip="和现在一样：controller 放行后由 mainline 做。"><rect x="591.5" y="261" width="63.0" height="20" rx="4"/><text x="623.0" y="275" text-anchor="middle">对比</text></g><g class="blk w-follow" data-tip="draft job 自己的对比。"><rect x="591.5" y="297" width="63.0" height="20" rx="4"/><text x="623.0" y="311" text-anchor="middle">候选 check</text></g><g class="blk w-ctrl" data-tip="和现在一样：从第一次对比起每一步由 controller 决定。"><rect x="657.5" y="261" width="63.0" height="20" rx="4"/><rect x="657.5" y="261" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="691.0" y="275" text-anchor="middle">轮 2</text></g><g class="blk w-ctrl" data-tip="修复组也不再需要 parallel 开关。
-
-控制层的 controller 一半"><rect x="723.5" y="261" width="129.0" height="20" rx="4"/><text x="788.0" y="275" text-anchor="middle">修复组</text></g><g class="blk w-ctrl" data-tip="repair author。"><rect x="723.5" y="333" width="129.0" height="20" rx="4"/><rect x="723.5" y="333" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="790.0" y="347" text-anchor="middle">repair 1</text></g><g class="blk w-ctrl" data-tip="repair author。"><rect x="723.5" y="356" width="129.0" height="20" rx="4"/><rect x="723.5" y="356" width="4" height="20" rx="1" style="fill:var(--w-agent-ink)"/><text x="790.0" y="370" text-anchor="middle">repair 2</text></g><g class="blk w-ctrl" data-tip="save_candidate。"><rect x="855.5" y="261" width="63.0" height="20" rx="4"/><text x="887.0" y="275" text-anchor="middle">保存</text></g><g class="blk w-ctrl" data-tip="compare_behavior。"><rect x="921.5" y="261" width="63.0" height="20" rx="4"/><text x="953.0" y="275" text-anchor="middle">对比</text></g><g class="blk w-ctrl" data-tip=""><rect x="921.5" y="297" width="63.0" height="20" rx="4"/><text x="953.0" y="311" text-anchor="middle">候选 check</text></g><g class="blk w-hard" data-tip="finish_draft：main job 封存后由 mainline 强制。v1 里交出的是实际写了哪些 capability，不再一律写成“全部 scope”。
-
-控制层的 mainline 一半：固定规则，不问 controller"><rect x="1119.5" y="261" width="63.0" height="20" rx="4"/><text x="1151.0" y="275" text-anchor="middle">交出草稿</text></g><path class="link" d="M887.0 60.0 C887.0 159.5 1151.0 159.5 1151.0 259.0" marker-end="url(#arr)"/><text class="t-note" x="1029.0" y="153.5" text-anchor="start">main 封存 → 强制交出</text></svg></div><p class="swipe">左右滑动查看 →</p>
-    <figcaption>main job 里紫色只覆盖 designer 会话：试跑、评审、提交这些和证据有关的块仍是灰色，baseline 和封存也是。把鼠标放在块上看说明。</figcaption></figure>
-  </div>
+<section id="flowwork">
+  <h2>流程编排的改动</h2>
+  <p class="body">这是 v1 里最大的一处变化：controller 被问的时间点从“第一次全量对比之后”提前到“封存之后”，封存之前再加一轮只排 test designer 的（那一轮在 test designer 一节的 W7）。</p>
+  <div class="cards wide"><div class="card wp"><span class="id">W1　<span class="size">规模：中</span></span><h3>封存之后每一步都先问 controller</h3>
+<dl class="kv"><dt>现在</dt><dd><code>controller.admission</code> 规定：第一次全量对比出结果之前不问 controller；draft job 里从不问。parallel 开着时有两个例外（PR #45）：封存后写首版之前问，draft job 也问。于是“谁来编排”挂在 parallel 开关上，关着时首版、保存、第一次对比、整个 draft job 都是 mainline 的。</dd><dt>v1 怎么改</dt><dd>把编排权从开关上拿下来：每个 controller 作业从封存起每一步都先问 controller，draft job 也是。mainline 的那一步作为默认建议给它看，它可以照做、改掉，或放行 mainline 连做若干步。没有全量对比的证据不能交付，这条规则不变。parallel 开关只决定并行流程能不能用。</dd><dt>改哪里</dt><dd><code>controller.admission</code>（把“第一次全量对比之后”改成“封存之后”，去掉 draft job 的例外）、<code>advice.planned</code>、<code>controller._context</code> 和 <code>_plan</code>、<code>controller.hidden_tools</code>、提示词 <code>controller.guide</code> 开头和 <code>controller.parallel</code>（拆成“编排”和“并行流程”两部分，前者总是给）。</dd><dt>测试</dt><dd><code>test_first_comparison</code>（三个用例断言“第一次对比之前不问”）、<code>test_first_implementation_plan</code>、<code>test_mainline_faults</code>、<code>test_parallel_switch</code>、<code>test_parallel_guide</code> 要改。多数进程内测试的夹具本来就把这条规则关掉了，不受影响；真实 worker 的几组测试要重看。</dd></dl></div><div class="card wp"><span class="id">W2　<span class="size">规模：小</span></span><h3>规划轮的失败不连累修复</h3>
+<dl class="kv"><dt>现在</dt><dd>controller 连续 3 轮给不出可用回答，这次启动剩下的部分就全走 mainline。规划轮和修复轮共用这个计数，所以首版规划答不好，后面的修复也没人管了。v1 里问得更早更多，这个问题更容易碰到。</dd><dt>v1 怎么改</dt><dd>规划轮（首版、设计测试）失败后直接走 mainline 的默认做法，不计入这个次数，或在默认做法成功后清零。</dd><dt>改哪里</dt><dd><code>controller.admission</code> 里数失败次数的那一段。</dd><dt>测试</dt><dd><code>test_job_tools</code> 的 admission 用例，<code>test_parallel_paths.RepairPathTests</code>。</dd></dl></div><div class="card wp"><span class="id">W11　<span class="size">规模：小</span></span><h3>parallel 开着：导入时等不等由 main job 的 controller 定</h3>
+<dl class="kv"><dt>现在</dt><dd>main job 封存后一律等 draft job，最多等剩余时间的一半。detectron2 那次等了 24.7 分钟，等的是 draft job 手上的一次修复。</dd><dt>v1 怎么改</dt><dd>封存时 draft job 还有 author 在跑，就先问 main job 的 controller 一轮：等它修完，还是停掉它、取它最后保存的候选。不回答就照旧等。这个改动已经在 fix-parallel-main 上做好了（三个提交之一），并进来即可，见需要你定的第 5 项。</dd><dt>改哪里</dt><dd>并入 fix-parallel-main 的三个提交；它们改的是 <code>advice.py</code>、<code>controller.py</code>、<code>job_tools/pair.py</code>、<code>freeze.py</code>。</dd><dt>测试</dt><dd>随提交带来的 <code>test_draft_handover</code>、<code>test_prepared_candidate</code>。</dd></dl></div></div>
 </section>
 
 <section id="authors">
   <h2>author 这条线的改动</h2>
-  <p class="body">author 这条线现在已经通了一半：开了 parallel 的运行里，首版怎么切、修复怎么拆已经是 controller 定的（detectron2 那次就是）。v1 要做三件事：把“controller 来排”变成常态（W1、W2）；parallel 关着时改成一个接一个写、不划分 scope（W10）；parallel 开着时去掉剩下的写死规则（W3、W4）。</p>
-  <div class="cards wide"><div class="card wp"><span class="id">W1　<span class="size">规模：小</span></span><h3>规划权从 parallel 开关上拿下来</h3>
-<dl class="kv"><dt>现在</dt><dd><code>strategy.parallel.enabled</code> 一个开关同时管五件事：谁来规划、哪些工具形式可用、上限、机器并发放宽（widen）、给 controller 看什么。关着时首版由 mainline 写，draft job 根本没有 controller。</dd><dt>v1 怎么改</dt><dd>把“谁来规划”从开关上拿下来：每个 controller 作业封存后都先问 controller；draft job 总是有自己的 controller，写完首版接着对比和修复。开关只剩一个含义：author 会话能不能并行。开着时并行组、并排试版本可用，上限是 owner 的 <code>max_agents</code>、<code>speculation</code>，机器并发放宽；关着时一次一个 author（W10）。</dd><dt>改哪里</dt><dd><code>advice.planned</code>、<code>controller._context</code> 和 <code>_plan</code>、<code>controller.hidden_tools</code>、提示词 <code>controller.parallel</code>（拆成“规划”和“并行组”两部分，前者总是给）。<code>workspaces._parallel</code> 和 <code>advice._parallel_step</code> 里对开关的检查保留。</dd><dt>测试</dt><dd><code>test_first_implementation_plan</code>、<code>test_first_comparison</code>、<code>test_mainline_faults</code>、<code>test_parallel_switch</code>、<code>test_parallel_guide</code> 里断言“关着时不问 controller”“draft job 没有 controller”的用例要改；真实 worker 的几组测试要重看。</dd></dl></div><div class="card wp"><span class="id">W10　<span class="size">规模：中</span></span><h3>parallel 关着：author 一个接一个，程序不划分 scope</h3>
-<dl class="kv"><dt>现在</dt><dd>关着时首版仍按程序切好的 scope 分层写，同一层最多 4 个 author 同时。所以今天的 parallel=off 既不归 controller，也不是串行。scope 最初是为了让每个 author 会话短才引入的：一次调用写整张 capability 图，上下文到过几十万 token。</dd><dt>v1 怎么改</dt><dd>关着时没有 scope，也没有层。封存后先问 controller：它决定一次写完，还是按 capability 分几次、一个接一个写；每次写完先保存，下一个 author 接着已有的文件写。任何时刻只有一个 author 会话，修复也是。它不回答时 mainline 发一次写全部的调用。为了让它能判断一次调用有多大，上下文里给每个 capability 的原版 token 数和还没写到的 capability；按 capability 的调用告知它那一份大小目标。</dd><dt>改哪里</dt><dd><code>job_tools.layering</code> 和 <code>LAYERS</code>（关着时不再分层）、<code>advice._layer</code> 和 <code>_draft</code>、<code>authoring.scopes_context</code> 和请求里的 <code>scope</code> 字段（关着时不提供）、<code>workspaces.authors_at_once</code>（关着时为 1）、<code>controller._plan</code>（按 capability 列出还没写的）、<code>scopes.size_share</code>、提示词 <code>controller.guide</code> 讲 scope 的一段。</dd><dt>测试</dt><dd><code>test_parallel_mainline</code> 里“不开模式也按同样的层写”的用例、<code>test_parallel_paths.OffPathTests</code>、<code>test_scopes.ControllerScopeTests</code> 要改。新增：关着时上下文里没有 scope、并行组和带 scope 的请求被拒；不回答时一次写全部；分几次串行写完后“还没写的”为空。</dd></dl></div><div class="card wp"><span class="id">W2　<span class="size">规模：小</span></span><h3>规划轮的失败不连累修复</h3>
-<dl class="kv"><dt>现在</dt><dd>controller 连续 3 轮给不出可用回答，这次启动剩下的部分就全走 mainline。规划轮和修复轮共用这个计数，所以首版规划答不好，后面的修复也没人管了。</dd><dt>v1 怎么改</dt><dd>规划轮（首版、设计测试）失败后直接走 mainline 的默认做法，不计入这个次数，或在默认做法成功后清零。</dd><dt>改哪里</dt><dd><code>controller.admission</code> 里数失败次数的那一段。</dd><dt>测试</dt><dd><code>test_job_tools</code> 的 admission 用例，<code>test_parallel_paths.RepairPathTests</code>。</dd></dl></div><div class="card wp"><span class="id">W3　<span class="size">规模：中</span></span><h3>parallel 开着：共享文件由 controller 指定负责人</h3>
+  <p class="body">author 这条线现在已经通了一半：开了 parallel 的运行里，首版怎么切、修复怎么拆已经是 controller 定的（detectron2 那次就是）。v1 在这条线上做两件事：parallel 关着时改成一个接一个写、不划分 scope（W10）；parallel 开着时去掉剩下的写死规则（W3、W4）。“总是由 controller 来排”在上一节的 W1 里。</p>
+  <div class="cards wide"><div class="card wp"><span class="id">W10　<span class="size">规模：中</span></span><h3>parallel 关着：会话一个接一个，程序不划分 scope</h3>
+<dl class="kv"><dt>现在</dt><dd>关着时首版仍按程序切好的 scope 分层写，同一层最多 4 个 author 同时；test designer 和 reviewer 全部同时开。所以今天的 parallel 关着并不是串行。scope 最初是为了让每个 author 会话短才引入的：一次调用写整张 capability 图，上下文到过几十万 token。</dd><dt>v1 怎么改</dt><dd>关着时没有 scope，也没有层。controller 决定首版一次写完，还是按 capability 分几次、一个接一个写；每次写完先保存，下一个 author 接着已有的文件写。任何时刻只有一个会话：author、repair、test designer、reviewer 都是。draft job 写完就交，不提前验证。controller 不回答时 mainline 发一次写全部的调用。为了让它能判断一次调用有多大，上下文里给每个 capability 的原版 token 数和还没写到的 capability；按 capability 的调用告知它那一份大小目标。</dd><dt>改哪里</dt><dd><code>job_tools.layering</code> 和 <code>LAYERS</code>（关着时不再分层）、<code>advice._layer</code> 和 draft job 的两个分支、<code>authoring.scopes_context</code> 和请求里的 <code>scope</code> 字段（关着时不提供）、<code>workspaces.authors_at_once</code>（关着时为 1）、<code>controller._plan</code>（按 capability 列出还没写的）、<code>scopes.size_share</code>、设计引擎的两个线程池（关着时为 1，接 W5）、提示词 <code>controller.guide</code> 讲 scope 的一段。</dd><dt>测试</dt><dd><code>test_parallel_mainline</code> 里“不开模式也按同样的层写”的用例、<code>test_parallel_paths.OffPathTests</code>、<code>test_scopes.ControllerScopeTests</code>、<code>test_leaf_test_design</code> 里数线程池大小的用例要改。新增：关着时上下文里没有 scope、并行组和带 scope 的请求被拒；不回答时一次写全部；分几次串行写完后“还没写的”为空；关着时 designer 会话不重叠。</dd></dl></div><div class="card wp"><span class="id">W3　<span class="size">规模：中</span></span><h3>parallel 开着：共享文件由 controller 指定负责人</h3>
 <dl class="kv"><dt>现在</dt><dd>并行组里每个按 scope 写的 author 都会自动收到一句“别人也在写，不许建或改共享的包级文件”。detectron2 那次 controller 只能在自己的指示里反着说，给每个 <code>__init__.py</code> 指定负责的 scope；author 同时拿到两句互相矛盾的话，没有文字说哪句优先。</dd><dt>v1 怎么改</dt><dd>请求里加一个字段，说明这个请求是否负责共享文件。程序按它生成给 author 的那句话：负责人被告知“你的指示里点名的共享文件归你写”，其他人仍被告知不要碰。修复组默认不再附这句话。</dd><dt>改哪里</dt><dd>请求的 schema（<code>authoring.REQUEST</code>、<code>workspaces.GROUP_REQUEST</code>）、<code>authoring.request_feedback</code>、<code>scopes.brief</code>、提示词 <code>author.scope.concurrent</code>。</dd><dt>测试</dt><dd><code>test_parallel_agents</code>、<code>test_parallel_scopes</code> 里关于这句话的两个用例；提示词快照。</dd></dl></div><div class="card wp"><span class="id">W4　<span class="size big">规模：大</span></span><h3>parallel 开着：按 capability 自由分组也能记账</h3>
 <dl class="kv"><dt>现在</dt><dd>程序只按 scope 记“写了什么”。controller 的请求一旦按 capability 写，记账就停了：mainline 不再补写漏掉的部分，controller 看到的“还剩什么”也不准，只能等对比暴露问题。draft job 交出草稿时还会把所有 scope 都记成“已写”。另外 controller 看不到每个 capability 多大、哪些 capability 共用文件，没法自己分。</dd><dt>v1 怎么改</dt><dd>并行组里的记账单位也改成 capability（被切成几段的大组仍按段记）。任何分法之后 mainline 都知道还缺什么并能补写。把一个共用文件的组拆到两个并行的请求里会被拒绝，并说明原因。给 controller 多看两样东西：共用文件的分组编号（不给路径）、不拥有文件的 capability。每个 capability 的 token 数、按 capability 的大小目标、“还没写的 capability”已经在 W10 里做了，这里接着用。</dd><dt>改哪里</dt><dd><code>advice._implements</code>、<code>_authored</code>、<code>_layer</code>；<code>controller._plan</code>；<code>finish_draft</code> 记录的内容和 draft job 的完整性检查；<code>authoring.scopes_context</code>；<code>scopes.size_share</code> 和 <code>brief</code>；run 页面读“层”的两处。</dd><dt>测试</dt><dd><code>test_parallel_mainline</code> 的 HelperTests、LayerTests、PartTests；<code>test_scopes</code>；<code>test_pair_jobs</code> 里关于交出内容的用例；run 页面的测试。</dd></dl></div></div>
   <div class="card"><h3>v1 不改的 author 规则</h3>
@@ -933,23 +1127,23 @@ v1 新增"><rect x="393.5" y="135" width="129.0" height="20" rx="4"/><rect x="39
 
 <section id="designers">
   <h2>test designer 这条线的改动</h2>
-  <p class="body">这条线是新建的，也是 v1 里最需要小心的一处：现在的代码特意不让 controller 在封存前参与，为的是它影响不了测试。v1 的做法是让它只决定<b>结构</b>（怎么分、同时几个），内容和验收一概不碰。</p>
+  <p class="body">这条线是新建的，也是 v1 里最需要小心的一处：现在的代码特意不让 controller 在封存前参与，为的是它影响不了测试。v1 的做法是让它只决定<b>结构</b>（先后、怎么分；parallel 开着时还有同时几个），内容和验收一概不碰。</p>
   <div class="cards wide"><div class="card wp"><span class="id">W5　<span class="size">规模：中</span></span><h3>设计引擎接受“同时几个”和“一个 leaf 分几个会话”</h3>
-<dl class="kv"><dt>现在</dt><dd><code>design_tests</code> 不接受这两个数：同时几个从 owner 的策略里读（没给就全部同时），一个 leaf 只在要迁移的原版测试超过 40 个时才有多个会话。</dd><dt>v1 怎么改</dt><dd>加两个参数。<b>同时几个</b>只作用于 designer 的线程池，reviewer 的池子不变；有上限（owner 的数或 32）和下限（保证每个会话在窗口内来得及开始）。<b>分几个会话</b>复用迁移批次的机制：给这个 leaf 多排几个会话，程序按固定规则把它的功能点和知识条目分给各会话，每个会话有自己的文件名前缀，被拒的反馈回到写它的那个会话。新增一段提示词告诉 designer 它只负责 leaf 的一部分。</dd><dt>改哪里</dt><dd><code>leaf_test_design.design_tests</code>：线程池大小、<code>batches</code> 和会话单元、payload、<code>told</code>（反馈路由）；新提示词 <code>test_designer.part</code>。</dd><dt>测试</dt><dd>照 <code>test_migration_design</code> 的写法（脚本化的 runner）新增用例：分 2 个会话、反馈路由、文件名前缀、同时几个的上下限；<code>test_leaf_test_design</code> 里数线程池大小的用例。</dd></dl></div><div class="card wp"><span class="id">W6　<span class="size">规模：中</span></span><h3>design_leaf_tests 工具接受 split</h3>
+<dl class="kv"><dt>现在</dt><dd><code>design_tests</code> 不接受这两个数：同时几个从 owner 的策略里读（没给就全部同时），一个 leaf 只在要迁移的原版测试超过 40 个时才有多个会话。</dd><dt>v1 怎么改</dt><dd>加两个参数。<b>同时几个</b>作用于 designer 的线程池；parallel 关着时 designer 和 reviewer 的池子都是 1。开着时有上限（owner 的数或 32）和下限（保证每个会话在窗口内来得及开始）。<b>分几个会话</b>复用迁移批次的机制：给这个 leaf 多排几个会话，程序按固定规则把它的功能点和知识条目分给各会话，每个会话有自己的文件名前缀，被拒的反馈回到写它的那个会话。新增一段提示词告诉 designer 它只负责 leaf 的一部分。</dd><dt>改哪里</dt><dd><code>leaf_test_design.design_tests</code>：线程池大小、<code>batches</code> 和会话单元、payload、<code>told</code>（反馈路由）；新提示词 <code>test_designer.part</code>。</dd><dt>测试</dt><dd>照 <code>test_migration_design</code> 的写法（脚本化的 runner）新增用例：分 2 个会话、反馈路由、文件名前缀、同时几个的上下限；<code>test_leaf_test_design</code> 里数线程池大小的用例。</dd></dl></div><div class="card wp"><span class="id">W6　<span class="size">规模：中</span></span><h3>design_leaf_tests 工具接受 split</h3>
 <dl class="kv"><dt>现在</dt><dd>工具只有一个参数 <code>leaves</code>（只设计点名的 leaf）。分几次调用可以做到分批，但调用之间是串行的，每次调用各付一遍试跑、评审和时间窗口。</dd><dt>v1 怎么改</dt><dd>加参数 <code>split</code>：<code>{groups: [{leaves: [...]} 或 {leaf, parts}], max_parallel}</code>。一次调用内生效，共用一个窗口、一次试跑、一组评审。程序先算好目标名单，再把 split 套上去：名单外的 id 忽略并报告，名单里没点到的照默认。结果里写明实际用的拆分。</dd><dt>改哪里</dt><dd><code>job_tools/freeze.py</code> 的工具注册和 <code>_designed</code>；<code>execution._freeze_designed_tests</code>（把 split 规范化后传下去，并写进设计记录）。</dd><dt>测试</dt><dd>照 <code>test_flexible_freeze</code> 和 <code>test_design_calls_job</code> 的写法：带 split 的调用设计了全部目标；名单外的 id 被报告；不带 split 的调用和今天逐字节相同。</dd></dl></div><div class="card wp"><span class="id">W7　<span class="size">规模：中</span></span><h3>封存之前给 controller 一轮</h3>
-<dl class="kv"><dt>现在</dt><dd><code>controller.admission</code> 规定第一次全量对比之前不问 controller，代码注释写明理由：封存前不被问的 agent 没法通过选择影响测试。封存前那一轮的机制其实还在（上下文里有 <code>design_left</code>，阶段叫 freeze），只是被这条规则挡住了。</dd><dt>v1 怎么改</dt><dd>当 mainline 的下一步是 <code>design_leaf_tests</code> 时问 controller 一轮。这一轮：工具表里只有 <code>design_leaf_tests</code>；上下文新增 <code>test_design</code> 一段，列出每个目标 leaf 的计数、owner 的并发上限、时间窗口；预算只算本作业自己的。回答不可用就走 mainline 的默认调用（今天的行为）。新增一段 controller 提示词讲这一轮。</dd><dt>改哪里</dt><dd><code>controller.admission</code>、<code>visible_tools</code> 和回答的 schema（封存前收窄）、<code>controller._context</code>、<code>freeze.design_left</code>（加每个 leaf 的计数，取消 50 个的截断或改成分页）、提示词 <code>controller.guide</code> 开头和新段落。</dd><dt>测试</dt><dd>照 <code>test_first_implementation_plan</code> 的写法：封存前只在这一步问一轮；别的工具调用被判无效；不回答时走默认；pair 的 main job 里 draft 的 token 用量不影响这一轮。原来断言“封存前从不问”的三个用例要改。</dd></dl></div></div>
+<dl class="kv"><dt>现在</dt><dd><code>controller.admission</code> 规定第一次全量对比之前不问 controller，代码注释写明理由：封存前不被问的 agent 没法通过选择影响测试。封存前那一轮的机制其实还在（上下文里有 <code>design_left</code>，阶段叫 freeze），只是被这条规则挡住了。</dd><dt>v1 怎么改</dt><dd>当 mainline 的下一步是 <code>design_leaf_tests</code> 时问 controller 一轮，parallel 开或关都问。关着时它只能定先后和一个 leaf 分几个会话，同时几个固定为 1。这一轮：工具表里只有 <code>design_leaf_tests</code>；上下文新增 <code>test_design</code> 一段，列出每个目标 leaf 的计数、owner 的并发上限、时间窗口；预算只算本作业自己的。回答不可用就走 mainline 的默认调用（今天的行为）。新增一段 controller 提示词讲这一轮。</dd><dt>改哪里</dt><dd><code>controller.admission</code>、<code>visible_tools</code> 和回答的 schema（封存前收窄）、<code>controller._context</code>、<code>freeze.design_left</code>（加每个 leaf 的计数，取消 50 个的截断或改成分页）、提示词 <code>controller.guide</code> 开头和新段落。</dd><dt>测试</dt><dd>照 <code>test_first_implementation_plan</code> 的写法：封存前只在这一步问一轮；别的工具调用被判无效；不回答时走默认；pair 的 main job 里 draft 的 token 用量不影响这一轮。原来断言“封存前从不问”的三个用例要改。</dd></dl></div></div>
   <div class="card"><h3>这一轮里 controller 碰不到的东西</h3>
     <p class="sub">v1 之后“agent 影响不了测试”这条保证具体靠下面几条守住。controller 能做的事只会让测试<b>更多或更早</b>，不会更少或更松。</p>
-    <div class="scroll"><table style="min-width:46rem"><thead><tr><th>它想做的事</th><th>能否</th><th>靠什么守住</th></tr></thead><tbody><tr><th scope="row">给哪些 leaf 设计测试</th><td><b>不能</b></td><td>名单由程序按 baseline 算。split 里没点名的 leaf 照默认开一个会话；点了名单之外的 leaf 会被忽略并报告</td></tr><tr><th scope="row">少开会话</th><td><b>不能</b></td><td>每个 leaf 至少一个会话，和现在一样。controller 只能加（一个 leaf 最多 4 个）或调顺序</td></tr><tr><th scope="row">给 designer 写文字</th><td><b>不能</b></td><td>split 只有结构：leaf 的顺序、每个 leaf 分几个会话、同时几个。提示词仍由程序拼</td></tr><tr><th scope="row">看源码或测试</th><td><b>不能</b></td><td>这一轮给它的只有每个 leaf 的计数：功能点数、知识条目数、源码 token、要迁移的测试数、缺测试的原因代码</td></tr><tr><th scope="row">调别的工具</th><td><b>不能</b></td><td>封存之前这一轮的工具表里只有 design_leaf_tests。封存、抓 baseline 仍由 mainline 调</td></tr><tr><th scope="row">改门、试跑、knockout、评审</th><td><b>不能</b></td><td>这些代码不动；一个测试算不算有效和谁排的会话无关</td></tr><tr><th scope="row">让设计来不及做完</th><td><b>不能</b></td><td>同时几个有下限：程序按时间窗口算出最少要同时开几个，低于它就抬上去并在结果里说明</td></tr><tr><th scope="row">看到 draft job 的情况</th><td><b>不能</b></td><td>这一轮的上下文和预算只算 main job 自己的；draft job 花了多少 token 不影响这一轮问不问</td></tr></tbody></table></div></div>
+    <div class="scroll"><table style="min-width:46rem"><thead><tr><th>它想做的事</th><th>能否</th><th>靠什么守住</th></tr></thead><tbody><tr><th scope="row">给哪些 leaf 设计测试</th><td><b>不能</b></td><td>名单由程序按 baseline 算。split 里没点名的 leaf 照默认开一个会话；点了名单之外的 leaf 会被忽略并报告</td></tr><tr><th scope="row">少开会话</th><td><b>不能</b></td><td>每个 leaf 至少一个会话，和现在一样。controller 只能加（一个 leaf 最多 4 个）或调顺序</td></tr><tr><th scope="row">给 designer 写文字</th><td><b>不能</b></td><td>split 只有结构：leaf 的顺序、每个 leaf 分几个会话、同时几个。提示词仍由程序拼</td></tr><tr><th scope="row">看源码或测试</th><td><b>不能</b></td><td>这一轮给它的只有每个 leaf 的计数：功能点数、知识条目数、源码 token、要迁移的测试数、缺测试的原因代码</td></tr><tr><th scope="row">调别的工具</th><td><b>不能</b></td><td>封存之前这一轮的工具表里只有 design_leaf_tests。封存、抓 baseline 仍由 mainline 调</td></tr><tr><th scope="row">改门、试跑、knockout、评审</th><td><b>不能</b></td><td>这些代码不动；一个测试算不算有效和谁排的会话无关</td></tr><tr><th scope="row">让设计来不及做完</th><td><b>不能</b></td><td>parallel 开着时，同时几个有下限：程序按时间窗口算出最少要同时开几个，低于它就抬上去并在结果里说明。关着时固定为 1，时间窗口按一个接一个来算</td></tr><tr><th scope="row">看到 draft job 的情况</th><td><b>不能</b></td><td>这一轮的上下文和预算只算 main job 自己的；draft job 花了多少 token 不影响这一轮问不问</td></tr></tbody></table></div></div>
   <div class="card"><h3>为什么不做“几个小 leaf 合用一个会话”</h3>
-    <p>读代码的结论是不划算：designer 的提示词、payload、目录、文件归属、反馈、失败记录全是按“一个会话一个 leaf”写的，合并要重写设计引擎的大半个主循环；而会话本来就能全部同时开，合并只省模型调用，不省时间。v1 里 <code>{leaves: [...]}</code> 的含义是“这几个 leaf 各自的会话排在一起、按这个顺序开”。</p></div>
+    <p>读代码的结论是不划算：designer 的提示词、payload、目录、文件归属、反馈、失败记录全是按“一个会话一个 leaf”写的，合并要重写设计引擎的大半个主循环。v1 里 <code>{leaves: [...]}</code> 的含义是“这几个 leaf 各自的会话排在一起、按这个顺序开”。</p></div>
 </section>
 
 <section id="packages">
   <h2>工作包和顺序</h2>
-  <p class="body">每个工作包是一组独立的提交，带自己的测试，做完一个就能跑全量测试确认没有新增失败。顺序的想法是：先把 author 线变成“总是 controller 来排”，并做出 parallel 关着时的串行写法（W1、W10、W2、W3），再接通 test designer 线（W5–W7），配套文字和页面跟上后实测一次；最大的一块 W4 放在后面，作为 v1 的第二步。</p>
+  <p class="body">每个工作包是一组独立的提交，带自己的测试，做完一个就能跑全量测试确认没有新增失败。顺序的想法是：先把编排权交给 controller（W1、W2），再做 parallel 关着时一个接一个的写法和开着时的共享文件（W10、W3），然后接通 test designer 线（W5–W7），配套文字和页面跟上后实测一次；最大的一块 W4 放在后面，作为 v1 的第二步。W10 里 designer 一次一个的部分要等 W5。</p>
   <div class="card"><div class="scroll"><table style="min-width:54rem">
-    <thead><tr><th></th><th>工作包</th><th>规模</th><th>依赖</th><th>做完之后</th></tr></thead><tbody><tr><td class="mono">W1</td><th scope="row">规划权从 parallel 开关上拿下来</th><td><span class="size">小</span></td><td class="mono">—</td><td>所有 controller 作业封存后先问 controller；draft job 总有 controller</td></tr><tr><td class="mono">W10</td><th scope="row">parallel 关着：author 一个接一个，不划分 scope</th><td><span class="size">中</span></td><td class="mono">W1</td><td>关着时一次一个 author，怎么分由 controller 定；程序不再切 scope</td></tr><tr><td class="mono">W2</td><th scope="row">规划轮的失败单独计数</th><td><span class="size">小</span></td><td class="mono">W1</td><td>首版或设计的规划答不好，不影响后面的修复</td></tr><tr><td class="mono">W3</td><th scope="row">parallel 开着：共享文件由 controller 指定负责人</th><td><span class="size">中</span></td><td class="mono">W1</td><td>并行写首版时不再有互相矛盾的两句话</td></tr><tr><td class="mono">W5</td><th scope="row">设计引擎的两个参数</th><td><span class="size">中</span></td><td class="mono">—</td><td>可以单独测：同时几个、一个 leaf 分几个会话</td></tr><tr><td class="mono">W6</td><th scope="row">design_leaf_tests 的 split 参数</th><td><span class="size">中</span></td><td class="mono">W5</td><td>owner 手工调用就能用 split，还不涉及 controller</td></tr><tr><td class="mono">W7</td><th scope="row">封存前的规划轮</th><td><span class="size">中</span></td><td class="mono">W6</td><td>controller → test designer 这条线接通</td></tr><tr><td class="mono">W8</td><th scope="row">提示词、文档、入口文字</th><td><span class="size">小</span></td><td class="mono">W1 W7 W10</td><td>controller 的提示词讲清新规则；docs/job-tools.md 和 skill 里 parallel 的说明同步</td></tr><tr><td class="mono">W9</td><th scope="row">run 页面</th><td><span class="size">中</span></td><td class="mono">W7 W10</td><td>页面显示封存前那一轮、designer 的分段、串行的 author 调用</td></tr><tr><td class="mono">M1</td><th scope="row">里程碑：v1a 实测</th><td></td><td class="mono">W1–W3 W5–W10</td><td>detectron2 核心同配置（parallel 开）重跑一次，和 127.6 分钟那次对比；parallel 关着的路径先在小项目上跑通</td></tr><tr><td class="mono">W4</td><th scope="row">parallel 开着：按 capability 自由分组也能记账</th><td><span class="size big">大</span></td><td class="mono">W10</td><td>并行时 controller 可以不按 scope 分；任何分法都有补漏</td></tr><tr><td class="mono">M2</td><th scope="row">里程碑：v1b 实测</th><td></td><td class="mono">W4</td><td>同一个项目再跑一次，看 controller 会不会用自由分组、效果如何</td></tr></tbody></table></div>
+    <thead><tr><th></th><th>工作包</th><th>规模</th><th>依赖</th><th>做完之后</th></tr></thead><tbody><tr><td class="mono">W1</td><th scope="row">封存之后每一步都先问 controller</th><td><span class="size">中</span></td><td class="mono">—</td><td>开或关、两个作业，封存后都由 controller 编排</td></tr><tr><td class="mono">W2</td><th scope="row">规划轮的失败单独计数</th><td><span class="size">小</span></td><td class="mono">W1</td><td>首版或设计的规划答不好，不影响后面的修复</td></tr><tr><td class="mono">W10</td><th scope="row">parallel 关着：会话一个接一个，不划分 scope</th><td><span class="size">中</span></td><td class="mono">W1 W5</td><td>关着时任何时刻只有一个会话；怎么分由 controller 定；程序不再切 scope</td></tr><tr><td class="mono">W3</td><th scope="row">parallel 开着：共享文件由 controller 指定负责人</th><td><span class="size">中</span></td><td class="mono">W1</td><td>并行写首版时不再有互相矛盾的两句话</td></tr><tr><td class="mono">W5</td><th scope="row">设计引擎的两个参数</th><td><span class="size">中</span></td><td class="mono">—</td><td>可以单独测：同时几个、一个 leaf 分几个会话</td></tr><tr><td class="mono">W6</td><th scope="row">design_leaf_tests 的 split 参数</th><td><span class="size">中</span></td><td class="mono">W5</td><td>owner 手工调用就能用 split，还不涉及 controller</td></tr><tr><td class="mono">W7</td><th scope="row">封存前的规划轮</th><td><span class="size">中</span></td><td class="mono">W6</td><td>controller → test designer 这条线接通</td></tr><tr><td class="mono">W11</td><th scope="row">parallel 开着：导入时等不等由 controller 定</th><td><span class="size">小</span></td><td class="mono">W1</td><td>并入 fix-parallel-main 的三个提交</td></tr><tr><td class="mono">W8</td><th scope="row">提示词、文档、入口文字</th><td><span class="size">小</span></td><td class="mono">W1 W7 W10</td><td>controller 的提示词讲清新规则；docs/job-tools.md 和 skill 里两个开关的说明同步</td></tr><tr><td class="mono">W9</td><th scope="row">run 页面</th><td><span class="size">中</span></td><td class="mono">W7 W10</td><td>页面显示封存前那一轮、designer 的分段、一个接一个的会话</td></tr><tr><td class="mono">M1</td><th scope="row">里程碑：v1a 实测</th><td></td><td class="mono">W1–W3 W5–W11</td><td>detectron2 核心，pair 开、parallel 开，和 127.6 分钟那次对比；parallel 关着的路径先在小项目上跑通</td></tr><tr><td class="mono">W4</td><th scope="row">parallel 开着：按 capability 自由分组也能记账</th><td><span class="size big">大</span></td><td class="mono">W10</td><td>并行时 controller 可以不按 scope 分；任何分法都有补漏</td></tr><tr><td class="mono">M2</td><th scope="row">里程碑：v1b 实测</th><td></td><td class="mono">W4</td><td>同一个项目再跑一次，看 controller 会不会用自由分组、效果如何</td></tr></tbody></table></div>
     <p class="sub">规模是相对的：小 = 几处判断加改测试；中 = 一个模块里的新逻辑加一组新测试；大 = 跨五六个模块，要动几十个现有用例。</p></div>
 </section>
 
@@ -978,30 +1172,31 @@ v1 新增"><rect x="393.5" y="135" width="129.0" height="20" rx="4"/><rect x="39
   </div>
   <div class="card"><h3>对效果的预期，先说在前面</h3>
     <ul class="plain">
-      <li><b>author 这边，parallel 开着</b>：你现在的跑法已经开着 parallel，W1 对它没有行为变化。实际收益来自 W3（少一类合并后的返工）和 W4（controller 可以按实际依赖分组）。</li>
-      <li><b>author 这边，parallel 关着</b>：会比今天慢，这是串行的代价。今天关着时同一层的 scope 仍然同时写，最多 4 个；v1 改成一次一个。detectron2 那次 5 个 author 会话合计 129 分钟，放进一个并行组实际用了 38 分钟；串行写大约就是前一个数。换来的是流程简单：没有 scope、没有合并、没有共享文件的冲突。</li>
-      <li><b>test designer 这边</b>：时间上的收益不会大。detectron2 那次设计测试用了 27.5 分钟，其中 designer 会话只占 10.4 分钟，而且 9 个会话本来就是同时开的；其余是试跑、评审和提交。把最大的 leaf 分成两个会话最多省几分钟，同时会多出一些测试文件要试跑。这条线的价值主要在分层本身，以及 owner 给了并发上限时由 controller 来排先后。</li>
-      <li><b>代价</b>：main job 的冻结多一轮 controller，约 1 到 3 分钟、1 到 2 美元。</li>
+      <li><b>parallel 开着</b>：你现在的跑法就是这个。author 这边 W1 没有行为变化，收益来自 W3（少一类合并后的返工）、W4（按实际依赖分组）和 W11（不再白等 draft job 的一次修复，detectron2 那次是 24.7 分钟）。test designer 这边时间收益不大：那次设计测试用了 27.5 分钟，designer 会话只占 10.4 分钟，本来就是 9 个同时开；其余是试跑、评审和提交。</li>
+      <li><b>parallel 关着</b>：会比今天慢不少，这是“一个接一个”的代价。今天关着时 designer 全部同时开、同一层的 author 最多 4 个同时。按 detectron2 那次的会话时长算：9 个 designer 会话一个接一个是 74 分钟（同时开是 10.4 分钟）；6 个 reviewer 会话是 17 分钟（同时开是 4 分钟）；5 个 author 会话是 129 分钟（并行组是 38 分钟）。换来的是流程简单：没有 scope、没有合并、没有共享文件的冲突。</li>
+      <li><b>controller 多问几轮</b>：封存后每一步都先问，轮数会比今天多。它可以放行 mainline 连做若干步来省轮数。</li>
+      <li><b>冻结多一轮</b>：main job 的冻结多一轮 controller，约 1 到 3 分钟、1 到 2 美元。</li>
     </ul></div>
 </section>
 
 <section id="risks">
   <h2>风险和对策</h2>
-  <div class="card"><div class="scroll"><table style="min-width:44rem"><thead><tr><th>风险</th><th>对策</th></tr></thead><tbody><tr><th scope="row">封存前让 agent 参与，削弱“影响不了测试”的保证</th><td>split 只有结构没有文字；目标名单、门、试跑、评审都不经过它；工具表收窄到一个工具。上面那张表逐条列了守法，每条都配测试</td></tr><tr><th scope="row">draft job 的花费影响 main job 的设计</th><td>现在 main job 的 token 计数包含 draft job 的用量。封存前那一轮的准入和上下文改成只算本作业，并加测试</td></tr><tr><th scope="row">一个 leaf 分成几个会话后写出重复的测试</th><td>程序把功能点和知识条目分开给各会话；重复的测试不影响正确性，只多花试跑时间。一个 leaf 最多 4 个会话</td></tr><tr><th scope="row">同时开得太少，会话来不及开始</th><td>同时几个有下限，由程序按时间窗口算；低于下限就抬上去并在结果里说明</td></tr><tr><th scope="row">parallel 关着时一个 author 会话太大</th><td>scope 最初就是为了让会话短才引入的。v1 关着时由 controller 按 capability 分几次串行写来控制大小，程序给它每个 capability 的 token 数。单次调用还有两道硬上限：时间（按项目大小 1 到 4 小时）和借给 author 的原版文件（400 个、32MB）。见需要你定的第 8 项</td></tr><tr><th scope="row">改默认值波及大量现有测试</th><td>W1 涉及约十个测试文件。先改测试的默认前提，再改代码，逐个文件确认</td></tr><tr><th scope="row">和别的会话的改动冲突</th><td>fix-parallel-main 上有 3 个不在 main 里的提交，动的是同一批文件（advice.py、controller.py、pair.py、freeze.py）。见需要你定的第 5 项</td></tr><tr><th scope="row">main 回滚了 PR #45，新分支以后合不回去</th><td>从回滚之前分出去的分支合回 main 时，PR #45 的改动不会自动回来：没被 v1 动过的部分会被删掉，留下依赖它的 v1 代码。合回之前必须先撤销那次回滚。见需要你定的第 7 项</td></tr><tr><th scope="row">按 capability 记账（W4）改动面大</th><td>放在 v1 的第二步，单独实测；scope 的路径保持可用，作为兜底</td></tr></tbody></table></div></div>
+  <div class="card"><div class="scroll"><table style="min-width:44rem"><thead><tr><th>风险</th><th>对策</th></tr></thead><tbody><tr><th scope="row">封存前让 agent 参与，削弱“影响不了测试”的保证</th><td>split 只有结构没有文字；目标名单、门、试跑、评审都不经过它；工具表收窄到一个工具。上面那张表逐条列了守法，每条都配测试</td></tr><tr><th scope="row">draft job 的花费影响 main job 的设计</th><td>现在 main job 的 token 计数包含 draft job 的用量。封存前那一轮的准入和上下文改成只算本作业，并加测试</td></tr><tr><th scope="row">一个 leaf 分成几个会话后写出重复的测试</th><td>程序把功能点和知识条目分开给各会话；重复的测试不影响正确性，只多花试跑时间。一个 leaf 最多 4 个会话</td></tr><tr><th scope="row">同时开得太少，会话来不及开始</th><td>同时几个有下限，由程序按时间窗口算；低于下限就抬上去并在结果里说明</td></tr><tr><th scope="row">parallel 关着时一个 author 会话太大</th><td>scope 最初就是为了让会话短才引入的。v1 关着时由 controller 按 capability 分几次串行写来控制大小，程序给它每个 capability 的 token 数。单次调用还有两道硬上限：时间（按项目大小 1 到 4 小时）和借给 author 的原版文件（400 个、32MB）。见需要你定的第 8 项</td></tr><tr><th scope="row">改默认值波及大量现有测试</th><td>W1 涉及约十个测试文件。先改测试的默认前提，再改代码，逐个文件确认</td></tr><tr><th scope="row">controller 问得更早更多，轮数和花费上升，答不好的机会也变多</th><td>它可以放行 mainline 连做若干步；规划轮的失败单独计数（W2）；它不回答时每一步都有 mainline 的默认做法兜底，行为和今天一样</td></tr><tr><th scope="row">和别的会话的改动冲突</th><td>fix-parallel-main 上有 3 个不在 main 里的提交，动的是同一批文件（advice.py、controller.py、pair.py、freeze.py）。见需要你定的第 5 项</td></tr><tr><th scope="row">main 回滚了 PR #45，新分支以后合不回去</th><td>从回滚之前分出去的分支合回 main 时，PR #45 的改动不会自动回来：没被 v1 动过的部分会被删掉，留下依赖它的 v1 代码。合回之前必须先撤销那次回滚。见需要你定的第 7 项</td></tr><tr><th scope="row">按 capability 记账（W4）改动面大</th><td>放在 v1 的第二步，单独实测；scope 的路径保持可用，作为兜底</td></tr></tbody></table></div></div>
 </section>
 
 <section id="decide">
   <h2>需要你定的</h2>
-  <p class="body">下面每一项我都给了推荐。第 1 项你已经定了。第 2 到 6 项你不说的话我按推荐做。第 7、8、9 项是 11-20 新增的：第 7 项决定新分支的基础，开工前需要你回一句；第 8、9 项不回的话按推荐做。</p>
-  <div class="cards wide"><div class="card"><span class="n">1　已定</span><h3>parallel 开关在 v1 里是什么意思</h3><p>11-20 你定的：规划永远归 controller，开或关都是。<code>parallel</code> 只决定 author 会话并行还是串行：开着时 controller 可以开并行组，上限是 owner 的；关着时一个接一个写，程序不再划分 scope。对应工作包 W1 和 W10。</p></div><div class="card"><span class="n">2</span><h3>controller 能不能给 test designer 写文字指示</h3><p>author 那边 controller 可以写指示。designer 这边如果也放开，它就能影响测试写成什么样。</p><ol class="opts"><li>不能，v1 只给结构（顺序、分几个会话、同时几个）。 <span class="rec">推荐</span></li><li>能，但限定在“侧重哪些功能点”一类，由程序校验。这会动到保证，建议留到后面的版本单独讨论。</li></ol></div><div class="card"><span class="n">3</span><h3>test designer 的“拆分”做到哪一步</h3><p>三种拆法的代价差别很大。</p><ol class="opts"><li>顺序和分批、同时几个、一个 leaf 分 1 到 4 个会话。 <span class="rec">推荐</span></li><li>再加上几个小 leaf 合用一个会话。要重写设计引擎的主循环，只省模型调用不省时间。</li></ol></div><div class="card"><span class="n">4</span><h3>按 capability 自由分组（W4）放在哪</h3><p>它是 author 线上最大的一块。不做的话 controller 仍只能在程序切好的 scope 之间选。</p><ol class="opts"><li>分两步：先做 v1a（W1–W3、W5–W9）并实测，再做 W4。 <span class="rec">推荐</span></li><li>全部做完再实测。</li><li>v1 不做 W4，留给下一个版本。</li></ol></div><div class="card"><span class="n">5</span><h3>fix-parallel-main 上 3 个没进 main 的提交要不要先并进来</h3><p>这 3 个提交是今天凌晨别的会话做的，已经推到 fix-parallel-main，不在 main 里，也不在新分支里：换候选后按规则重新准备环境；main job 的 controller 决定导入时要不要等 draft 的修复；baseline 不可用的提示。它们接在 PR #45 后面，和 v1 方向一致，改的也是同一批文件。第 7 项如果选了不带 PR #45，其中第二个提交就没有基础了。</p><ol class="opts"><li>先并进新分支再开工，避免之后在同一批文件上解冲突。 <span class="rec">推荐</span></li><li>等它们进了 main 再合。</li><li>不要。</li></ol></div><div class="card"><span class="n">6</span><h3>reviewer 的分批要不要也交给 controller</h3><p>你说的是 author 和 test designer。reviewer 现在每 8 个文件一个，由程序分。</p><ol class="opts"><li>v1 不动。 <span class="rec">推荐</span></li><li>也交给 controller（每批几个文件，上限 8）。</li></ol></div><div class="card"><span class="n">7</span><h3>main 回滚了 PR #45，新分支怎么办（11-20 新增）</h3><p>新分支建在 PR #45 的合并点上，之后 main 把 PR #45 回滚了。v1 的 author 线直接用 PR #45 的机制：封存后先问 controller、draft job 有自己的 controller。我不知道回滚的原因，不同原因对应不同做法。另外，从回滚之前分出去的分支以后合回 main 时，PR #45 的改动不会自动回来，得先撤销那次回滚。</p><ol class="opts"><li>新分支保持现状，带着 PR #45 做 v1；合回 main 之前先撤销那次回滚。W1 仍是小改动。前提是回滚不是因为 PR #45 本身有缺陷。 <span class="rec">推荐</span></li><li>新分支改建在回滚后的 main 上。v1 要自己重建“controller 切首版、draft job 有 controller”，这部分在 PR #45 里约 230 行代码加一个 280 行的测试文件，W1 从小变成中到大；detectron2 那次实测也不再是可比的基线。</li><li>只带 PR #45 的一部分，例如留下 controller 切首版，去掉 check 同时跑的改动，或反过来。需要你告诉我回滚针对的是哪一部分。</li></ol></div><div class="card"><span class="n">8</span><h3>parallel 关着时，“不划分 scope”具体怎么做（11-20 新增）</h3><p>读代码看到一件和你的设想有出入的事：scope 最初不是为并行引入的，而是为了让每个 author 会话短。一次调用写整张 capability 图时，上下文到过几十万 token，而且每一轮都要重读。去掉 scope 之后，大项目上谁来控制单个会话的大小，有三种做法。</p><ol class="opts"><li>程序不划分。controller 决定一次写完，还是按 capability 分几次、一个接一个写；程序给它每个 capability 的大小。小项目就是一次写完。页面目前按这个写。 <span class="rec">推荐</span></li><li>永远一个 author 会话写完全部。最简单，小项目没问题。detectron2 核心那样的规模（17.7 万 token，分 5 个会话写合计 129 分钟）放进一个会话，很可能超过单次调用默认的两小时上限。</li><li>沿用固定流程里已有的做法：一次调用，程序在内部按 scope 一段一段地开会话。改动最小，但内部仍然用 scope，controller 只决定指示。</li></ol></div><div class="card"><span class="n">9</span><h3>parallel 关着时，test designer 要不要也一个接一个（11-20 新增）</h3><p>你这次说的是 author。test designer 今天不看 parallel 开关：每个缺测试的 leaf 一个会话，全部同时开。</p><ol class="opts"><li>不受 parallel 影响。开或关，都由 controller 在 owner 的上限内定同时几个。detectron2 那次 9 个 designer 会话同时开用了 10.4 分钟，一个接一个要 74 分钟。 <span class="rec">推荐</span></li><li>关着时 test designer 也一次一个，和 author 一致。冻结会明显变长。</li></ol></div></div>
+  <p class="body">编号沿用之前的，方便你对照。第 1、9 项你已经定了。其余每项我都给了推荐，你不说的话我按推荐做；排在前面的第 10、8、7 项对工作量影响最大，最好回一句。</p>
+  <div class="cards wide"><div class="card"><span class="n">1　已定</span><h3>parallel 开关在 v1 里是什么意思</h3><p>你定的：pair 管 draft job 和 main job 是否重叠；parallel 管其余所有并行，包括多个 author 同时写、同时给多个 leaf 写测试、同时修几处、draft job 提前验证。关着时所有会话一个接一个，程序不划分 scope。谁来编排不看开关，都是 controller。</p></div><div class="card"><span class="n">9　已定</span><h3>parallel 关着时 test designer 要不要也一个接一个</h3><p>你定的：要。“同时给多个 leaf 写测试”归 parallel 管，关着时 designer 一次一个。我把 reviewer 也按一次一个处理。</p></div><div class="card"><span class="n">10</span><h3>“更多流程交给 controller”在 v1 里做到哪一步（新增）</h3><p>你说 v1 的大改动是把 mainline 控制的流程更多地交给 controller。页面目前按第 1 种画；你想更多或更少，回编号。</p><ol class="opts"><li>封存之前只让它排 test designer；封存之后每一步都先问它，包括首版、保存、第一次全量对比、导入等不等、交付。baseline 和封存仍是 mainline 的。 <span class="rec">推荐</span></li><li>再进一步：冻结里何时抓 baseline、何时封存也由它调。这动到证据规则的执行顺序，我建议留到后面的版本。</li><li>保守一些：只做 author 和 test designer 的编排，保存和第一次全量对比仍是 mainline 的固定步骤。</li></ol></div><div class="card"><span class="n">8</span><h3>parallel 关着时，“不划分 scope”具体怎么做</h3><p>scope 最初不是为并行引入的，而是为了让每个 author 会话短。一次调用写整张 capability 图时，上下文到过几十万 token，而且每一轮都要重读。去掉 scope 之后，大项目上谁来控制单个会话的大小，有三种做法。</p><ol class="opts"><li>程序不划分。controller 决定一次写完，还是按 capability 分几次、一个接一个写；程序给它每个 capability 的大小。小项目就是一次写完。页面目前按这个写。 <span class="rec">推荐</span></li><li>永远一个 author 会话写完全部。最简单，小项目没问题。detectron2 核心那样的规模（17.7 万 token，分 5 个会话写合计 129 分钟）放进一个会话，很可能超过单次调用默认的两小时上限。</li><li>沿用固定流程里已有的做法：一次调用，程序在内部按 scope 一段一段地开会话。改动最小，但内部仍然用 scope，controller 只决定指示。</li></ol></div><div class="card"><span class="n">7</span><h3>main 回滚了 PR #45，新分支怎么办</h3><p>新分支建在 PR #45 的合并点上，之后 main 把 PR #45 回滚了。v1 直接用 PR #45 的机制：封存后先问 controller、draft job 有自己的 controller、draft job 提前验证。你这次说“目前基于的 branch”，我理解为选 1；不是的话请回编号。另外，从回滚之前分出去的分支以后合回 main 时，PR #45 的改动不会自动回来，得先撤销那次回滚。</p><ol class="opts"><li>新分支保持现状，带着 PR #45 做 v1；合回 main 之前先撤销那次回滚。 <span class="rec">推荐</span></li><li>新分支改建在回滚后的 main 上。v1 要自己重建这三样，在 PR #45 里约 230 行代码加一个 280 行的测试文件，W1 从中变大；detectron2 那次实测也不再是可比的基线。</li><li>只带 PR #45 的一部分。需要你告诉我回滚针对的是哪一部分。</li></ol></div><div class="card"><span class="n">2</span><h3>controller 能不能给 test designer 写文字指示</h3><p>author 那边 controller 可以写指示。designer 这边如果也放开，它就能影响测试写成什么样。</p><ol class="opts"><li>不能，v1 只给结构（先后、分几个会话、同时几个）。 <span class="rec">推荐</span></li><li>能，但限定在“侧重哪些功能点”一类，由程序校验。这会动到保证，建议留到后面的版本单独讨论。</li></ol></div><div class="card"><span class="n">3</span><h3>test designer 的“拆分”做到哪一步</h3><p>三种拆法的代价差别很大。</p><ol class="opts"><li>先后和分批、一个 leaf 分 1 到 4 个会话；parallel 开着时还有同时几个。 <span class="rec">推荐</span></li><li>再加上几个小 leaf 合用一个会话。要重写设计引擎的主循环。</li></ol></div><div class="card"><span class="n">4</span><h3>按 capability 自由分组（W4）放在哪</h3><p>它是 parallel 开着时 author 线上最大的一块。不做的话并行时 controller 仍只能在程序切好的 scope 之间选。</p><ol class="opts"><li>分两步：先做 v1a（W1–W3、W5–W11）并实测，再做 W4。 <span class="rec">推荐</span></li><li>全部做完再实测。</li><li>v1 不做 W4，留给下一个版本。</li></ol></div><div class="card"><span class="n">5</span><h3>fix-parallel-main 上 3 个没进 main 的提交要不要先并进来</h3><p>这 3 个提交已经推到 fix-parallel-main，不在 main 里，也不在新分支里：换候选后按规则重新准备环境；main job 的 controller 决定导入时要不要等 draft 的修复（就是 W11）；baseline 不可用的提示。它们接在 PR #45 后面，改的是 v1 要动的同一批文件。</p><ol class="opts"><li>先并进新分支再开工，W11 也就有了。 <span class="rec">推荐</span></li><li>等它们进了 main 再合。</li><li>不要；那样 W11 不做，导入时一律等。</li></ol></div><div class="card"><span class="n">6</span><h3>reviewer 的分批要不要也交给 controller</h3><p>reviewer 现在每 8 个文件一个，由程序分。</p><ol class="opts"><li>v1 不动。 <span class="rec">推荐</span></li><li>也交给 controller（每批几个文件，上限 8）。</li></ol></div></div>
 </section>
 
 <section id="later">
   <h2>v1 不做的，留给后面的版本</h2>
   <div class="card"><ul class="plain">
-    <li><b>verifier 这条线</b>：冻结里的 baseline 何时抓、封存、第一次全量对比，仍归 mainline。把它们交给 controller 是把“controller → verifier”补全。</li>
-    <li><b>两个作业合成一个</b>：现在 main job 和 draft job 各有一个 controller，互不通气，所以“designer 和 author 同时开多少”没人统筹。合成一个作业、一个 controller，才能做跨两边的并行分配。这也要求一个作业能同时跑两个工具，现在不行。</li>
-    <li><b>scope 的切法本身</b>：45,000 token 的上限、一个大组按文件切成几段。交给 controller 需要让它知道文件一级的信息，和“controller 看不到源码路径”有冲突。</li>
+    <li><b>冻结里 verifier 的步骤</b>：baseline 何时抓、何时封存，仍归 mainline。把它们交给 controller 是把“controller → verifier”补全，见需要你定的第 10 项。</li>
+    <li><b>提前验证用更多的测试</b>：v1 里 draft job 提前验证只用原版自带的 check。让它也用 main job 已经设计好、但还没封存的测试，需要先想清楚“封存前的测试不外传”这条规则怎么改。</li>
+    <li><b>两个作业合成一个</b>：现在 main job 和 draft job 各有一个 controller，互不通气，所以“designer 和 author 同时开多少”没人统筹。合成一个作业、一个 controller，才能做跨两边的编排。这也要求一个作业能同时跑两个工具，现在不行。</li>
+    <li><b>parallel 开着时 scope 的切法本身</b>：45,000 token 的上限、一个大组按文件切成几段。交给 controller 需要让它知道文件一级的信息，和“controller 看不到源码路径”有冲突。</li>
     <li><b>controller 影响测试内容</b>：给 designer 写指示、决定给哪些 leaf 设计、要不要再设计一轮。</li>
     <li><b>reviewer 和任务评估里的会话</b>：v1 只管 author 和 test designer。</li>
   </ul></div>
