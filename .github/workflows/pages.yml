@@ -1,0 +1,74 @@
+name: Deploy Pages with complete RawAgent archive
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - name: Prepare existing site and complete RawAgent ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p _site/rawagent
+          git archive HEAD | tar -x -C _site
+          rm -rf _site/.github
+          curl --fail --location --retry 3 --output _site/rawagent/RawAgent-main.zip \
+            https://github.com/ggeeyyi/ggeeyyi.github.io/releases/download/rawagent-20261122/RawAgent-main.zip
+          printf '%s  %s\n' \
+            d988632bfbabc204762e7269551743ac10f77257775e3206e0349f244e94b542 \
+            RawAgent-main.zip > _site/rawagent/SHA256SUMS
+          (cd _site/rawagent && sha256sum --check SHA256SUMS)
+          python3 - <<'PY'
+          from io import BytesIO
+          from pathlib import Path, PurePosixPath
+          from zipfile import ZipFile
+
+          root = Path('_site/rawagent')
+          archive = root / 'RawAgent-main.zip'
+          assert archive.stat().st_size == 179301110, 'Unexpected archive size'
+          with ZipFile(archive) as project:
+              assert project.testzip() is None, 'Invalid archive CRC'
+              website = project.read('RawAgent-main/sites/RawAgent-答辩展示-静态网站.zip')
+          with ZipFile(BytesIO(website)) as site:
+              for entry in site.infolist():
+                  name = PurePosixPath(entry.filename)
+                  if name.is_absolute() or '..' in name.parts:
+                      raise ValueError('Unsafe archive path')
+                  if entry.is_dir():
+                      continue
+                  target = root / name
+                  target.parent.mkdir(parents=True, exist_ok=True)
+                  target.write_bytes(site.read(entry))
+          index = root / 'index.html'
+          html = index.read_text(encoding='utf-8')
+          links = '<p><a href="RawAgent-main.zip" download>下载完整项目 ZIP（179 MB）</a> · <a href="SHA256SUMS">SHA-256 校验值</a></p>'
+          assert '</footer>' in html
+          index.write_text(html.replace('</footer>', links + '</footer>', 1), encoding='utf-8')
+          print('Complete original ZIP verified; full static website extracted.')
+          PY
+      - name: Upload complete Pages site
+        uses: actions/upload-pages-artifact@v5.0.0
+        with:
+          path: _site
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5.0.1
