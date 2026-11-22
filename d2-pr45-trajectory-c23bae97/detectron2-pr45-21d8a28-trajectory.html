@@ -1,0 +1,2961 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<meta name="description" content="nanolize PR #45 的合并提交（21d8a28）上的一次 detectron2 压缩实验的完整轨迹：两个作业的事件和操作、每个模型会话、controller 的每一轮、候选和对比。">
+<title>detectron2 压缩实验的轨迹：PR #45 版本 21d8a28</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%231c5cab'/%3E%3Cpath d='M4 11V5l8 6V5' fill='none' stroke='white' stroke-width='1.6'/%3E%3C/svg%3E">
+<style>
+:root { color-scheme: light; --bg:#f7f8fa; --card:#ffffff; --ink:#1b2230; --soft:#566074; --line:#dfe3ea; --head:#eef1f6;
+  --accent:#1c5cab; --code:#f1f3f7; --mark:#fff6d6; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { color-scheme: dark; --bg:#12151b; --card:#1a1e26; --ink:#e4e8ef;
+  --soft:#9aa5b8; --line:#2d3340; --head:#222834; --accent:#7fb0ee; --code:#222733; --mark:#3a3413; } }
+:root[data-theme="dark"] { color-scheme: dark; --bg:#12151b; --card:#1a1e26; --ink:#e4e8ef; --soft:#9aa5b8; --line:#2d3340; --head:#222834;
+  --accent:#7fb0ee; --code:#222733; --mark:#3a3413; }
+html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+  "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif; }
+main { max-width: 1180px; margin: 0 auto; padding: 28px 16px 80px; }
+h1 { font-size: 26px; line-height: 1.3; margin: 0 0 10px; letter-spacing: -0.01em; }
+h2 { font-size: 20px; margin: 44px 0 12px; padding-top: 14px; border-top: 2px solid var(--line); scroll-margin-top: 12px; }
+p { margin: 10px 0; }
+a { color: var(--accent); }
+.lead { color: var(--soft); font-size: 14px; }
+.bar { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 6px; }
+.bar a { display: inline-block; padding: 6px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); text-decoration: none; font-size: 14px; }
+.bar a:hover { border-color: var(--accent); }
+nav.toc { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; margin: 14px 0 8px; }
+nav.toc b { font-size: 13px; color: var(--soft); font-weight: 600; }
+nav.toc ol { margin: 6px 0 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 2px 18px; }
+nav.toc a { text-decoration: none; font-size: 14px; }
+nav.toc a:hover { text-decoration: underline; }
+.tw { overflow-x: auto; margin: 12px 0 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); }
+table { border-collapse: collapse; width: 100%; font-size: 13px; line-height: 1.5; }
+th, td { padding: 6px 10px; border-bottom: 1px solid var(--line); border-right: 1px solid var(--line); text-align: left; vertical-align: top; }
+th:last-child, td:last-child { border-right: 0; }
+tr:last-child td { border-bottom: 0; }
+th { background: var(--head); font-weight: 600; white-space: nowrap; position: sticky; top: 0; }
+td { min-width: 3.2em; overflow-wrap: anywhere; }
+td:last-child { min-width: 16em; }
+td.n { white-space: nowrap; min-width: 0; }
+tbody tr:hover td { background: var(--mark); }
+code { font: 12.5px/1.5 ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; background: var(--code); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+pre { background: var(--code); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; margin: 8px 0 12px; overflow-x: auto;
+  white-space: pre-wrap; overflow-wrap: anywhere; max-height: 560px; overflow-y: auto; }
+pre code { background: none; padding: 0; font-size: 12.5px; }
+details { margin: 8px 0; border: 1px solid var(--line); border-radius: 8px; background: var(--card); padding: 0 12px; }
+details > summary { cursor: pointer; padding: 8px 0; color: var(--accent); font-size: 14px; }
+details[open] > summary { border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+ul, ol { padding-left: 22px; }
+li { margin: 4px 0; }
+strong { font-weight: 650; }
+footer { margin-top: 48px; color: var(--soft); font-size: 13px; border-top: 1px solid var(--line); padding-top: 12px; }
+.top { position: fixed; right: 16px; bottom: 16px; padding: 7px 11px; border-radius: 8px; border: 1px solid var(--line); background: var(--card);
+  text-decoration: none; font-size: 13px; box-shadow: 0 2px 8px rgba(0,0,0,.12); }
+@media (max-width: 640px) { body { font-size: 14.5px; } h1 { font-size: 21px; } h2 { font-size: 18px; } table { font-size: 12.5px; } }
+</style>
+</head>
+<body>
+<main id="top">
+<h1>detectron2 压缩实验的轨迹：PR #45 版本，nanolize main <code>21d8a28</code></h1>
+
+<p class="lead">这份文件按时间顺序记录这次实验里发生的每一步：运行是怎么启动的、两个作业的每条事件和每个操作、每个模型会话、controller 的每一轮、每个候选和它的对比、每个节点申请。内容全部取自这次运行自己的记录（作业的事件和操作记录、各次模型调用的记录、启动记录、运行期间对节点请求的抽样），由脚本生成；事件和工具返回的原文是英文，照原样保留。时间都是 UTC，“第几分钟”从主作业的第一条事件算起。本机的路径、账户名、队列名、节点名和调度器作业编号已经换成占位符。章节的排法和 2026-11-20 那三份 tqdm 轨迹相同。</p>
+
+<div class="bar"><a href="detectron2-pr45-21d8a28-trajectory.md" download>下载 Markdown 原文件</a><a href="detectron2-pr45-trajectory-20261120.zip" download>下载 zip（轨迹和生成脚本）</a></div>
+<nav class="toc"><b>章节</b><ol><li><a href="#s1">1. 配置和结果</a></li><li><a href="#s2">2. 阶段</a></li><li><a href="#s3">3. 这次运行是怎么启动的</a></li><li><a href="#s4">4. 两个作业的事件和操作（按时间）</a></li><li><a href="#s5">5. 模型会话（每次调用）</a></li><li><a href="#s6">6. 测试设计和评审</a></li><li><a href="#s7">7. 候选、对比和修复</a></li><li><a href="#s8">8. 节点申请</a></li><li><a href="#s9">9. 收尾</a></li></ol></nav>
+<h2 id="s1">1. 配置和结果</h2>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>项目</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="n">实验</td>
+<td>用 nanolize 压缩 detectron2（<code>main</code> @ <code>02881c8</code>），给定功能图（85 项能力、62 条检查），选核心能力：选中 28 项，排除 57 项，留下 46 条检查</td>
+</tr>
+<tr>
+<td>nanolize 代码</td>
+<td>GitHub main <code>21d8a28</code>（PR #45 的合并提交；比 PR #43 多 PR #44、PR #45），版本 0.8.0；对照的另一组用 PR #43 的合并提交 <code>af5b2c7</code></td>
+</tr>
+<tr>
+<td class="n">选项</td>
+<td><code>unattended=on scope=core effort=high pair=on</code>，并行关（没有传 parallel），不做性能验收；检查经 nanolize 自己的执行器上计算节点</td>
+</tr>
+<tr>
+<td class="n">启动</td>
+<td>没有主持会话：脚本直接调用 <code>start_execution_review</code> 并提交选择，参数和 main 的主持会话传的相同（第 3 节）；2026-11-21 00:43:19 UTC 启动；Claude Code 2.1.327，Fable 5.2</td>
+</tr>
+<tr>
+<td class="n">两个作业</td>
+<td>主作业 <code>c7e2eea8</code>（冻结契约、验证、交付），草稿作业 <code>0adb2ea9</code>（同时写第一版）</td>
+</tr>
+<tr>
+<td class="n">主作业起止</td>
+<td>00:44:06 – 04:46:35，实际 242.5 分钟；事件里记下的等节点 1.6 分钟，扣掉之后 240.9 分钟</td>
+</tr>
+<tr>
+<td class="n">结束状态</td>
+<td><code>completed_with_gaps</code>；缺口：<code>original_checks_not_verified</code></td>
+</tr>
+<tr>
+<td class="n">花费</td>
+<td>$170.16（31 次调用），另有试调 $0.15（3 次）</td>
+</tr>
+<tr>
+<td class="n">体积</td>
+<td>641,353 → 143,801 token，22.42%（目标 50%）</td>
+</tr>
+<tr>
+<td class="n">行为验收</td>
+<td>最后一次完整对比 96 条检查全部通过；行为修复 2 轮；controller 4 轮</td>
+</tr>
+<tr>
+<td class="n">安装检查</td>
+<td>3 / 3 步通过</td>
+</tr>
+<tr>
+<td class="n">原测试的迁移</td>
+<td>给了 10 条，迁移成 8 条；没能验证的原测试函数 2 个</td>
+</tr>
+<tr>
+<td class="n">交付后回放原测试</td>
+<td>保留的 9 个测试里 9 个在交付版本上通过，退步 0 个；和内部名字绑在一起的 10 个里 6 个通过</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="s2">2. 阶段</h2>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>阶段</th>
+<th>开始</th>
+<th>结束</th>
+<th>实际（分钟）</th>
+<th>其中等节点</th>
+<th>扣掉等节点</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>冻结（作业开始到封存）</td>
+<td class="n">00:44:06</td>
+<td class="n">03:00:42</td>
+<td class="n">136.6</td>
+<td class="n">1.6</td>
+<td class="n">135.0</td>
+</tr>
+<tr>
+<td>第一版（封存到第一次完整对比开始；第一版由草稿作业在冻结期间写好）</td>
+<td class="n">03:00:42</td>
+<td class="n">03:01:46</td>
+<td class="n">1.1</td>
+<td class="n">0.0</td>
+<td class="n">1.1</td>
+</tr>
+<tr>
+<td>对比与修复（到选定候选）</td>
+<td class="n">03:01:46</td>
+<td class="n">04:43:59</td>
+<td class="n">102.2</td>
+<td class="n">0.0</td>
+<td class="n">102.2</td>
+</tr>
+<tr>
+<td class="n">交付</td>
+<td class="n">04:43:59</td>
+<td class="n">04:46:35</td>
+<td class="n">2.6</td>
+<td class="n">0.0</td>
+<td class="n">2.6</td>
+</tr>
+<tr>
+<td>草稿作业（和冻结同时进行）</td>
+<td class="n">00:44:06</td>
+<td class="n">03:01:14</td>
+<td class="n">137.1</td>
+<td class="n">0.0</td>
+<td class="n">137.1</td>
+</tr>
+</tbody>
+</table></div>
+<p>等节点只算了主作业事件里记下的那几次申请（探测和两次基线）；对比阶段另外两个分配的申请没有留下事件，等了多久查不到（第 8 节）。</p>
+<h2 id="s3">3. 这次运行是怎么启动的</h2>
+<p>这次运行没有主持会话（tqdm 那三份轨迹的第 3 节是主持会话的每一步）。启动它的是一个脚本：在一个计算节点上还原 detectron2 的克隆和工作根（功能图、选择和测试环境用的是此前一次已交付的 detectron2 运行里主持会话写好并评审过的那一份），用这一组的 nanolize 代码调用 <code>start_execution_review</code>，提交选择，然后只等两个作业结束，中途不介入。下面是启动记录和传给 <code>start_execution_review</code> 的参数。</p>
+<details><summary>启动记录</summary>
+<pre><code>arm=b host=&lt;节点&gt; slurm_job=&lt;调度作业&gt; started=2026-11-20T16:43:19-08:00 runtime=&lt;nanolize 代码&gt; nanolize_commit=21d8a28e dirty=0
+python=&lt;共享盘路径&gt; nanolize=&lt;nanolize 代码&gt;/src/nanolize/__init__.py
+folder=&lt;原仓库&gt; commit=02881c887f663ee157efd508e907634876b0680c branch=main
+claude=2.1.327 (Claude Code) pip_config=/dev/null sbatch=&lt;调度器命令&gt;
+settings: claude-fable-5-2 high manifest=notes/contract-manifest-4.json
+runtime 8d82ff671e55331e python &lt;共享盘路径&gt;
+review {'review_id': '7e0a5fd12f58440a914fe83d208ed37e', 'status': 'ready', 'unattended': True, 'api_only': False}
+wait exit=0 at 2026-11-20T20:46:40-08:00
+</code></pre>
+</details>
+<details><summary>传给 start_execution_review 的参数</summary>
+<pre><code class="language-json">{
+ &quot;path&quot;: &quot;&lt;原仓库&gt;&quot;,
+ &quot;manifest_path&quot;: &quot;&lt;工作根&gt;/notes/contract-manifest-4.json&quot;,
+ &quot;state_root&quot;: &quot;&lt;工作根&gt;/state&quot;,
+ &quot;allow_execution&quot;: true,
+ &quot;public&quot;: false,
+ &quot;scope_preset&quot;: &quot;core&quot;,
+ &quot;unattended&quot;: true,
+ &quot;pair&quot;: &quot;on&quot;,
+ &quot;runner_argv&quot;: [
+  &quot;&lt;共享盘路径&gt;&quot;,
+  &quot;-P&quot;,
+  &quot;-m&quot;,
+  &quot;nanolize.runners.claude_author&quot;,
+  &quot;--settings&quot;,
+  &quot;&lt;工作根&gt;/claude-runners.json&quot;
+ ],
+ &quot;controller_policy&quot;: {
+  &quot;runner_argv&quot;: [
+   &quot;&lt;共享盘路径&gt;&quot;,
+   &quot;-P&quot;,
+   &quot;-m&quot;,
+   &quot;nanolize.runners.claude_controller&quot;,
+   &quot;--settings&quot;,
+   &quot;&lt;工作根&gt;/claude-runners.json&quot;,
+   &quot;{result_path}&quot;,
+   &quot;{schema_path}&quot;
+  ]
+ },
+ &quot;check_validation&quot;: {
+  &quot;runner_argv&quot;: [
+   &quot;&lt;共享盘路径&gt;&quot;,
+   &quot;-P&quot;,
+   &quot;-m&quot;,
+   &quot;nanolize.runners.claude_role&quot;,
+   &quot;--settings&quot;,
+   &quot;&lt;工作根&gt;/claude-runners.json&quot;,
+   &quot;{result_path}&quot;,
+   &quot;{schema_path}&quot;
+  ]
+ },
+ &quot;task_effort&quot;: {
+  &quot;enabled&quot;: false
+ },
+ &quot;check_executor&quot;: {
+  &quot;kind&quot;: &quot;auto&quot;,
+  &quot;account&quot;: &quot;&lt;账户&gt;&quot;,
+  &quot;partition&quot;: &quot;&lt;队列&gt;&quot;,
+  &quot;qos&quot;: &quot;normal&quot;,
+  &quot;queue_timeout&quot;: 1800,
+  &quot;python&quot;: &quot;&lt;共享盘路径&gt;&quot;
+ },
+ &quot;prepare_checks&quot;: [
+  {
+   &quot;name&quot;: &quot;copy-built-extension&quot;,
+   &quot;argv&quot;: [
+    &quot;/bin/sh&quot;,
+    &quot;-c&quot;,
+    &quot;mkdir -p detectron2 &amp;&amp; cp -f &lt;共享盘路径&gt; detectron2/&quot;
+   ],
+   &quot;compare&quot;: &quot;exit&quot;,
+   &quot;timeout&quot;: 300,
+   &quot;sandbox&quot;: &quot;none&quot;
+  },
+  {
+   &quot;name&quot;: &quot;link-model-zoo-configs&quot;,
+   &quot;argv&quot;: [
+    &quot;/bin/sh&quot;,
+    &quot;-c&quot;,
+    &quot;mkdir -p detectron2/model_zoo &amp;&amp; ln -sfn ../../configs detectron2/model_zoo/configs&quot;
+   ],
+   &quot;compare&quot;: &quot;exit&quot;,
+   &quot;timeout&quot;: 120
+  }
+ ],
+ &quot;installation_checks&quot;: [
+  {
+   &quot;name&quot;: &quot;share-test-dependencies&quot;,
+   &quot;argv&quot;: [
+    &quot;{python}&quot;,
+    &quot;-c&quot;,
+    &quot;import pathlib, sysconfig; pathlib.Path(sysconfig.get_paths()['purelib'], 'nanolize_test_dependencies.pth').write_text('&lt;共享盘路径&gt;' + chr(10))&quot;
+   ],
+   &quot;timeout&quot;: 120
+  },
+  {
+   &quot;name&quot;: &quot;install-package&quot;,
+   &quot;argv&quot;: [
+    &quot;{python}&quot;,
+    &quot;-m&quot;,
+    &quot;pip&quot;,
+    &quot;install&quot;,
+    &quot;--no-deps&quot;,
+    &quot;--no-build-isolation&quot;,
+    &quot;--no-index&quot;,
+    &quot;--disable-pip-version-check&quot;,
+    &quot;{repo}&quot;
+   ],
+   &quot;timeout&quot;: 2400,
+   &quot;env&quot;: {
+    &quot;PIP_CONFIG_FILE&quot;: &quot;/dev/null&quot;,
+    &quot;OMP_NUM_THREADS&quot;: &quot;1&quot;,
+    &quot;MKL_NUM_THREADS&quot;: &quot;1&quot;
+   }
+  },
+  {
+   &quot;name&quot;: &quot;installed-smoke&quot;,
+   &quot;argv&quot;: [
+    &quot;{python}&quot;,
+    &quot;-I&quot;,
+    &quot;-c&quot;,
+    &quot;import torch\nimport detectron2\nfrom detectron2 import _C, model_zoo\nfrom detectron2.engine import DefaultPredictor\nfrom detectron2.layers import nms_rotated\nfrom detectron2.modeling import build_model\nprint(\&quot;version\&quot;, detectron2.__version__)\ncfg = model_zoo.get_config(\&quot;COCO-Detection/faster_rcnn_R_50_FPN_3x.yaml\&quot;)\ncfg.MODEL.DEVICE = \&quot;cpu\&quot;\nmodel = build_model(cfg).eval()\nwith torch.no_grad():\n    out = model([{\&quot;image\&quot;: torch.zeros(3, 64, 96)}])\nassert \&quot;instances\&quot; in out[0], out\nkeep = nms_rotated(torch.tensor([[10.0, 10.0, 8.0, 4.0, 0.0], [10.0, 10.0, 8.0, 4.0, 5.0]]), torch.tensor([0.9, 0.8]), 0.5)\nassert keep.tolist() == [0], keep\nprint(\&quot;installed package works\&quot;)\n&quot;
+   ],
+   &quot;runtime&quot;: {
+    &quot;python&quot;: true,
+    &quot;modules&quot;: [
+     &quot;detectron2&quot;
+    ],
+    &quot;allowed_roots&quot;: [
+     &quot;{environment}&quot;
+    ]
+   },
+   &quot;timeout&quot;: 900,
+   &quot;env&quot;: {
+    &quot;OMP_NUM_THREADS&quot;: &quot;1&quot;,
+    &quot;MKL_NUM_THREADS&quot;: &quot;1&quot;
+   }
+  }
+ ],
+ &quot;installation_python&quot;: &quot;&lt;共享盘路径&gt;&quot;
+}
+</code></pre>
+</details>
+<h2 id="s4">4. 两个作业的事件和操作（按时间）</h2>
+<p>“事件”是作业写给人看的进度消息；“操作”是作业执行的一步（工具名、结果、用时）；“controller”是 controller 的一轮决定。主作业和草稿作业的记录合在一起按时间排。</p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>时间</th>
+<th>第几分钟</th>
+<th>作业</th>
+<th>类型</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="n">00:44:06</td>
+<td class="n">0.0</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td>Selection accepted; waiting for an execution slot.</td>
+</tr>
+<tr>
+<td class="n">00:44:06</td>
+<td class="n">0.0</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td><code>pair_started</code> This run is two jobs: this one freezes the contract and verifies, and a draft job (0adb2ea948fe41108ca0d403fdadbd73) writes the first implementation meanwhile on a second clone. This job imports it after its seal.</td>
+</tr>
+<tr>
+<td class="n">00:44:06</td>
+<td class="n">0.0</td>
+<td class="n">草稿</td>
+<td class="n">事件</td>
+<td><code>pair_started</code> The draft job of a pair: it writes the first implementation on a second clone while its main job (c7e2eea869914813acd5e29c9716ee2e) freezes the contract, and stops. It designs no test, compares nothing and delivers nothing.</td>
+</tr>
+<tr>
+<td class="n">00:44:07</td>
+<td class="n">0.0</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td>Trying the job's runners with one small call each before anything is prepared: the author's runner, the controller's runner, the test designers' runner.</td>
+</tr>
+<tr>
+<td class="n">00:44:07</td>
+<td class="n">0.0</td>
+<td class="n">草稿</td>
+<td class="n">事件</td>
+<td><code>draft_job</code> The controller is not asked (draft job); the job follows the advice from create_workspace.</td>
+</tr>
+<tr>
+<td class="n">00:44:07</td>
+<td class="n">0.0</td>
+<td class="n">草稿</td>
+<td class="n">操作</td>
+<td><code>create_workspace</code> → created（15 秒）</td>
+</tr>
+<tr>
+<td class="n">00:44:14</td>
+<td class="n">0.1</td>
+<td class="n">草稿</td>
+<td class="n">事件</td>
+<td>Creating isolated original and candidate worktrees.</td>
+</tr>
+<tr>
+<td class="n">00:44:16</td>
+<td class="n">0.2</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td>The author's runner passed its trial call (9 s).</td>
+</tr>
+<tr>
+<td class="n">00:44:22</td>
+<td class="n">0.3</td>
+<td class="n">草稿</td>
+<td class="n">操作</td>
+<td><code>prepare_environment</code> → passed（3 秒）</td>
+</tr>
+<tr>
+<td class="n">00:44:23</td>
+<td class="n">0.3</td>
+<td class="n">草稿</td>
+<td class="n">事件</td>
+<td>Running the owner's preparation recipes in the original's worktree.</td>
+</tr>
+<tr>
+<td class="n">00:44:23</td>
+<td class="n">0.3</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td>The controller's runner passed its trial call (7 s).</td>
+</tr>
+<tr>
+<td class="n">00:44:25</td>
+<td class="n">0.3</td>
+<td class="n">草稿</td>
+<td class="n">操作</td>
+<td><code>prepare_environment</code> → passed（2 秒）</td>
+</tr>
+<tr>
+<td class="n">00:44:26</td>
+<td class="n">0.3</td>
+<td class="n">草稿</td>
+<td class="n">事件</td>
+<td>Running the owner's preparation recipes in the candidate's worktree.</td>
+</tr>
+<tr>
+<td class="n">00:44:27</td>
+<td class="n">0.4</td>
+<td class="n">草稿</td>
+<td class="n">操作</td>
+<td><code>capture_baseline</code> → ready（261 秒）</td>
+</tr>
+<tr>
+<td class="n">00:44:27</td>
+<td class="n">0.4</td>
+<td class="n">草稿</td>
+<td class="n">事件</td>
+<td>Capturing the original baseline in the original's worktree, unless a saved one still observes it.</td>
+</tr>
+<tr>
+<td class="n">00:44:35</td>
+<td class="n">0.5</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td>The test designers' runner passed its trial call (11 s).</td>
+</tr>
+<tr>
+<td class="n">00:44:55</td>
+<td class="n">0.8</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td><code>batch_queued</code> The probe (an empty batch that settles where the job's checks run) waits for a compute node as scheduler job &lt;调度作业&gt;. It asked for 7 minutes, 1 CPU and 32768 MB of memory in partition &lt;队列&gt;, and may wait 1800 s in the queue.</td>
+</tr>
+<tr>
+<td class="n">00:45:02</td>
+<td class="n">0.9</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td><code>batch_started</code> Scheduler job &lt;调度作业&gt; (the probe (an empty batch that settles where the job's checks run)) was seen started on a compute node about 27 s after it was submitted.</td>
+</tr>
+<tr>
+<td class="n">00:45:07</td>
+<td class="n">1.0</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td>The job's checks run on a compute node (Slurm, partition &lt;队列&gt;). Installation checks and preparation recipes run on this machine.</td>
+</tr>
+<tr>
+<td class="n">00:45:07</td>
+<td class="n">1.0</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td><code>before_first_comparison</code> The controller is not asked (before first comparison); the job follows the advice from create_workspace.</td>
+</tr>
+<tr>
+<td class="n">00:45:07</td>
+<td class="n">1.0</td>
+<td class="n">主</td>
+<td class="n">操作</td>
+<td><code>create_workspace</code> → created（16 秒）</td>
+</tr>
+<tr>
+<td class="n">00:45:15</td>
+<td class="n">1.1</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td>Creating isolated original and candidate worktrees.</td>
+</tr>
+<tr>
+<td class="n">00:45:23</td>
+<td class="n">1.3</td>
+<td class="n">主</td>
+<td class="n">操作</td>
+<td><code>prepare_environment</code> → passed（3 秒）</td>
+</tr>
+<tr>
+<td class="n">00:45:24</td>
+<td class="n">1.3</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td>Running the owner's preparation recipes in the original's worktree.</td>
+</tr>
+<tr>
+<td class="n">00:45:25</td>
+<td class="n">1.3</td>
+<td class="n">主</td>
+<td class="n">操作</td>
+<td><code>prepare_environment</code> → passed（2 秒）</td>
+</tr>
+<tr>
+<td class="n">00:45:26</td>
+<td class="n">1.3</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td>Running the owner's preparation recipes in the candidate's worktree.</td>
+</tr>
+<tr>
+<td class="n">00:45:27</td>
+<td class="n">1.4</td>
+<td class="n">主</td>
+<td class="n">操作</td>
+<td><code>capture_baseline</code> → ready（1526 秒）</td>
+</tr>
+<tr>
+<td class="n">00:45:27</td>
+<td class="n">1.4</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td>Capturing the original baseline in the original's worktree, unless a saved one still observes it. Validating leaf tests with repeated runs and leaf knockouts.</td>
+</tr>
+<tr>
+<td class="n">00:46:01</td>
+<td class="n">1.9</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td><code>batch_queued</code> A batch of 46 checks waits for a compute node as scheduler job &lt;调度作业&gt;. It asked for 240 minutes, 4 CPUs and 32768 MB of memory in partition &lt;队列&gt;, and may wait 18000 s in the queue.</td>
+</tr>
+<tr>
+<td class="n">00:46:18</td>
+<td class="n">2.2</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td><code>batch_started</code> Scheduler job &lt;调度作业&gt; (a batch of 46 checks) was seen started on a compute node about 38 s after it was submitted.</td>
+</tr>
+<tr>
+<td class="n">00:48:52</td>
+<td class="n">4.8</td>
+<td class="n">草稿</td>
+<td class="n">操作</td>
+<td><code>seal_contract</code> → done（17 秒）</td>
+</tr>
+<tr>
+<td class="n">00:49:09</td>
+<td class="n">5.0</td>
+<td class="n">草稿</td>
+<td class="n">事件</td>
+<td><code>contract_sealed</code> The contract is sealed: 209 verifier-owned files; the verification bundle is exported.</td>
+</tr>
+<tr>
+<td class="n">00:49:09</td>
+<td class="n">5.1</td>
+<td class="n">草稿</td>
+<td class="n">操作</td>
+<td><code>run_agent</code> → completed（1562 秒）</td>
+</tr>
+<tr>
+<td class="n">00:49:11</td>
+<td class="n">5.1</td>
+<td class="n">草稿</td>
+<td class="n">事件</td>
+<td>The configured agent is writing its own implementation of the selected graph.</td>
+</tr>
+<tr>
+<td class="n">01:10:53</td>
+<td class="n">26.8</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td><code>checks_not_reproduced_in_export</code> 7 of 46 retained checks pass on the original but not in a pristine export of its commit (what such a check needs beyond the committed files is missing there, or no export could be made): no knockout of them was tried, so they are a valid test of no leaf. The baseline record names each under validity.issues (check_not_reproduced_in_export), with the last line it printed.</td>
+</tr>
+<tr>
+<td class="n">01:10:53</td>
+<td class="n">26.8</td>
+<td class="n">主</td>
+<td class="n">操作</td>
+<td><code>design_leaf_tests</code> → done（4195 秒）</td>
+</tr>
+<tr>
+<td class="n">01:10:54</td>
+<td class="n">26.8</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td>Designing tests for 4 selected leaves without a valid test. 10 original tests that could not stay as written are given to the designers of 6 leaves to migrate.</td>
+</tr>
+<tr>
+<td class="n">01:15:11</td>
+<td class="n">31.1</td>
+<td class="n">草稿</td>
+<td class="n">操作</td>
+<td><code>save_candidate</code> → done（12 秒）</td>
+</tr>
+<tr>
+<td class="n">01:15:24</td>
+<td class="n">31.3</td>
+<td class="n">草稿</td>
+<td class="n">事件</td>
+<td><code>candidate_saved</code> The drafts are saved as candidate-1.</td>
+</tr>
+<tr>
+<td class="n">01:15:24</td>
+<td class="n">31.3</td>
+<td class="n">草稿</td>
+<td class="n">操作</td>
+<td><code>run_agent</code> → completed（1202 秒），候选 candidate-1</td>
+</tr>
+<tr>
+<td class="n">01:15:25</td>
+<td class="n">31.3</td>
+<td class="n">草稿</td>
+<td class="n">事件</td>
+<td>The configured agent is writing its own implementation of the selected graph.</td>
+</tr>
+<tr>
+<td class="n">01:35:26</td>
+<td class="n">51.3</td>
+<td class="n">草稿</td>
+<td class="n">操作</td>
+<td><code>save_candidate</code> → done（10 秒），候选 candidate-1</td>
+</tr>
+<tr>
+<td class="n">01:35:36</td>
+<td class="n">51.5</td>
+<td class="n">草稿</td>
+<td class="n">事件</td>
+<td><code>candidate_saved</code> The drafts are saved as candidate-2.</td>
+</tr>
+<tr>
+<td class="n">01:35:36</td>
+<td class="n">51.5</td>
+<td class="n">草稿</td>
+<td class="n">操作</td>
+<td><code>run_agent</code> → completed（1605 秒），候选 candidate-2</td>
+</tr>
+<tr>
+<td class="n">01:35:37</td>
+<td class="n">51.5</td>
+<td class="n">草稿</td>
+<td class="n">事件</td>
+<td>The configured agent is writing its own implementation of the selected graph.</td>
+</tr>
+<tr>
+<td class="n">02:02:21</td>
+<td class="n">78.2</td>
+<td class="n">草稿</td>
+<td class="n">操作</td>
+<td><code>save_candidate</code> → done（11 秒），候选 candidate-2</td>
+</tr>
+<tr>
+<td class="n">02:02:32</td>
+<td class="n">78.4</td>
+<td class="n">草稿</td>
+<td class="n">事件</td>
+<td><code>candidate_saved</code> The drafts are saved as candidate-3.</td>
+</tr>
+<tr>
+<td class="n">02:02:32</td>
+<td class="n">78.4</td>
+<td class="n">草稿</td>
+<td class="n">操作</td>
+<td><code>run_agent</code> → completed（2505 秒），候选 candidate-3</td>
+</tr>
+<tr>
+<td class="n">02:02:33</td>
+<td class="n">78.4</td>
+<td class="n">草稿</td>
+<td class="n">事件</td>
+<td>The configured agent is writing its own implementation of the selected graph.</td>
+</tr>
+<tr>
+<td class="n">02:20:41</td>
+<td class="n">96.6</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td>Accepted 37 designed tests for 9 leaves; 8 proposals rejected. Accepted 13 scenario files with 412 cases for 9 leaves; 1 scenario files rejected. What each case shows on the original is what a candidate must show. Of 10 original tests to migrate, 8 are migrated, 0 left out with a reason and 2 stay unverified; of those, 2 could not be checked where a designer runs. 5 of the refused files, holding 98 tests and scenario functions, were not given back to a designer: nothing checks what they checked.</td>
+</tr>
+<tr>
+<td class="n">02:20:47</td>
+<td class="n">96.7</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td><code>designed_tests_baseline</code> Committed 50 designed files on the original. The original baseline is captured again with them by the job's next step: 96 checks, validating leaf tests with repeated runs and leaf knockouts.</td>
+</tr>
+<tr>
+<td class="n">02:20:48</td>
+<td class="n">96.7</td>
+<td class="n">主</td>
+<td class="n">操作</td>
+<td><code>capture_baseline</code> → ready（2365 秒）</td>
+</tr>
+<tr>
+<td class="n">02:20:48</td>
+<td class="n">96.7</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td>Capturing the original baseline in the original's worktree, unless a saved one still observes it. Validating leaf tests with repeated runs and leaf knockouts.</td>
+</tr>
+<tr>
+<td class="n">02:21:33</td>
+<td class="n">97.4</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td><code>batch_queued</code> A batch of 96 checks waits for a compute node as scheduler job &lt;调度作业&gt;. It asked for 240 minutes, 4 CPUs and 32768 MB of memory in partition &lt;队列&gt;, and may wait 18000 s in the queue.</td>
+</tr>
+<tr>
+<td class="n">02:21:45</td>
+<td class="n">97.6</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td><code>batch_started</code> Scheduler job &lt;调度作业&gt; (a batch of 96 checks) was seen started on a compute node about 31 s after it was submitted.</td>
+</tr>
+<tr>
+<td class="n">02:44:17</td>
+<td class="n">120.2</td>
+<td class="n">草稿</td>
+<td class="n">操作</td>
+<td><code>save_candidate</code> → done（14 秒），候选 candidate-3</td>
+</tr>
+<tr>
+<td class="n">02:44:31</td>
+<td class="n">120.4</td>
+<td class="n">草稿</td>
+<td class="n">事件</td>
+<td><code>candidate_saved</code> The drafts are saved as candidate-4.</td>
+</tr>
+<tr>
+<td class="n">02:44:31</td>
+<td class="n">120.4</td>
+<td class="n">草稿</td>
+<td class="n">操作</td>
+<td><code>run_agent</code> → completed（983 秒），候选 candidate-4</td>
+</tr>
+<tr>
+<td class="n">02:44:33</td>
+<td class="n">120.4</td>
+<td class="n">草稿</td>
+<td class="n">事件</td>
+<td>The configured agent is writing its own implementation of the selected graph.</td>
+</tr>
+<tr>
+<td class="n">03:00:13</td>
+<td class="n">136.1</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td><code>checks_not_reproduced_in_export</code> 7 of 96 retained checks pass on the original but not in a pristine export of its commit (what such a check needs beyond the committed files is missing there, or no export could be made): no knockout of them was tried, so they are a valid test of no leaf. The baseline record names each under validity.issues (check_not_reproduced_in_export), with the last line it printed.</td>
+</tr>
+<tr>
+<td class="n">03:00:13</td>
+<td class="n">136.1</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td><code>designed_tests_baseline</code> The original baseline with the designed tests is captured (ready): 0 selected leaves are still without a valid test.</td>
+</tr>
+<tr>
+<td class="n">03:00:20</td>
+<td class="n">136.2</td>
+<td class="n">主</td>
+<td class="n">操作</td>
+<td><code>seal_contract</code> → done（22 秒）</td>
+</tr>
+<tr>
+<td class="n">03:00:42</td>
+<td class="n">136.6</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td><code>contract_sealed</code> The contract is sealed: 259 verifier-owned files; the verification bundle is exported.</td>
+</tr>
+<tr>
+<td class="n">03:00:42</td>
+<td class="n">136.6</td>
+<td class="n">主</td>
+<td class="n">操作</td>
+<td><code>import_draft</code> → imported（56 秒）</td>
+</tr>
+<tr>
+<td class="n">03:00:42</td>
+<td class="n">136.6</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td><code>draft_awaited</code> The contract is sealed. Waiting for the draft job (0adb2ea948fe41108ca0d403fdadbd73) to finish the first implementation.</td>
+</tr>
+<tr>
+<td class="n">03:00:54</td>
+<td class="n">136.8</td>
+<td class="n">草稿</td>
+<td class="n">操作</td>
+<td><code>save_candidate</code> → done（11 秒），候选 candidate-4</td>
+</tr>
+<tr>
+<td class="n">03:01:05</td>
+<td class="n">137.0</td>
+<td class="n">草稿</td>
+<td class="n">事件</td>
+<td><code>candidate_saved</code> The drafts are saved as candidate-5.</td>
+</tr>
+<tr>
+<td class="n">03:01:05</td>
+<td class="n">137.0</td>
+<td class="n">草稿</td>
+<td class="n">操作</td>
+<td><code>finish_draft</code> → ready（9 秒），候选 candidate-5</td>
+</tr>
+<tr>
+<td class="n">03:01:14</td>
+<td class="n">137.1</td>
+<td class="n">草稿</td>
+<td class="n">事件</td>
+<td>The first implementation is written and saved (candidate-5, 83 files in 5 scopes). This draft job ends here: its main job imports the candidate, verifies it and delivers.</td>
+</tr>
+<tr>
+<td class="n">03:01:16</td>
+<td class="n">137.2</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td>Importing the draft job's first implementation (83 files), without invoking an author.</td>
+</tr>
+<tr>
+<td class="n">03:01:30</td>
+<td class="n">137.4</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td><code>draft_imported</code> The draft job's first implementation is this job's candidate-1 (83 files, 0 left out where the verifier provides its own). It is compared next.</td>
+</tr>
+<tr>
+<td class="n">03:01:46</td>
+<td class="n">137.7</td>
+<td class="n">主</td>
+<td class="n">操作</td>
+<td><code>compare_behavior</code> → regressed（407 秒），候选 candidate-1</td>
+</tr>
+<tr>
+<td class="n">03:01:46</td>
+<td class="n">137.7</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td>Comparing this candidate with the original frozen checks and source budget.</td>
+</tr>
+<tr>
+<td class="n">03:08:33</td>
+<td class="n">144.4</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td><code>comparison_regressed</code> The full comparison of candidate-1 found 27 failed checks, in backbone-resnet-fpn, checkpoint, config-lazy, config-yacs, data-catalog and others (regressed).</td>
+</tr>
+<tr>
+<td class="n">03:08:34</td>
+<td class="n">144.5</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td>Controller round 1: choosing the next tool calls.</td>
+</tr>
+<tr>
+<td class="n">03:09:50</td>
+<td class="n">145.7</td>
+<td class="n">主</td>
+<td>controller</td>
+<td>第 1 轮（applied，75 秒，4 个调用：<code>prepare_environment</code>、<code>capture_baseline</code>、<code>compare_behavior</code>、<code>check_installation</code>）：The candidate's worktree was prepared at 00:45, before the draft was imported at 03:00, so the owner's recipes ran before any candidate file existed. Most of the 27 failures fit an unprepared tree rather than wrong code: the rotated operators are missing from the library (AttributeError in nms_rotated, roi_align_rotated and pairwise_iou_rotated), develop.py raises its placeholder ImportError, and model_zoo raises RuntimeError at one line across ten checks. That is a hypothesis, not confirmed. Preparing the candidate again, reusing the baseline and comparing in full tests it without spending an author attempt; check_installation adds the missing installation evidence. I will write the repair call from what still fails.</td>
+</tr>
+<tr>
+<td class="n">03:09:50</td>
+<td class="n">145.7</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td><code>applied</code> Controller round 1: prepare_environment, capture_baseline, compare_behavior, check_installation.</td>
+</tr>
+<tr>
+<td class="n">03:09:50</td>
+<td class="n">145.7</td>
+<td class="n">主</td>
+<td class="n">操作</td>
+<td><code>prepare_environment</code> → passed（1 秒），候选 candidate-1，第 1 轮的第 1 个调用</td>
+</tr>
+<tr>
+<td class="n">03:09:50</td>
+<td class="n">145.7</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td>Running the owner's preparation recipes in the candidate's worktree.</td>
+</tr>
+<tr>
+<td class="n">03:09:51</td>
+<td class="n">145.7</td>
+<td class="n">主</td>
+<td class="n">操作</td>
+<td><code>capture_baseline</code> → ready（7 秒），候选 candidate-1，第 1 轮的第 2 个调用</td>
+</tr>
+<tr>
+<td class="n">03:09:51</td>
+<td class="n">145.7</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td>Capturing the original baseline in the original's worktree, unless a saved one still observes it. Validating leaf tests with repeated runs and leaf knockouts.</td>
+</tr>
+<tr>
+<td class="n">03:09:57</td>
+<td class="n">145.9</td>
+<td class="n">主</td>
+<td class="n">操作</td>
+<td><code>compare_behavior</code> → regressed（423 秒），候选 candidate-1，第 1 轮的第 3 个调用</td>
+</tr>
+<tr>
+<td class="n">03:09:57</td>
+<td class="n">145.9</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td>Comparing this candidate with the original frozen checks and source budget.</td>
+</tr>
+<tr>
+<td class="n">03:17:00</td>
+<td class="n">152.9</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td><code>comparison_regressed</code> The full comparison of candidate-1 found 11 failed checks, in data-catalog, data-transforms, detection-utils, layers, model-zoo and others (regressed).</td>
+</tr>
+<tr>
+<td class="n">03:17:00</td>
+<td class="n">152.9</td>
+<td class="n">主</td>
+<td class="n">操作</td>
+<td><code>check_installation</code> → passed（88 秒），候选 candidate-1，第 1 轮的第 4 个调用</td>
+</tr>
+<tr>
+<td class="n">03:17:01</td>
+<td class="n">152.9</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td>Building and checking this candidate in a fresh isolated Python environment.</td>
+</tr>
+<tr>
+<td class="n">03:18:29</td>
+<td class="n">154.4</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td><code>installation_passed</code> The installation check of candidate-1 ended passed: 3 of 3 steps passed.</td>
+</tr>
+<tr>
+<td class="n">03:18:30</td>
+<td class="n">154.4</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td>Controller round 2: choosing the next tool calls.</td>
+</tr>
+<tr>
+<td class="n">03:20:30</td>
+<td class="n">156.4</td>
+<td class="n">主</td>
+<td>controller</td>
+<td>第 2 轮（applied，120 秒，9 个调用：<code>run_agent</code>、<code>save_candidate</code>、<code>prepare_environment</code>、<code>capture_baseline</code>、<code>compare_behavior</code>、<code>compare_behavior</code>、<code>check_installation</code>、<code>select_candidate</code>、<code>deliver</code>）：Preparing the candidate after the import cleared 16 of the 27 failed checks without an author call, and the installation checks pass 3/3. The 11 that remain have four separate causes by their evidence (catalog.py:74 AttributeError, setup.py assertions, a missing layers member, model_zoo RuntimeError at line 114 for names only the leaf tests use), so one repair call names all 11 issues, since their feedback is bound to this candidate. The save is followed by preparing the candidate again (the repair may touch setup.py and what the recipes build or link), the reused baseline, a screen of the 11 checks, the full comparison, installation, then selection and a best_reachable delivery, each only when the step before succeeded.</td>
+</tr>
+<tr>
+<td class="n">03:20:30</td>
+<td class="n">156.4</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td><code>applied</code> Controller round 2: run_agent, save_candidate, prepare_environment, capture_baseline, compare_behavior, compare_behavior and 3 more.</td>
+</tr>
+<tr>
+<td class="n">03:20:30</td>
+<td class="n">156.4</td>
+<td class="n">主</td>
+<td class="n">操作</td>
+<td><code>run_agent</code> → completed（2152 秒），候选 candidate-1，第 2 轮的第 1 个调用</td>
+</tr>
+<tr>
+<td class="n">03:20:32</td>
+<td class="n">156.4</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td>The configured agent is repairing its implementation of the selected graph.</td>
+</tr>
+<tr>
+<td class="n">03:56:21</td>
+<td class="n">192.3</td>
+<td class="n">主</td>
+<td class="n">操作</td>
+<td><code>save_candidate</code> → done（20 秒），候选 candidate-1，第 2 轮的第 2 个调用</td>
+</tr>
+<tr>
+<td class="n">03:56:41</td>
+<td class="n">192.6</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td><code>candidate_saved</code> The drafts are saved as candidate-2.</td>
+</tr>
+<tr>
+<td class="n">03:56:42</td>
+<td class="n">192.6</td>
+<td class="n">主</td>
+<td class="n">操作</td>
+<td><code>prepare_environment</code> → passed（2 秒），候选 candidate-2，第 2 轮的第 3 个调用</td>
+</tr>
+<tr>
+<td class="n">03:56:42</td>
+<td class="n">192.6</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td>Running the owner's preparation recipes in the candidate's worktree.</td>
+</tr>
+<tr>
+<td class="n">03:56:44</td>
+<td class="n">192.6</td>
+<td class="n">主</td>
+<td class="n">操作</td>
+<td><code>capture_baseline</code> → ready（8 秒），候选 candidate-2，第 2 轮的第 4 个调用</td>
+</tr>
+<tr>
+<td class="n">03:56:44</td>
+<td class="n">192.6</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td>Capturing the original baseline in the original's worktree, unless a saved one still observes it. Validating leaf tests with repeated runs and leaf knockouts.</td>
+</tr>
+<tr>
+<td class="n">03:56:52</td>
+<td class="n">192.8</td>
+<td class="n">主</td>
+<td class="n">操作</td>
+<td><code>compare_behavior</code> → regressed（123 秒），候选 candidate-2，第 2 轮的第 5 个调用</td>
+</tr>
+<tr>
+<td class="n">03:56:52</td>
+<td class="n">192.8</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td>Comparing this candidate with the original frozen checks and source budget.</td>
+</tr>
+<tr>
+<td class="n">03:58:56</td>
+<td class="n">194.8</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td><code>comparison_regressed</code> The targeted comparison of candidate-2 found 3 failed checks, in layers, model-zoo; 85 checks were not run (regressed).</td>
+</tr>
+<tr>
+<td class="n">03:58:56</td>
+<td class="n">194.8</td>
+<td class="n">主</td>
+<td class="n">操作</td>
+<td><code>compare_behavior</code> → not_triggered（没有执行），第 2 轮的第 6 个调用：Its condition was not met: call 5 ended regressed, and it runs only after unverified</td>
+</tr>
+<tr>
+<td class="n">03:58:56</td>
+<td class="n">194.8</td>
+<td class="n">主</td>
+<td class="n">操作</td>
+<td><code>check_installation</code> → not_triggered（没有执行），第 2 轮的第 7 个调用：Its condition was not met: call 6 ended not_triggered, and it runs only after checks_passed</td>
+</tr>
+<tr>
+<td class="n">03:58:56</td>
+<td class="n">194.8</td>
+<td class="n">主</td>
+<td class="n">操作</td>
+<td><code>select_candidate</code> → not_triggered（没有执行），第 2 轮的第 8 个调用：Its condition was not met: call 7 ended not_triggered, and it runs only after passed</td>
+</tr>
+<tr>
+<td class="n">03:58:56</td>
+<td class="n">194.8</td>
+<td class="n">主</td>
+<td class="n">操作</td>
+<td><code>deliver</code> → not_triggered（没有执行），第 2 轮的第 9 个调用：Its condition was not met: call 8 ended not_triggered, and it runs only after selected or done</td>
+</tr>
+<tr>
+<td class="n">03:58:57</td>
+<td class="n">194.8</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td>Controller round 3: choosing the next tool calls.</td>
+</tr>
+<tr>
+<td class="n">03:59:55</td>
+<td class="n">195.8</td>
+<td class="n">主</td>
+<td>controller</td>
+<td>第 3 轮（applied，58 秒，2 个调用：<code>compare_behavior</code>、<code>check_installation</code>）：Repair 1 cleared 8 of the 11 failed checks; check-101, check-110 and check-111 still fail, and check-110 now fails differently (ImportError at utils/registry.py:32 in locate instead of the model_zoo RuntimeError). That repair added 49 files and modified 8, and the 85 other checks have not been compared on candidate-2, nor has installation been checked since setup.py was repaired. A full comparison (about 7 minutes) and the installation check (about 90 seconds) cost no author attempt. They show whether the repair regressed anything before I write the second repair call, whose feedback is bound to this candidate, so it can name every failure at once instead of only the three the screen saw.</td>
+</tr>
+<tr>
+<td class="n">03:59:55</td>
+<td class="n">195.8</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td><code>applied</code> Controller round 3: compare_behavior, check_installation.</td>
+</tr>
+<tr>
+<td class="n">03:59:55</td>
+<td class="n">195.8</td>
+<td class="n">主</td>
+<td class="n">操作</td>
+<td><code>compare_behavior</code> → regressed（517 秒），候选 candidate-2，第 3 轮的第 1 个调用</td>
+</tr>
+<tr>
+<td class="n">03:59:55</td>
+<td class="n">195.8</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td>Comparing this candidate with the original frozen checks and source budget.</td>
+</tr>
+<tr>
+<td class="n">04:08:32</td>
+<td class="n">204.4</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td><code>comparison_regressed</code> The full comparison of candidate-2 found 3 failed checks, in layers, model-zoo (regressed).</td>
+</tr>
+<tr>
+<td class="n">04:08:33</td>
+<td class="n">204.4</td>
+<td class="n">主</td>
+<td class="n">操作</td>
+<td><code>check_installation</code> → passed（90 秒），候选 candidate-2，第 3 轮的第 2 个调用</td>
+</tr>
+<tr>
+<td class="n">04:08:33</td>
+<td class="n">204.4</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td>Building and checking this candidate in a fresh isolated Python environment.</td>
+</tr>
+<tr>
+<td class="n">04:10:02</td>
+<td class="n">205.9</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td><code>installation_passed</code> The installation check of candidate-2 ended passed: 3 of 3 steps passed.</td>
+</tr>
+<tr>
+<td class="n">04:10:04</td>
+<td class="n">206.0</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td>Controller round 4: choosing the next tool calls.</td>
+</tr>
+<tr>
+<td class="n">04:11:49</td>
+<td class="n">207.7</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td><code>answer_correction</code> Controller round 4: the answer was refused before any call ran; asking once for a corrected one.</td>
+</tr>
+<tr>
+<td class="n">04:12:36</td>
+<td class="n">208.5</td>
+<td class="n">主</td>
+<td>controller</td>
+<td>第 4 轮（applied，151 秒，9 个调用：<code>run_agent</code>、<code>save_candidate</code>、<code>prepare_environment</code>、<code>capture_baseline</code>、<code>compare_behavior</code>、<code>compare_behavior</code>、<code>check_installation</code>、<code>select_candidate</code>、<code>deliver</code>）：The full comparison of candidate-2 shows exactly three failed checks (check-101 layers, check-110 and check-111 model-zoo), no regression among the other 91, and installation passes 3/3. All three failed on both candidates, so one repair call names the three issues with their confirmed evidence (AttributeError in the check's own code; ImportError at utils/registry.py:32 in locate, which replaced the earlier model_zoo RuntimeError; four baseline cases not passing) and leaves the diagnosis to the author, with my hypotheses marked as such. The save is followed by preparing the candidate again, the reused baseline, a screen of the three checks, the full comparison, installation, selection and a best_reachable delivery, each only when the step before succeeded.</td>
+</tr>
+<tr>
+<td class="n">04:12:36</td>
+<td class="n">208.5</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td><code>applied</code> Controller round 4: run_agent, save_candidate, prepare_environment, capture_baseline, compare_behavior, compare_behavior and 3 more.</td>
+</tr>
+<tr>
+<td class="n">04:12:36</td>
+<td class="n">208.5</td>
+<td class="n">主</td>
+<td class="n">操作</td>
+<td><code>run_agent</code> → completed（1229 秒），候选 candidate-2，第 4 轮的第 1 个调用</td>
+</tr>
+<tr>
+<td class="n">04:12:38</td>
+<td class="n">208.5</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td>The configured agent is repairing its implementation of the selected graph.</td>
+</tr>
+<tr>
+<td class="n">04:33:05</td>
+<td class="n">229.0</td>
+<td class="n">主</td>
+<td class="n">操作</td>
+<td><code>save_candidate</code> → done（26 秒），候选 candidate-2，第 4 轮的第 2 个调用</td>
+</tr>
+<tr>
+<td class="n">04:33:31</td>
+<td class="n">229.4</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td><code>candidate_saved</code> The drafts are saved as candidate-3.</td>
+</tr>
+<tr>
+<td class="n">04:33:31</td>
+<td class="n">229.4</td>
+<td class="n">主</td>
+<td class="n">操作</td>
+<td><code>prepare_environment</code> → passed（2 秒），候选 candidate-3，第 4 轮的第 3 个调用</td>
+</tr>
+<tr>
+<td class="n">04:33:31</td>
+<td class="n">229.4</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td>Running the owner's preparation recipes in the candidate's worktree.</td>
+</tr>
+<tr>
+<td class="n">04:33:33</td>
+<td class="n">229.5</td>
+<td class="n">主</td>
+<td class="n">操作</td>
+<td><code>capture_baseline</code> → ready（8 秒），候选 candidate-3，第 4 轮的第 4 个调用</td>
+</tr>
+<tr>
+<td class="n">04:33:33</td>
+<td class="n">229.5</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td>Capturing the original baseline in the original's worktree, unless a saved one still observes it. Validating leaf tests with repeated runs and leaf knockouts.</td>
+</tr>
+<tr>
+<td class="n">04:33:42</td>
+<td class="n">229.6</td>
+<td class="n">主</td>
+<td class="n">操作</td>
+<td><code>compare_behavior</code> → unverified（71 秒），候选 candidate-3，第 4 轮的第 5 个调用</td>
+</tr>
+<tr>
+<td class="n">04:33:42</td>
+<td class="n">229.6</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td>Comparing this candidate with the original frozen checks and source budget.</td>
+</tr>
+<tr>
+<td class="n">04:34:53</td>
+<td class="n">230.8</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td><code>comparison_unverified</code> The targeted comparison of candidate-3 found no failed check; 93 checks were not run (unverified).</td>
+</tr>
+<tr>
+<td class="n">04:34:53</td>
+<td class="n">230.8</td>
+<td class="n">主</td>
+<td class="n">操作</td>
+<td><code>compare_behavior</code> → checks_passed（443 秒），候选 candidate-3，第 4 轮的第 6 个调用</td>
+</tr>
+<tr>
+<td class="n">04:34:53</td>
+<td class="n">230.8</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td>Comparing this candidate with the original frozen checks and source budget.</td>
+</tr>
+<tr>
+<td class="n">04:42:16</td>
+<td class="n">238.2</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td><code>comparison_checks_passed</code> The full comparison of candidate-3 found no failed check (checks_passed).</td>
+</tr>
+<tr>
+<td class="n">04:42:17</td>
+<td class="n">238.2</td>
+<td class="n">主</td>
+<td class="n">操作</td>
+<td><code>check_installation</code> → passed（91 秒），候选 candidate-3，第 4 轮的第 7 个调用</td>
+</tr>
+<tr>
+<td class="n">04:42:17</td>
+<td class="n">238.2</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td>Building and checking this candidate in a fresh isolated Python environment.</td>
+</tr>
+<tr>
+<td class="n">04:43:48</td>
+<td class="n">239.7</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td><code>installation_passed</code> The installation check of candidate-3 ended passed: 3 of 3 steps passed.</td>
+</tr>
+<tr>
+<td class="n">04:43:49</td>
+<td class="n">239.7</td>
+<td class="n">主</td>
+<td class="n">操作</td>
+<td><code>select_candidate</code> → selected（10 秒），候选 candidate-3，第 4 轮的第 8 个调用</td>
+</tr>
+<tr>
+<td class="n">04:44:00</td>
+<td class="n">239.9</td>
+<td class="n">主</td>
+<td class="n">操作</td>
+<td><code>deliver</code> → completed_with_gaps（156 秒），候选 candidate-3，第 4 轮的第 9 个调用</td>
+</tr>
+<tr>
+<td class="n">04:44:14</td>
+<td class="n">240.1</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td>Replaying the original tests that the conversion left out of acceptance on the delivered code. The result is reported; it changes no status.</td>
+</tr>
+<tr>
+<td class="n">04:46:35</td>
+<td class="n">242.5</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td>Delivered with gaps (original checks not verified: 2 test functions of 8 original checks left acceptance at conversion, 0 of them use only the public interface); no full preservation claim is made.</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="s5">5. 模型会话（每次调用）</h2>
+<p>“位置”是这次调用在作业目录里的位置：<code>design/round-N/&lt;叶子&gt;</code> 是第 N 轮的测试设计者，<code>design/review…</code> 是评审者，<code>authoring</code> 是作者，<code>controller/NNNN</code> 是 controller 的第 N 轮。</p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>开始</th>
+<th>结束</th>
+<th>第几分钟</th>
+<th>作业</th>
+<th>角色</th>
+<th>位置</th>
+<th>秒</th>
+<th>轮数</th>
+<th>美元</th>
+<th>输入 token（含缓存）</th>
+<th>输出 token</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="n">00:44:08</td>
+<td class="n">00:44:16</td>
+<td class="n">0.0</td>
+<td class="n">–</td>
+<td class="n">试调：作者</td>
+<td class="n">试调用的临时目录</td>
+<td class="n">8</td>
+<td class="n">2</td>
+<td class="n">0.03</td>
+<td class="n">14,190</td>
+<td class="n">151</td>
+</tr>
+<tr>
+<td class="n">00:44:16</td>
+<td class="n">00:44:23</td>
+<td class="n">0.2</td>
+<td class="n">–</td>
+<td>试调：controller</td>
+<td class="n">试调用的临时目录</td>
+<td class="n">7</td>
+<td class="n">1</td>
+<td class="n">0.03</td>
+<td class="n">6,601</td>
+<td class="n">270</td>
+</tr>
+<tr>
+<td class="n">00:44:24</td>
+<td class="n">00:44:35</td>
+<td class="n">0.3</td>
+<td class="n">–</td>
+<td class="n">试调：测试设计者</td>
+<td class="n">试调用的临时目录</td>
+<td class="n">11</td>
+<td class="n">2</td>
+<td class="n">0.09</td>
+<td class="n">13,971</td>
+<td class="n">410</td>
+</tr>
+<tr>
+<td class="n">00:49:12</td>
+<td class="n">01:14:58</td>
+<td class="n">5.1</td>
+<td class="n">草稿</td>
+<td class="n">作者</td>
+<td class="n">authoring</td>
+<td class="n">1546</td>
+<td class="n">63</td>
+<td class="n">14.46</td>
+<td>11,194,294</td>
+<td class="n">157,288</td>
+</tr>
+<tr>
+<td class="n">01:11:06</td>
+<td class="n">01:23:14</td>
+<td class="n">27.0</td>
+<td class="n">主</td>
+<td class="n">测试设计者</td>
+<td>design/round-1/layers</td>
+<td class="n">728</td>
+<td class="n">21</td>
+<td class="n">6.04</td>
+<td class="n">1,657,903</td>
+<td class="n">72,993</td>
+</tr>
+<tr>
+<td class="n">01:11:11</td>
+<td class="n">01:19:22</td>
+<td class="n">27.1</td>
+<td class="n">主</td>
+<td class="n">测试设计者</td>
+<td>design/round-1/data_catalog_4b9d42d1</td>
+<td class="n">491</td>
+<td class="n">15</td>
+<td class="n">3.10</td>
+<td class="n">670,600</td>
+<td class="n">39,923</td>
+</tr>
+<tr>
+<td class="n">01:11:12</td>
+<td class="n">01:19:42</td>
+<td class="n">27.1</td>
+<td class="n">主</td>
+<td class="n">测试设计者</td>
+<td>design/round-1/runtime_utils_6c9046d5</td>
+<td class="n">510</td>
+<td class="n">19</td>
+<td class="n">3.94</td>
+<td class="n">1,092,338</td>
+<td class="n">46,879</td>
+</tr>
+<tr>
+<td class="n">01:11:12</td>
+<td class="n">01:19:23</td>
+<td class="n">27.1</td>
+<td class="n">主</td>
+<td class="n">测试设计者</td>
+<td>design/round-1/packaging</td>
+<td class="n">490</td>
+<td class="n">12</td>
+<td class="n">3.42</td>
+<td class="n">567,123</td>
+<td class="n">44,873</td>
+</tr>
+<tr>
+<td class="n">01:11:13</td>
+<td class="n">01:23:13</td>
+<td class="n">27.1</td>
+<td class="n">主</td>
+<td class="n">测试设计者</td>
+<td>design/round-1/data_transforms_8967f4a5</td>
+<td class="n">720</td>
+<td class="n">25</td>
+<td class="n">6.33</td>
+<td class="n">2,253,314</td>
+<td class="n">68,949</td>
+</tr>
+<tr>
+<td class="n">01:11:14</td>
+<td class="n">01:19:00</td>
+<td class="n">27.1</td>
+<td class="n">主</td>
+<td class="n">测试设计者</td>
+<td>design/round-1/predictor</td>
+<td class="n">466</td>
+<td class="n">19</td>
+<td class="n">3.14</td>
+<td class="n">758,432</td>
+<td class="n">38,903</td>
+</tr>
+<tr>
+<td class="n">01:11:15</td>
+<td class="n">01:23:43</td>
+<td class="n">27.2</td>
+<td class="n">主</td>
+<td class="n">测试设计者</td>
+<td>design/round-1/generalized_rcnn_71859e83</td>
+<td class="n">748</td>
+<td class="n">22</td>
+<td class="n">5.54</td>
+<td class="n">1,566,193</td>
+<td class="n">69,165</td>
+</tr>
+<tr>
+<td class="n">01:11:16</td>
+<td class="n">01:19:46</td>
+<td class="n">27.2</td>
+<td class="n">主</td>
+<td class="n">测试设计者</td>
+<td>design/round-1/export_torchscript_ceee9d66</td>
+<td class="n">511</td>
+<td class="n">19</td>
+<td class="n">4.01</td>
+<td class="n">1,126,946</td>
+<td class="n">47,031</td>
+</tr>
+<tr>
+<td class="n">01:11:20</td>
+<td class="n">01:20:43</td>
+<td class="n">27.2</td>
+<td class="n">主</td>
+<td class="n">测试设计者</td>
+<td>design/round-1/model_zoo_b9ca42f9</td>
+<td class="n">563</td>
+<td class="n">17</td>
+<td class="n">3.86</td>
+<td class="n">931,363</td>
+<td class="n">47,195</td>
+</tr>
+<tr>
+<td class="n">01:15:26</td>
+<td class="n">01:35:16</td>
+<td class="n">31.3</td>
+<td class="n">草稿</td>
+<td class="n">作者</td>
+<td class="n">authoring</td>
+<td class="n">1190</td>
+<td class="n">55</td>
+<td class="n">11.37</td>
+<td class="n">8,673,598</td>
+<td class="n">114,825</td>
+</tr>
+<tr>
+<td class="n">01:35:38</td>
+<td class="n">02:02:11</td>
+<td class="n">51.5</td>
+<td class="n">草稿</td>
+<td class="n">作者</td>
+<td class="n">authoring</td>
+<td class="n">1593</td>
+<td class="n">61</td>
+<td class="n">15.15</td>
+<td>11,244,136</td>
+<td class="n">157,607</td>
+</tr>
+<tr>
+<td class="n">01:42:08</td>
+<td class="n">01:43:31</td>
+<td class="n">58.0</td>
+<td class="n">主</td>
+<td class="n">测试评审者</td>
+<td>design/review/7</td>
+<td class="n">83</td>
+<td class="n">6</td>
+<td class="n">0.82</td>
+<td class="n">104,333</td>
+<td class="n">8,281</td>
+</tr>
+<tr>
+<td class="n">01:42:09</td>
+<td class="n">01:45:23</td>
+<td class="n">58.0</td>
+<td class="n">主</td>
+<td class="n">测试评审者</td>
+<td>design/review/1</td>
+<td class="n">194</td>
+<td class="n">16</td>
+<td class="n">2.54</td>
+<td class="n">652,713</td>
+<td class="n">17,207</td>
+</tr>
+<tr>
+<td class="n">01:42:10</td>
+<td class="n">01:49:44</td>
+<td class="n">58.1</td>
+<td class="n">主</td>
+<td class="n">测试评审者</td>
+<td>design/review/2</td>
+<td class="n">454</td>
+<td class="n">17</td>
+<td class="n">3.78</td>
+<td class="n">747,163</td>
+<td class="n">39,866</td>
+</tr>
+<tr>
+<td class="n">01:42:11</td>
+<td class="n">01:46:08</td>
+<td class="n">58.1</td>
+<td class="n">主</td>
+<td class="n">测试评审者</td>
+<td>design/review/5</td>
+<td class="n">237</td>
+<td class="n">18</td>
+<td class="n">2.91</td>
+<td class="n">875,789</td>
+<td class="n">21,544</td>
+</tr>
+<tr>
+<td class="n">01:42:11</td>
+<td class="n">01:44:41</td>
+<td class="n">58.1</td>
+<td class="n">主</td>
+<td class="n">测试评审者</td>
+<td>design/review/3</td>
+<td class="n">150</td>
+<td class="n">15</td>
+<td class="n">1.67</td>
+<td class="n">360,738</td>
+<td class="n">13,130</td>
+</tr>
+<tr>
+<td class="n">01:42:13</td>
+<td class="n">01:45:06</td>
+<td class="n">58.1</td>
+<td class="n">主</td>
+<td class="n">测试评审者</td>
+<td>design/review/4</td>
+<td class="n">174</td>
+<td class="n">14</td>
+<td class="n">2.02</td>
+<td class="n">562,934</td>
+<td class="n">14,945</td>
+</tr>
+<tr>
+<td class="n">01:42:14</td>
+<td class="n">01:45:45</td>
+<td class="n">58.1</td>
+<td class="n">主</td>
+<td class="n">测试评审者</td>
+<td>design/review/6</td>
+<td class="n">211</td>
+<td class="n">17</td>
+<td class="n">2.83</td>
+<td class="n">852,274</td>
+<td class="n">19,055</td>
+</tr>
+<tr>
+<td class="n">01:49:50</td>
+<td class="n">01:55:18</td>
+<td class="n">65.7</td>
+<td class="n">主</td>
+<td class="n">测试设计者</td>
+<td>design/round-3/model_zoo_b9ca42f9</td>
+<td class="n">328</td>
+<td class="n">16</td>
+<td class="n">2.51</td>
+<td class="n">641,396</td>
+<td class="n">25,251</td>
+</tr>
+<tr>
+<td class="n">01:49:50</td>
+<td class="n">01:50:33</td>
+<td class="n">65.7</td>
+<td class="n">主</td>
+<td class="n">测试设计者</td>
+<td>design/round-3/layers</td>
+<td class="n">42</td>
+<td class="n">6</td>
+<td class="n">0.51</td>
+<td class="n">129,015</td>
+<td class="n">2,194</td>
+</tr>
+<tr>
+<td class="n">01:58:59</td>
+<td class="n">02:01:32</td>
+<td class="n">74.9</td>
+<td class="n">主</td>
+<td class="n">测试评审者</td>
+<td>design/review-2</td>
+<td class="n">153</td>
+<td class="n">9</td>
+<td class="n">1.60</td>
+<td class="n">280,722</td>
+<td class="n">13,278</td>
+</tr>
+<tr>
+<td class="n">02:02:34</td>
+<td class="n">02:44:03</td>
+<td class="n">78.5</td>
+<td class="n">草稿</td>
+<td class="n">作者</td>
+<td class="n">authoring</td>
+<td class="n">2489</td>
+<td class="n">83</td>
+<td class="n">21.43</td>
+<td>19,775,134</td>
+<td class="n">227,280</td>
+</tr>
+<tr>
+<td class="n">02:44:34</td>
+<td class="n">03:00:44</td>
+<td class="n">120.5</td>
+<td class="n">草稿</td>
+<td class="n">作者</td>
+<td class="n">authoring</td>
+<td class="n">969</td>
+<td class="n">53</td>
+<td class="n">8.81</td>
+<td class="n">7,129,868</td>
+<td class="n">83,341</td>
+</tr>
+<tr>
+<td class="n">03:08:35</td>
+<td class="n">03:09:49</td>
+<td class="n">144.5</td>
+<td class="n">主</td>
+<td>controller</td>
+<td>controller/0001</td>
+<td class="n">74</td>
+<td class="n">6</td>
+<td class="n">1.78</td>
+<td class="n">430,690</td>
+<td class="n">5,877</td>
+</tr>
+<tr>
+<td class="n">03:18:31</td>
+<td class="n">03:20:29</td>
+<td class="n">154.4</td>
+<td class="n">主</td>
+<td>controller</td>
+<td>controller/0002</td>
+<td class="n">118</td>
+<td class="n">6</td>
+<td class="n">1.96</td>
+<td class="n">431,695</td>
+<td class="n">11,338</td>
+</tr>
+<tr>
+<td class="n">03:20:33</td>
+<td class="n">03:56:10</td>
+<td class="n">156.5</td>
+<td class="n">主</td>
+<td class="n">作者</td>
+<td class="n">authoring</td>
+<td class="n">2137</td>
+<td class="n">80</td>
+<td class="n">18.81</td>
+<td>16,450,302</td>
+<td class="n">204,459</td>
+</tr>
+<tr>
+<td class="n">03:58:58</td>
+<td class="n">03:59:55</td>
+<td class="n">194.9</td>
+<td class="n">主</td>
+<td>controller</td>
+<td>controller/0003</td>
+<td class="n">56</td>
+<td class="n">5</td>
+<td class="n">1.52</td>
+<td class="n">285,291</td>
+<td class="n">4,653</td>
+</tr>
+<tr>
+<td class="n">04:10:05</td>
+<td class="n">04:11:41</td>
+<td class="n">206.0</td>
+<td class="n">主</td>
+<td>controller</td>
+<td>controller/0004</td>
+<td class="n">96</td>
+<td class="n">5</td>
+<td class="n">1.62</td>
+<td class="n">331,138</td>
+<td class="n">8,688</td>
+</tr>
+<tr>
+<td class="n">04:11:54</td>
+<td class="n">04:12:35</td>
+<td class="n">207.8</td>
+<td class="n">主</td>
+<td>controller</td>
+<td>controller/0004</td>
+<td class="n">41</td>
+<td class="n">2</td>
+<td class="n">1.12</td>
+<td class="n">116,939</td>
+<td class="n">3,708</td>
+</tr>
+<tr>
+<td class="n">04:12:48</td>
+<td class="n">04:32:53</td>
+<td class="n">208.7</td>
+<td class="n">主</td>
+<td class="n">作者</td>
+<td class="n">authoring</td>
+<td class="n">1205</td>
+<td class="n">62</td>
+<td class="n">11.56</td>
+<td>10,060,983</td>
+<td class="n">109,550</td>
+</tr>
+</tbody>
+</table></div>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>角色</th>
+<th>调用次数</th>
+<th>美元</th>
+<th>会话时间合计（分钟）</th>
+<th>输出 token</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="n">作者</td>
+<td class="n">7</td>
+<td class="n">101.59</td>
+<td class="n">185.5</td>
+<td class="n">1,054,350</td>
+</tr>
+<tr>
+<td class="n">测试设计者</td>
+<td class="n">11</td>
+<td class="n">42.40</td>
+<td class="n">93.3</td>
+<td class="n">503,356</td>
+</tr>
+<tr>
+<td class="n">测试评审者</td>
+<td class="n">8</td>
+<td class="n">18.17</td>
+<td class="n">27.6</td>
+<td class="n">147,306</td>
+</tr>
+<tr>
+<td>controller</td>
+<td class="n">5</td>
+<td class="n">8.01</td>
+<td class="n">6.4</td>
+<td class="n">34,264</td>
+</tr>
+<tr>
+<td class="n">合计（不含试调）</td>
+<td class="n">31</td>
+<td class="n">170.16</td>
+<td class="n">312.8</td>
+<td class="n">1,739,276</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="s6">6. 测试设计和评审</h2>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>项目</th>
+<th>数量</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>设计者会话 / 评审者会话</td>
+<td>11 / 8</td>
+</tr>
+<tr>
+<td>作业记下的会话数（原样）</td>
+<td><code>{&quot;completed&quot;: 19, &quot;failed&quot;: {}, &quot;started&quot;: 19}</code></td>
+</tr>
+<tr>
+<td>提交到原版上的设计文件</td>
+<td>37 个测试文件 + 13 个场景文件（性能文件 0 个）</td>
+</tr>
+<tr>
+<td class="n">通过的文件</td>
+<td class="n">50</td>
+</tr>
+<tr>
+<td>被拒的文件（按原因）</td>
+<td>outside_external_contract 5、reviewer_veto 4</td>
+</tr>
+<tr>
+<td>没有按评审意见改完的文件</td>
+<td class="n">5</td>
+</tr>
+<tr>
+<td class="n">原测试的迁移</td>
+<td>给了 10 条，迁移成 8 条，没法验证 2 条</td>
+</tr>
+<tr>
+<td class="n">第二次基线的检查数</td>
+<td class="n">96</td>
+</tr>
+<tr>
+<td>封存时校验方持有的文件</td>
+<td class="n">259</td>
+</tr>
+</tbody>
+</table></div>
+<p>每个叶子的结果：</p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>叶子</th>
+<th>通过的测试文件</th>
+<th>通过的场景文件</th>
+<th>被拒的测试（按原因）</th>
+<th>被拒的场景（按原因）</th>
+<th>原测试迁移 / 没验证</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>data-catalog</td>
+<td class="n">6</td>
+<td class="n">2</td>
+<td class="n">–</td>
+<td class="n">–</td>
+<td>0 / 1</td>
+</tr>
+<tr>
+<td>data-transforms</td>
+<td class="n">1</td>
+<td class="n">2</td>
+<td>outside_external_contract 4</td>
+<td class="n">–</td>
+<td>1 / 0</td>
+</tr>
+<tr>
+<td>export-torchscript</td>
+<td class="n">6</td>
+<td class="n">1</td>
+<td class="n">–</td>
+<td class="n">–</td>
+<td>0 / 1</td>
+</tr>
+<tr>
+<td>generalized-rcnn</td>
+<td class="n">4</td>
+<td class="n">2</td>
+<td class="n">–</td>
+<td class="n">–</td>
+<td>1 / 0</td>
+</tr>
+<tr>
+<td class="n">layers</td>
+<td class="n">6</td>
+<td class="n">1</td>
+<td>reviewer_veto 1</td>
+<td class="n">–</td>
+<td>1 / 0</td>
+</tr>
+<tr>
+<td class="n">model-zoo</td>
+<td class="n">4</td>
+<td class="n">2</td>
+<td>reviewer_veto 2</td>
+<td>reviewer_veto 1</td>
+<td>– / –</td>
+</tr>
+<tr>
+<td class="n">packaging</td>
+<td class="n">2</td>
+<td class="n">1</td>
+<td>outside_external_contract 1</td>
+<td class="n">–</td>
+<td>– / –</td>
+</tr>
+<tr>
+<td class="n">predictor</td>
+<td class="n">3</td>
+<td class="n">1</td>
+<td class="n">–</td>
+<td class="n">–</td>
+<td>– / –</td>
+</tr>
+<tr>
+<td>runtime-utils</td>
+<td class="n">5</td>
+<td class="n">1</td>
+<td class="n">–</td>
+<td class="n">–</td>
+<td>5 / 0</td>
+</tr>
+</tbody>
+</table></div>
+<p>被拒的文件和理由（原文的开头）：</p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>叶子</th>
+<th>轮</th>
+<th>文件</th>
+<th>理由</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="n">packaging</td>
+<td class="n">1</td>
+<td><code>tests/nanolize_contracts/packaging/test_setup_distribution.py</code></td>
+<td>outside_external_contract；not in the external contract: detectron2.projects</td>
+</tr>
+<tr>
+<td>data-transforms</td>
+<td class="n">1</td>
+<td><code>tests/nanolize_contracts/data_transforms_8967f4a5/test_transform_classes.py</code></td>
+<td>outside_external_contract；not in the external contract: detectron2.data.transforms.(dynamic attribute), detectron2.data.transforms.transform.(dynamic attribute)</td>
+</tr>
+<tr>
+<td>data-transforms</td>
+<td class="n">1</td>
+<td><code>tests/nanolize_contracts/data_transforms_8967f4a5/test_augmentation_core.py</code></td>
+<td>outside_external_contract；not in the external contract: detectron2.data.transforms.(dynamic attribute), detectron2.data.transforms.augmentation.(dynamic attribute)</td>
+</tr>
+<tr>
+<td>data-transforms</td>
+<td class="n">1</td>
+<td><code>tests/nanolize_contracts/data_transforms_8967f4a5/test_augmentation_geometry.py</code></td>
+<td>outside_external_contract；not in the external contract: detectron2.data.transforms.(dynamic attribute), detectron2.data.transforms.augmentation_impl.(dynamic attribute)</td>
+</tr>
+<tr>
+<td>data-transforms</td>
+<td class="n">1</td>
+<td><code>tests/nanolize_contracts/data_transforms_8967f4a5/test_augmentation_crop_color.py</code></td>
+<td>outside_external_contract；not in the external contract: detectron2.data.transforms.(dynamic attribute)</td>
+</tr>
+<tr>
+<td class="n">model-zoo</td>
+<td class="n">review</td>
+<td><code>tests/nanolize_contracts/model_zoo_b9ca42f9/test_get_config.py</code></td>
+<td>reviewer_veto；Every test starts with <code>if configs_missing(...): return</code>, and configs_missing() asks the project itself (model_zoo.get_config_file) whether the configs are there. When detectron2/model_zoo/configs is absent (it is absent in this repository tree: the directory is only created when setup.py runs) or when the zoo wrongly finds no config, each of test_yaml_config_is_a_cfgnode_with_the_file_merged, test_yaml …</td>
+</tr>
+<tr>
+<td class="n">model-zoo</td>
+<td class="n">review</td>
+<td><code>tests/nanolize_contracts/model_zoo_b9ca42f9/test_get_model.py</code></td>
+<td>reviewer_veto；Every test starts with <code>if configs_missing(...): return</code>, and configs_missing() asks the project itself (model_zoo.get_config_file) whether the configs are there. When detectron2/model_zoo/configs is absent (it is absent in this repository tree: the directory is only created when setup.py runs) or when the zoo wrongly finds no config, each of test_yaml_config_builds_the_model_in_training_mode, test_devi …</td>
+</tr>
+<tr>
+<td class="n">model-zoo</td>
+<td class="n">review</td>
+<td><code>tests/nanolize_contracts/model_zoo_b9ca42f9/scenario_zoo_configs.py</code></td>
+<td>reviewer_veto；What every function shows depends on the state of the checkout rather than on its input: all of them (the scenario_file_<em>, scenario_cfg_</em> and scenario_model_* functions) look up real config names, which exist only if detectron2/model_zoo/configs has been linked by a setup.py run. That link is an untracked build artifact, it is absent in this repository tree, and the in-place packaging tests of this suit …</td>
+</tr>
+<tr>
+<td class="n">layers</td>
+<td class="n">review</td>
+<td><code>tests/nanolize_contracts/layers/test_batch_norm.py</code></td>
+<td>reviewer_veto；At fault: test_get_norm_layer_norm_normalizes_over_channels. The object that get_norm(&quot;LN&quot;, 3) returns belongs to a class (LayerNorm in detectron2/layers/batch_norm.py) that is not on the external names list and is not exported from detectron2.layers, so its own attributes are internal. The test asserts type(ln).<strong>name</strong> == &quot;LayerNorm&quot;, ln.eps == 1e-6 and ln.normalized_shape == (3,). normalized_shape in …</td>
+</tr>
+</tbody>
+</table></div>
+<p>没有迁移成的原测试：</p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>原测试</th>
+<th>叶子</th>
+<th>状态</th>
+<th>设计者给的理由</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>tests/data/test_coco.py::TestConvertCOCO::test_convert_to_coco</code></td>
+<td>data-catalog</td>
+<td>unverifiable</td>
+<td>Its only checked behavior is that detectron2.data.datasets.coco.convert_to_coco_dict runs on a rotated-box dataset, and that import is outside the external contract; the register/set/get/pop part is checked in test_dataset_and_metadata_together.py.</td>
+</tr>
+<tr>
+<td><code>tests/modeling/test_roi_heads.py::ROIHeadsTest::test_PointRend_mask_head_tracing</code></td>
+<td>export-torchscript</td>
+<td>unverifiable</td>
+<td>It needs detectron2.projects.point_rend (PointRendMaskHead, add_pointrend_config), an import outside the external contract; the patch_builtin_len tracing part is checked with the contract's mask, keypoint and box heads in test_patch_builtin_len_tracing.py.</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="s7">7. 候选、对比和修复</h2>
+<p>作者的每次调用（草稿作业写第一版，一个范围一次；主作业做修复）：</p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>开始</th>
+<th>第几分钟</th>
+<th>作业</th>
+<th>做什么</th>
+<th>范围或叶子</th>
+<th>分钟</th>
+<th>轮数</th>
+<th>美元</th>
+<th>文件（加 / 改 / 删）</th>
+<th>退出码</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="n">00:49:09</td>
+<td class="n">5.1</td>
+<td class="n">草稿</td>
+<td class="n">第一版</td>
+<td class="n">scope-1</td>
+<td class="n">26.0</td>
+<td class="n">63</td>
+<td class="n">14.46</td>
+<td>+26 / 改 0 / 删 0</td>
+<td class="n">0</td>
+</tr>
+<tr>
+<td class="n">01:15:24</td>
+<td class="n">31.3</td>
+<td class="n">草稿</td>
+<td class="n">第一版</td>
+<td class="n">scope-2</td>
+<td class="n">20.0</td>
+<td class="n">55</td>
+<td class="n">11.37</td>
+<td>+13 / 改 2 / 删 0</td>
+<td class="n">0</td>
+</tr>
+<tr>
+<td class="n">01:35:36</td>
+<td class="n">51.5</td>
+<td class="n">草稿</td>
+<td class="n">第一版</td>
+<td class="n">scope-3</td>
+<td class="n">26.7</td>
+<td class="n">61</td>
+<td class="n">15.15</td>
+<td>+20 / 改 2 / 删 0</td>
+<td class="n">0</td>
+</tr>
+<tr>
+<td class="n">02:02:32</td>
+<td class="n">78.4</td>
+<td class="n">草稿</td>
+<td class="n">第一版</td>
+<td class="n">scope-4</td>
+<td class="n">41.7</td>
+<td class="n">83</td>
+<td class="n">21.43</td>
+<td>+15 / 改 4 / 删 0</td>
+<td class="n">0</td>
+</tr>
+<tr>
+<td class="n">02:44:31</td>
+<td class="n">120.4</td>
+<td class="n">草稿</td>
+<td class="n">第一版</td>
+<td class="n">scope-5</td>
+<td class="n">16.4</td>
+<td class="n">53</td>
+<td class="n">8.81</td>
+<td>+9 / 改 1 / 删 0</td>
+<td class="n">0</td>
+</tr>
+<tr>
+<td class="n">03:20:30</td>
+<td class="n">156.4</td>
+<td class="n">主</td>
+<td class="n">行为修复</td>
+<td>data-catalog、detection-utils、data-transforms、packaging、layers、model-zoo</td>
+<td class="n">35.9</td>
+<td class="n">80</td>
+<td class="n">18.81</td>
+<td>+49 / 改 8 / 删 0</td>
+<td class="n">0</td>
+</tr>
+<tr>
+<td class="n">04:12:36</td>
+<td class="n">208.5</td>
+<td class="n">主</td>
+<td class="n">行为修复</td>
+<td>layers、model-zoo</td>
+<td class="n">20.5</td>
+<td class="n">62</td>
+<td class="n">11.56</td>
+<td>+9 / 改 11 / 删 0</td>
+<td class="n">0</td>
+</tr>
+</tbody>
+</table></div>
+<p>行为对比：</p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>开始</th>
+<th>第几分钟</th>
+<th>范围</th>
+<th>候选</th>
+<th>分钟</th>
+<th>结果</th>
+<th>失败的检查</th>
+<th>没有运行的检查</th>
+<th>体积</th>
+<th>记录</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="n">03:01:46</td>
+<td class="n">137.7</td>
+<td class="n">完整</td>
+<td>candidate-1</td>
+<td class="n">6.8</td>
+<td class="n">regressed</td>
+<td class="n">27</td>
+<td class="n">0</td>
+<td class="n">16.18%</td>
+<td><code>verification-6</code></td>
+</tr>
+<tr>
+<td class="n">03:09:57</td>
+<td class="n">145.9</td>
+<td class="n">完整</td>
+<td>candidate-1</td>
+<td class="n">7.0</td>
+<td class="n">regressed</td>
+<td class="n">11</td>
+<td class="n">0</td>
+<td class="n">16.18%</td>
+<td><code>verification-8</code></td>
+</tr>
+<tr>
+<td class="n">03:56:52</td>
+<td class="n">192.8</td>
+<td class="n">针对性</td>
+<td>candidate-2</td>
+<td class="n">2.1</td>
+<td class="n">regressed</td>
+<td class="n">3</td>
+<td class="n">85</td>
+<td class="n">20.14%</td>
+<td><code>verification-12</code></td>
+</tr>
+<tr>
+<td class="n">03:59:55</td>
+<td class="n">195.8</td>
+<td class="n">完整</td>
+<td>candidate-2</td>
+<td class="n">8.6</td>
+<td class="n">regressed</td>
+<td class="n">3</td>
+<td class="n">0</td>
+<td class="n">20.14%</td>
+<td><code>verification-13</code></td>
+</tr>
+<tr>
+<td class="n">04:33:42</td>
+<td class="n">229.6</td>
+<td class="n">针对性</td>
+<td>candidate-3</td>
+<td class="n">1.2</td>
+<td>unverified</td>
+<td class="n">0</td>
+<td class="n">93</td>
+<td class="n">22.42%</td>
+<td><code>verification-17</code></td>
+</tr>
+<tr>
+<td class="n">04:34:53</td>
+<td class="n">230.8</td>
+<td class="n">完整</td>
+<td>candidate-3</td>
+<td class="n">7.4</td>
+<td>checks_passed</td>
+<td class="n">0</td>
+<td class="n">0</td>
+<td class="n">22.42%</td>
+<td><code>verification-18</code></td>
+</tr>
+</tbody>
+</table></div>
+<p><code>verification-6</code>（candidate-1，完整对比）里没过的检查：</p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>检查</th>
+<th>叶子</th>
+<th>测试文件</th>
+<th>结果变了的用例</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>config-yacs</code></td>
+<td>config-yacs、generalized-rcnn、layers、model-zoo</td>
+<td><code>tests/config/test_yacs_config.py::TestConfigVersioning::test_auto_upgrade</code>、<code>tests/config/test_yacs_config.py::TestConfigVersioning::test_guess_v1</code></td>
+<td><code>testOmegaConf</code></td>
+</tr>
+<tr>
+<td><code>layers-nms-rotated</code></td>
+<td>layers、rotated-box-ops、testing-helpers</td>
+<td><code>tests/layers/test_nms_rotated.py::TestNMSRotated::test_batched_nms_rotated_0_degree_cpu</code>、<code>tests/layers/test_nms_rotated.py::TestNMSRotated::test_batched_nms_rotated_0_degree_cuda</code></td>
+<td><code>test_batched_nms_rotated_0_degree_cpu</code>、<code>test_nms_rotated_0_degree_cpu</code>、<code>test_nms_rotated_180_degrees_cpu</code>、<code>test_nms_rotated_90_degrees_cpu</code>、<code>test_scriptable_cpu</code></td>
+</tr>
+<tr>
+<td><code>layers-roi-align-rotated</code></td>
+<td>layers、rotated-box-ops</td>
+<td><code>tests/layers/test_roi_align_rotated.py::ROIAlignRotatedTest::test_empty_box</code>、<code>tests/layers/test_roi_align_rotated.py::ROIAlignRotatedTest::test_forward_output_0_90_180_270</code></td>
+<td><code>test_empty_box</code>、<code>test_forward_output_0_90_180_270</code>、<code>test_resize</code>、<code>test_roi_align_rotated_gradcheck_cpu</code></td>
+</tr>
+<tr>
+<td><code>modeling-backbone</code></td>
+<td>backbone-resnet-fpn、config-yacs、export-torchscript、layers、model-zoo</td>
+<td><code>tests/modeling/test_backbone.py::TestBackBone::test_fpn_scriptability</code>、<code>tests/modeling/test_backbone.py::TestBackBone::test_resnet_scriptability</code></td>
+<td><code>test_fpn_scriptability</code></td>
+</tr>
+<tr>
+<td><code>modeling-e2e-mask-rcnn</code></td>
+<td>backbone-resnet-fpn、events、generalized-rcnn、model-zoo、proposal-generation、roi-heads、structures、testing-helpers</td>
+<td><code>tests/modeling/test_model_e2e.py::MaskRCNNE2ETest::test_autocast</code>、<code>tests/modeling/test_model_e2e.py::MaskRCNNE2ETest::test_empty_data</code></td>
+<td><code>test_empty_data</code>、<code>test_half_empty_data</code>、<code>test_roiheads_inf_nan_data</code></td>
+</tr>
+<tr>
+<td><code>modeling-roi-pooler</code></td>
+<td>roi-heads、rotated-box-ops、structures、testing-helpers</td>
+<td><code>tests/modeling/test_roi_pooler.py::TestROIPooler::test_no_images</code>、<code>tests/modeling/test_roi_pooler.py::TestROIPooler::test_roi_pooler_tracing</code></td>
+<td><code>test_roialignv2_roialignrotated_match_cpu</code></td>
+</tr>
+<tr>
+<td><code>modeling-rpn</code></td>
+<td>backbone-resnet-fpn、config-yacs、events、export-torchscript、layers、proposal-generation、rotated-box-ops、rotated-rcnn、structures</td>
+<td><code>tests/modeling/test_rpn.py::RPNTest::test_append_gt_to_proposal</code>、<code>tests/modeling/test_rpn.py::RPNTest::test_find_rpn_proposals_inf</code></td>
+<td><code>test_rrpn</code></td>
+</tr>
+<tr>
+<td><code>structures-rotated-boxes</code></td>
+<td>rotated-box-ops、structures、testing-helpers</td>
+<td><code>tests/structures/test_rotated_boxes.py::TestRotatedBoxesLayer::test_iou_0_dim_cpu</code>、<code>tests/structures/test_rotated_boxes.py::TestRotatedBoxesLayer::test_iou_0_dim_cuda</code></td>
+<td><code>test_iou_0_dim_cpu</code>、<code>test_iou_extreme</code>、<code>test_iou_half_overlap_cpu</code>、<code>test_iou_issue_2154</code>、<code>test_iou_issue_2167</code>、<code>test_iou_precision</code>、<code>test_pairwise_iou_0_degree</code>、<code>test_pairwise_iou_45_degrees</code> 等 13 个</td>
+</tr>
+<tr>
+<td><code>model-zoo-yaml</code></td>
+<td>backbone-resnet-fpn、config-lazy、generalized-rcnn、model-zoo</td>
+<td><code>tests/test_model_zoo.py::TestModelZoo::test_get_invalid_model</code>、<code>tests/test_model_zoo.py::TestModelZoo::test_get_returns_model</code></td>
+<td><code>test_get_returns_model</code></td>
+</tr>
+<tr>
+<td><code>contract-model-zoo-lookup</code></td>
+<td>config-yacs、model-zoo</td>
+<td></td>
+<td class="n">–</td>
+</tr>
+<tr>
+<td><code>contract-model-parameter-names</code></td>
+<td>backbone-resnet-fpn、generalized-rcnn、model-zoo、proposal-generation、roi-heads</td>
+<td></td>
+<td class="n">–</td>
+</tr>
+<tr>
+<td><code>contract-default-predictor</code></td>
+<td>checkpoint、data-catalog、data-transforms、generalized-rcnn、model-zoo、predictor</td>
+<td></td>
+<td class="n">–</td>
+</tr>
+<tr>
+<td><code>recovered-test_detection_utils-1</code></td>
+<td>data-transforms、detection-utils</td>
+<td><code>tests/data/test_nanolize_recovered_test_detection_utils_1.py</code></td>
+<td><code>test_flip_keypoints</code></td>
+</tr>
+<tr>
+<td><code>recovered-test_detection_utils-2</code></td>
+<td>detection-utils</td>
+<td><code>tests/data/test_nanolize_recovered_test_detection_utils_2.py</code></td>
+<td><code>test_read_sem_seg</code></td>
+</tr>
+<tr>
+<td><code>recovered-test_roi_heads-2</code></td>
+<td class="n">roi-heads</td>
+<td><code>tests/modeling/test_nanolize_recovered_test_roi_heads_2.py</code></td>
+<td><code>test_rroi_heads</code></td>
+</tr>
+<tr>
+<td><code>layers-deformable</code></td>
+<td>deformable-conv、runtime-utils</td>
+<td><code>tests/layers/test_deformable.py::DeformableTest::test_forward_output</code>、<code>tests/layers/test_deformable.py::DeformableTest::test_forward_output_on_cpu</code></td>
+<td><code>test_forward_output_on_cpu</code>、<code>test_repr</code></td>
+</tr>
+<tr>
+<td><code>data-detection-utils</code></td>
+<td>data-catalog、data-transforms、detection-utils、rotated-box-ops、runtime-utils、structures</td>
+<td><code>tests/data/test_detection_utils.py::TestTransformAnnotations::test_crop</code>、<code>tests/data/test_detection_utils.py::TestTransformAnnotations::test_flip_keypoints</code></td>
+<td><code>test_flip_keypoints</code>、<code>test_read_sem_seg</code></td>
+</tr>
+<tr>
+<td><code>contract-packaging-c7e2ee-13</code></td>
+<td class="n">packaging</td>
+<td><code>tests/nanolize_contracts/packaging/test_setup_program.py</code></td>
+<td><code>test_configs_are_linked_into_model_zoo_each_run</code>、<code>test_egg_info_sources_list_extension_and_configs</code></td>
+</tr>
+<tr>
+<td><code>contract-packaging-c7e2ee-14</code></td>
+<td class="n">packaging</td>
+<td><code>tests/nanolize_contracts/packaging/test_setup_sandbox.py</code></td>
+<td><code>test_build_py_packages_projects_and_configs</code></td>
+</tr>
+<tr>
+<td><code>scenario-packaging-c7e2ee-15</code></td>
+<td class="n">packaging</td>
+<td><code>tests/nanolize_contracts/packaging/scenario_setup_program.py</code></td>
+<td><code>scenario_described_model_zoo_package_data</code>、<code>scenario_described_project_packages_and_directories</code></td>
+</tr>
+<tr>
+<td><code>scenario-data_catalog_4b9d42d1-c7e2ee-27</code></td>
+<td>data-catalog</td>
+<td><code>tests/nanolize_contracts/data_catalog_4b9d42d1/scenario_catalogs.py</code></td>
+<td><code>scenario_dataset_str_end_after_two_registrations</code>、<code>scenario_metadata_str_end_after_two_names</code></td>
+</tr>
+<tr>
+<td><code>contract-layers-c7e2ee-42</code></td>
+<td class="n">layers</td>
+<td><code>tests/nanolize_contracts/layers/test_losses_nms.py</code></td>
+<td><code>test_batched_nms_rotated_0_degree_equals_batched_nms</code>、<code>test_batched_nms_rotated_categories</code>、<code>test_batched_nms_rotated_negative_coordinates_half_and_edges</code>、<code>test_nms_rotated_0_degree_equals_horizontal_nms</code>、<code>test_nms_rotated_edges</code>、<code>test_nms_rotated_thresholds</code></td>
+</tr>
+<tr>
+<td><code>contract-layers-c7e2ee-43</code></td>
+<td class="n">layers</td>
+<td><code>tests/nanolize_contracts/layers/test_roi_align_mask_shape.py</code></td>
+<td><code>test_shape_spec_with_layers</code></td>
+</tr>
+<tr>
+<td><code>scenario-layers-c7e2ee-44</code></td>
+<td class="n">layers</td>
+<td><code>tests/nanolize_contracts/layers/scenario_layers.py</code></td>
+<td><code>scenario_batched_nms_rotated_two_categories</code>、<code>scenario_nms_rotated_angles</code>、<code>scenario_nms_rotated_empty</code></td>
+</tr>
+<tr>
+<td><code>contract-model_zoo_b9ca42f9-c7e2ee-51</code></td>
+<td class="n">model-zoo</td>
+<td><code>tests/nanolize_contracts/model_zoo_b9ca42f9/test_get_config.py</code></td>
+<td><code>test_python_config_is_a_lazy_config</code>、<code>test_python_config_trained_sets_init_checkpoint</code>、<code>test_python_new_baseline_config_trained</code>、<code>test_python_schedule_config_keys</code>、<code>test_trained_config_without_released_checkpoint_raises[common/models/mask_rcnn_fpn.py]</code>、<code>test_trained_config_without_released_checkpoint_raises[new_baselines/mask_rcnn_R_50_FPN_50ep_LSJ.py]</code></td>
+</tr>
+<tr>
+<td><code>contract-model_zoo_b9ca42f9-c7e2ee-52</code></td>
+<td class="n">model-zoo</td>
+<td><code>tests/nanolize_contracts/model_zoo_b9ca42f9/test_get_model.py</code></td>
+<td><code>test_other_architectures[common/models/keypoint_rcnn_fpn.py-GeneralizedRCNN-59133158]</code>、<code>test_other_architectures[common/models/panoptic_fpn.py-PanopticFPN-45973990]</code>、<code>test_other_architectures[common/models/retinanet.py-RetinaNet-37915572]</code>、<code>test_python_c4_config_builds_a_resnet_backbone</code>、<code>test_python_config_builds_the_model</code>、<code>test_trained_model_without_released_checkpoint_raises[common/models/mask_rcnn_fpn.py]</code>、<code>test_unknown_model_after_a_built_one</code></td>
+</tr>
+<tr>
+<td><code>scenario-model_zoo_b9ca42f9-c7e2ee-53</code></td>
+<td class="n">model-zoo</td>
+<td><code>tests/nanolize_contracts/model_zoo_b9ca42f9/scenario_zoo_configs.py</code></td>
+<td><code>scenario_cfg_lazy_50ep_py_trained_has_no_checkpoint</code>、<code>scenario_cfg_lazy_keypoint_rcnn_py_trained</code>、<code>scenario_cfg_lazy_mask_rcnn_r50_fpn_1x_py</code>、<code>scenario_cfg_lazy_mask_rcnn_r50_fpn_1x_py_trained</code>、<code>scenario_cfg_lazy_model_only_py_keys</code>、<code>scenario_cfg_lazy_model_only_py_trained_has_no_checkpoint</code>、<code>scenario_cfg_lazy_new_baseline_200ep_py</code>、<code>scenario_cfg_lazy_new_baseline_400ep_py_trained</code> 等 17 个</td>
+</tr>
+</tbody>
+</table></div>
+<p><code>verification-8</code>（candidate-1，完整对比）里没过的检查：</p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>检查</th>
+<th>叶子</th>
+<th>测试文件</th>
+<th>结果变了的用例</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>recovered-test_detection_utils-1</code></td>
+<td>data-transforms、detection-utils</td>
+<td><code>tests/data/test_nanolize_recovered_test_detection_utils_1.py</code></td>
+<td><code>test_flip_keypoints</code></td>
+</tr>
+<tr>
+<td><code>recovered-test_detection_utils-2</code></td>
+<td>detection-utils</td>
+<td><code>tests/data/test_nanolize_recovered_test_detection_utils_2.py</code></td>
+<td><code>test_read_sem_seg</code></td>
+</tr>
+<tr>
+<td><code>data-detection-utils</code></td>
+<td>data-catalog、data-transforms、detection-utils、rotated-box-ops、runtime-utils、structures</td>
+<td><code>tests/data/test_detection_utils.py::TestTransformAnnotations::test_crop</code>、<code>tests/data/test_detection_utils.py::TestTransformAnnotations::test_flip_keypoints</code></td>
+<td><code>test_flip_keypoints</code>、<code>test_read_sem_seg</code></td>
+</tr>
+<tr>
+<td><code>contract-packaging-c7e2ee-13</code></td>
+<td class="n">packaging</td>
+<td><code>tests/nanolize_contracts/packaging/test_setup_program.py</code></td>
+<td><code>test_configs_are_linked_into_model_zoo_each_run</code>、<code>test_egg_info_sources_list_extension_and_configs</code></td>
+</tr>
+<tr>
+<td><code>contract-packaging-c7e2ee-14</code></td>
+<td class="n">packaging</td>
+<td><code>tests/nanolize_contracts/packaging/test_setup_sandbox.py</code></td>
+<td><code>test_build_py_packages_projects_and_configs</code></td>
+</tr>
+<tr>
+<td><code>scenario-packaging-c7e2ee-15</code></td>
+<td class="n">packaging</td>
+<td><code>tests/nanolize_contracts/packaging/scenario_setup_program.py</code></td>
+<td><code>scenario_described_model_zoo_package_data</code>、<code>scenario_described_project_packages_and_directories</code></td>
+</tr>
+<tr>
+<td><code>scenario-data_catalog_4b9d42d1-c7e2ee-27</code></td>
+<td>data-catalog</td>
+<td><code>tests/nanolize_contracts/data_catalog_4b9d42d1/scenario_catalogs.py</code></td>
+<td><code>scenario_dataset_str_end_after_two_registrations</code>、<code>scenario_metadata_str_end_after_two_names</code></td>
+</tr>
+<tr>
+<td><code>contract-layers-c7e2ee-43</code></td>
+<td class="n">layers</td>
+<td><code>tests/nanolize_contracts/layers/test_roi_align_mask_shape.py</code></td>
+<td><code>test_shape_spec_with_layers</code></td>
+</tr>
+<tr>
+<td><code>contract-model_zoo_b9ca42f9-c7e2ee-51</code></td>
+<td class="n">model-zoo</td>
+<td><code>tests/nanolize_contracts/model_zoo_b9ca42f9/test_get_config.py</code></td>
+<td><code>test_python_config_is_a_lazy_config</code>、<code>test_python_config_trained_sets_init_checkpoint</code>、<code>test_python_new_baseline_config_trained</code>、<code>test_python_schedule_config_keys</code>、<code>test_trained_config_without_released_checkpoint_raises[common/models/mask_rcnn_fpn.py]</code>、<code>test_trained_config_without_released_checkpoint_raises[new_baselines/mask_rcnn_R_50_FPN_50ep_LSJ.py]</code></td>
+</tr>
+<tr>
+<td><code>contract-model_zoo_b9ca42f9-c7e2ee-52</code></td>
+<td class="n">model-zoo</td>
+<td><code>tests/nanolize_contracts/model_zoo_b9ca42f9/test_get_model.py</code></td>
+<td><code>test_other_architectures[common/models/keypoint_rcnn_fpn.py-GeneralizedRCNN-59133158]</code>、<code>test_other_architectures[common/models/panoptic_fpn.py-PanopticFPN-45973990]</code>、<code>test_other_architectures[common/models/retinanet.py-RetinaNet-37915572]</code>、<code>test_python_c4_config_builds_a_resnet_backbone</code>、<code>test_python_config_builds_the_model</code>、<code>test_trained_model_without_released_checkpoint_raises[common/models/mask_rcnn_fpn.py]</code>、<code>test_unknown_model_after_a_built_one</code></td>
+</tr>
+<tr>
+<td><code>scenario-model_zoo_b9ca42f9-c7e2ee-53</code></td>
+<td class="n">model-zoo</td>
+<td><code>tests/nanolize_contracts/model_zoo_b9ca42f9/scenario_zoo_configs.py</code></td>
+<td><code>scenario_cfg_lazy_50ep_py_trained_has_no_checkpoint</code>、<code>scenario_cfg_lazy_keypoint_rcnn_py_trained</code>、<code>scenario_cfg_lazy_mask_rcnn_r50_fpn_1x_py</code>、<code>scenario_cfg_lazy_mask_rcnn_r50_fpn_1x_py_trained</code>、<code>scenario_cfg_lazy_model_only_py_keys</code>、<code>scenario_cfg_lazy_model_only_py_trained_has_no_checkpoint</code>、<code>scenario_cfg_lazy_new_baseline_200ep_py</code>、<code>scenario_cfg_lazy_new_baseline_400ep_py_trained</code> 等 17 个</td>
+</tr>
+</tbody>
+</table></div>
+<p><code>verification-12</code>（candidate-2，针对性对比）里没过的检查：</p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>检查</th>
+<th>叶子</th>
+<th>测试文件</th>
+<th>结果变了的用例</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>contract-layers-c7e2ee-43</code></td>
+<td class="n">layers</td>
+<td><code>tests/nanolize_contracts/layers/test_roi_align_mask_shape.py</code></td>
+<td><code>test_shape_spec_with_layers</code></td>
+</tr>
+<tr>
+<td><code>contract-model_zoo_b9ca42f9-c7e2ee-52</code></td>
+<td class="n">model-zoo</td>
+<td><code>tests/nanolize_contracts/model_zoo_b9ca42f9/test_get_model.py</code></td>
+<td><code>test_other_architectures[common/models/panoptic_fpn.py-PanopticFPN-45973990]</code>、<code>test_other_architectures[common/models/retinanet.py-RetinaNet-37915572]</code></td>
+</tr>
+<tr>
+<td><code>scenario-model_zoo_b9ca42f9-c7e2ee-53</code></td>
+<td class="n">model-zoo</td>
+<td><code>tests/nanolize_contracts/model_zoo_b9ca42f9/scenario_zoo_configs.py</code></td>
+<td><code>scenario_cfg_readme_is_neither_yaml_nor_py</code>、<code>scenario_file_of_readme</code>、<code>scenario_model_lazy_fcos_py_on_cpu</code>、<code>scenario_model_lazy_retinanet_py_built_twice</code></td>
+</tr>
+</tbody>
+</table></div>
+<p><code>verification-13</code>（candidate-2，完整对比）里没过的检查：</p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>检查</th>
+<th>叶子</th>
+<th>测试文件</th>
+<th>结果变了的用例</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>contract-layers-c7e2ee-43</code></td>
+<td class="n">layers</td>
+<td><code>tests/nanolize_contracts/layers/test_roi_align_mask_shape.py</code></td>
+<td><code>test_shape_spec_with_layers</code></td>
+</tr>
+<tr>
+<td><code>contract-model_zoo_b9ca42f9-c7e2ee-52</code></td>
+<td class="n">model-zoo</td>
+<td><code>tests/nanolize_contracts/model_zoo_b9ca42f9/test_get_model.py</code></td>
+<td><code>test_other_architectures[common/models/panoptic_fpn.py-PanopticFPN-45973990]</code>、<code>test_other_architectures[common/models/retinanet.py-RetinaNet-37915572]</code></td>
+</tr>
+<tr>
+<td><code>scenario-model_zoo_b9ca42f9-c7e2ee-53</code></td>
+<td class="n">model-zoo</td>
+<td><code>tests/nanolize_contracts/model_zoo_b9ca42f9/scenario_zoo_configs.py</code></td>
+<td><code>scenario_cfg_readme_is_neither_yaml_nor_py</code>、<code>scenario_file_of_readme</code>、<code>scenario_model_lazy_fcos_py_on_cpu</code>、<code>scenario_model_lazy_retinanet_py_built_twice</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>安装检查：</p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>开始</th>
+<th>第几分钟</th>
+<th>候选</th>
+<th>秒</th>
+<th>结果</th>
+<th>通过的步数</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="n">03:17:00</td>
+<td class="n">152.9</td>
+<td>candidate-1</td>
+<td class="n">88</td>
+<td class="n">passed</td>
+<td>3 / 3</td>
+</tr>
+<tr>
+<td class="n">04:08:33</td>
+<td class="n">204.4</td>
+<td>candidate-2</td>
+<td class="n">90</td>
+<td class="n">passed</td>
+<td>3 / 3</td>
+</tr>
+<tr>
+<td class="n">04:42:17</td>
+<td class="n">238.2</td>
+<td>candidate-3</td>
+<td class="n">91</td>
+<td class="n">passed</td>
+<td>3 / 3</td>
+</tr>
+</tbody>
+</table></div>
+<p>controller 的每一轮（理由和它交给作者的指示是原文）：</p>
+<p><strong>第 1 轮</strong> · 03:09:50（第 145.7 分钟）· applied · 用时 75 秒 · 436,567 token（其中缓存 348,454）</p>
+<ul>
+<li>
+<p>它面对的建议：<code>{&quot;action&quot;: &quot;verify&quot;, &quot;candidate&quot;: &quot;candidate-1&quot;, &quot;missing&quot;: [&quot;installation&quot;], &quot;reason&quot;: &quot;evidence_missing&quot;, &quot;screen&quot;: null, &quot;stop_reason&quot;: null}</code></p>
+</li>
+<li>
+<p>理由：The candidate's worktree was prepared at 00:45, before the draft was imported at 03:00, so the owner's recipes ran before any candidate file existed. Most of the 27 failures fit an unprepared tree rather than wrong code: the rotated operators are missing from the library (AttributeError in nms_rotated, roi_align_rotated and pairwise_iou_rotated), develop.py raises its placeholder ImportError, and model_zoo raises RuntimeError at one line across ten checks. That is a hypothesis, not confirmed. Preparing the candidate again, reusing the baseline and comparing in full tests it without spending an author attempt; check_installation adds the missing installation evidence. I will write the repair call from what still fails.</p>
+</li>
+<li>
+<p>它点的调用：</p>
+<ol>
+<li>
+<p><code>prepare_environment</code> {&quot;target&quot;: &quot;candidate&quot;}</p>
+</li>
+<li>
+<p><code>capture_baseline</code></p>
+</li>
+<li>
+<p><code>compare_behavior</code></p>
+</li>
+<li>
+<p><code>check_installation</code></p>
+</li>
+</ol>
+</li>
+</ul>
+<p><strong>第 2 轮</strong> · 03:20:30（第 156.4 分钟）· applied · 用时 120 秒 · 443,033 token（其中缓存 352,899）</p>
+<ul>
+<li>
+<p>它面对的建议：<code>{&quot;action&quot;: &quot;behavior_repair&quot;, &quot;behavior_accepted&quot;: false, &quot;candidate&quot;: &quot;candidate-1&quot;, &quot;reason&quot;: &quot;retrying_failed_checks&quot;, &quot;restore&quot;: null, &quot;stop_reason&quot;: null}</code></p>
+</li>
+<li>
+<p>理由：Preparing the candidate after the import cleared 16 of the 27 failed checks without an author call, and the installation checks pass 3/3. The 11 that remain have four separate causes by their evidence (catalog.py:74 AttributeError, setup.py assertions, a missing layers member, model_zoo RuntimeError at line 114 for names only the leaf tests use), so one repair call names all 11 issues, since their feedback is bound to this candidate. The save is followed by preparing the candidate again (the repair may touch setup.py and what the recipes build or link), the reused baseline, a screen of the 11 checks, the full comparison, installation, then selection and a best_reachable delivery, each only when the step before succeeded.</p>
+</li>
+<li>
+<p>它点的调用：</p>
+<ol>
+<li>
+<p><code>run_agent</code> {&quot;capabilities&quot;: [&quot;data-catalog&quot;, &quot;detection-utils&quot;, &quot;data-transforms&quot;, &quot;packaging&quot;, &quot;layers&quot;, &quot;model-zoo&quot;], &quot;issue_ids&quot;: [&quot;verification-5e13e6a6a500e17b602133a58129ce1647c564ca0c39acfb9172b0a5f9b3fd33&quot;, &quot;verification-c4a0485032bd33603232a32322bb78b167588616398f969e265e47b6d2126b57&quot;, &quot;verification-21d3bcb1d3e748f5691ace8ae5aa8acac73e85bece08bc0cc76ddb2395c4624d&quot;, &quot;verification-dd08d9d2bf8ac0cc1d7e926003e515a8570a14d516bbe88b29beea6b5695634b&quot;, &quot;verification-6ce29be3679e1855218f6a22514d042d46f3030 …</p>
+<details><summary>交给作者的指示</summary>
+<pre><code>Repair candidate-1. Its full comparison (verification-8) passes 85 of 96 checks; 11 regressed, in four separate groups. Your feedback holds each issue's errors and the compared values of the failed assertion cases: start from those, read the lent original for each group before changing code, and treat my notes as pointers, not diagnoses.
+
+A. data-catalog / detection-utils / data-transforms. check-46 and check-62 (upstream tests) each have 1 case ending in an AttributeError raised by your own code at detectron2/data/catalog.py:74. check-47 (detection-utils, upstream test) exits 1 with no error digest recorded. check-86 (data-catalog scenario, output comparison) exits 0 but 2 cases that pass on the original fail. Whether 47 and 86 share the cause of 46/62 is not established: examine each. Compare with the original: Metadata attribute access, set/get/as_dict and the renamed-key guidance, DatasetCatalog/MetadataCatalog register/get/list/remove with their exception types and messages, and what the detection utilities read from metadata.
+
+B. packaging. check-72 (2 failed assertion cases), check-73 (1), check-74 (output comparison: exit 0, 2 baseline cases fail). They observe setup.py. The contract: version read from detectron2/__init__.py with D2_VERSION_SUFFIX and BUILD_NIGHTLY handling; the detectron2 packages plus detectron2.projects.* mapped to their project directories; extension detectron2._C from detectron2/layers/csrc (CUDA sources and flags when available or FORCE_CUDA=1); on every run setup.py removes whatever is at detectron2/model_zoo/configs (link or directory) and links or copies configs/ there again; python_requires, install_requires and the extras all and dev exactly as the knowledge lists them. The installation checks pass 3/3 on candidate-1 and must keep passing.
+
+C. layers. check-101 (leaf test): 1 case raises AttributeError in the test's own code, not in yours, so a name, member or attribute it reaches through the layers interface is absent on what you return or export. Walk every layers interface entry of the contract against the original's layers exports and classes (members, attributes, return types) and supply what is missing with the original's semantics.
+
+D. model-zoo. check-109: 4 cases raise RuntimeError at detectron2/model_zoo/__init__.py:114, plus 2 failed assertion cases. check-110: 6 cases with the same RuntimeError, plus 1 assertion case. check-111 (output comparison): exit 0, 5 baseline cases fail. Other checks that go through model_zoo pass (check-3, 12, 16, 29, 39, 42, 43), so line 114 refuses names or paths that only these three use. Confirmed: the worktree is prepared (the detectron2/model_zoo/configs link and the built _C exist); the files under configs/ are carried and protected, do not edit them. Compare with the original: the complete table of config names and checkpoint URL suffixes, how yaml and Python (.py) config names resolve, get_config_file, get_config(config_path, trained), get_checkpoint_url, get(config_path, trained, device), and exactly which inputs raise RuntimeError with which message.
+
+Rules. Keep all 85 passing checks passing: change only what these groups need, and keep public names, signatures, validation, messages and output intact elsewhere. Fix behavior in the implementation; never special-case a test, stub a function or drop a capability. Write your own code; do not copy bodies from the lent files. Do not create or alter tests or protected files. Growth in size is fine. The 11 checks above are compared first after your call, then all 96 and the installation checks. In your final note, state per group what the cause was and which files you changed.
+</code></pre>
+</details>
+</li>
+<li>
+<p><code>save_candidate</code> {&quot;reason&quot;: &quot;Repair of the 11 checks that failed in verification-8 (data-catalog, packaging, layers, model-zoo)&quot;}（条件：{&quot;call&quot;: 1, &quot;outcome&quot;: [&quot;completed&quot;]}）</p>
+</li>
+<li>
+<p><code>prepare_environment</code> {&quot;target&quot;: &quot;candidate&quot;}（条件：{&quot;call&quot;: 2, &quot;outcome&quot;: [&quot;done&quot;]}）</p>
+</li>
+<li>
+<p><code>capture_baseline</code> （条件：{&quot;call&quot;: 3, &quot;outcome&quot;: [&quot;passed&quot;]}）</p>
+</li>
+<li>
+<p><code>compare_behavior</code> {&quot;check_names&quot;: [&quot;check-46&quot;, &quot;check-47&quot;, &quot;check-62&quot;, &quot;check-72&quot;, &quot;check-73&quot;, &quot;check-74&quot;, &quot;check-86&quot;, &quot;check-101&quot;, &quot;check-109&quot;, &quot;check-110&quot;, &quot;check-111&quot;]}（条件：{&quot;call&quot;: 4, &quot;outcome&quot;: [&quot;ready&quot;]}）</p>
+</li>
+<li>
+<p><code>compare_behavior</code> （条件：{&quot;call&quot;: 5, &quot;outcome&quot;: [&quot;unverified&quot;]}）</p>
+</li>
+<li>
+<p><code>check_installation</code> （条件：{&quot;call&quot;: 6, &quot;outcome&quot;: [&quot;checks_passed&quot;]}）</p>
+</li>
+<li>
+<p><code>select_candidate</code> {&quot;candidate_id&quot;: &quot;$2.candidate_id&quot;, &quot;reason&quot;: &quot;Full comparison and installation checks passed on the repaired candidate&quot;}（条件：{&quot;call&quot;: 7, &quot;outcome&quot;: [&quot;passed&quot;]}）</p>
+</li>
+<li>
+<p><code>deliver</code> {&quot;reason&quot;: &quot;Repaired candidate passed the full comparison with the frozen baseline and the installation checks; the only remaining gap is the sealed cap original_checks_not_verified.&quot;, &quot;require&quot;: &quot;best_reachable&quot;}（条件：{&quot;call&quot;: 8, &quot;outcome&quot;: [&quot;selected&quot;, &quot;done&quot;]}）</p>
+</li>
+</ol>
+</li>
+</ul>
+<p><strong>第 3 轮</strong> · 03:59:55（第 195.8 分钟）· applied · 用时 58 秒 · 289,944 token（其中缓存 213,109）</p>
+<ul>
+<li>
+<p>它面对的建议：<code>{&quot;action&quot;: &quot;verify&quot;, &quot;candidate&quot;: &quot;candidate-2&quot;, &quot;missing&quot;: [&quot;installation&quot;], &quot;reason&quot;: &quot;evidence_missing&quot;, &quot;screen&quot;: [&quot;check-1&quot;, &quot;check-2&quot;, &quot;check-3&quot;, &quot;check-4&quot;, &quot;check-5&quot;, &quot;check-6&quot;, &quot;check-7&quot;, &quot;check-8&quot;, &quot;check-9&quot;, &quot;check-10&quot;, &quot;check-11&quot;, &quot;check-12&quot;, &quot;check-13&quot;, &quot;check-14&quot;, &quot;check-15&quot;, &quot;check-16&quot;, &quot;check-20&quot;, &quot;check-21&quot;, &quot;check-22&quot;, &quot;check-23&quot;, &quot;check-24&quot;, &quot;check-25&quot;, &quot;check-26&quot;, &quot;check-28&quot;, &quot;c …</code></p>
+</li>
+<li>
+<p>理由：Repair 1 cleared 8 of the 11 failed checks; check-101, check-110 and check-111 still fail, and check-110 now fails differently (ImportError at utils/registry.py:32 in locate instead of the model_zoo RuntimeError). That repair added 49 files and modified 8, and the 85 other checks have not been compared on candidate-2, nor has installation been checked since setup.py was repaired. A full comparison (about 7 minutes) and the installation check (about 90 seconds) cost no author attempt. They show whether the repair regressed anything before I write the second repair call, whose feedback is bound to this candidate, so it can name every failure at once instead of only the three the screen saw.</p>
+</li>
+<li>
+<p>它点的调用：</p>
+<ol>
+<li>
+<p><code>compare_behavior</code></p>
+</li>
+<li>
+<p><code>check_installation</code></p>
+</li>
+</ol>
+</li>
+</ul>
+<p><strong>第 4 轮</strong> · 04:12:36（第 208.5 分钟）· applied · 用时 151 秒 · 460,473 token（其中缓存 327,150）</p>
+<ul>
+<li>
+<p>它面对的建议：<code>{&quot;action&quot;: &quot;behavior_repair&quot;, &quot;behavior_accepted&quot;: false, &quot;candidate&quot;: &quot;candidate-2&quot;, &quot;reason&quot;: &quot;retrying_failed_checks&quot;, &quot;restore&quot;: null, &quot;stop_reason&quot;: null}</code></p>
+</li>
+<li>
+<p>理由：The full comparison of candidate-2 shows exactly three failed checks (check-101 layers, check-110 and check-111 model-zoo), no regression among the other 91, and installation passes 3/3. All three failed on both candidates, so one repair call names the three issues with their confirmed evidence (AttributeError in the check's own code; ImportError at utils/registry.py:32 in locate, which replaced the earlier model_zoo RuntimeError; four baseline cases not passing) and leaves the diagnosis to the author, with my hypotheses marked as such. The save is followed by preparing the candidate again, the reused baseline, a screen of the three checks, the full comparison, installation, selection and a best_reachable delivery, each only when the step before succeeded.</p>
+</li>
+<li>
+<p>它点的调用：</p>
+<ol>
+<li>
+<p><code>run_agent</code> {&quot;capabilities&quot;: [&quot;layers&quot;, &quot;model-zoo&quot;], &quot;issue_ids&quot;: [&quot;verification-c38784ef68e9b9f370bd4dd879487db3f4fbe044401b178ee972d18e5382e67c&quot;, &quot;verification-75b8adefec59fe79271b4985012fa6084f75e6adf7a2b379c473ee0b11c92af7&quot;, &quot;verification-9cfac6992485c399afbc9f8011c43024927f6c68c530ad113a45bbc9611743d8&quot;], &quot;role&quot;: &quot;repair&quot;}</p>
+<details><summary>交给作者的指示</summary>
+<pre><code>Second repair of candidate-2. A full comparison passes 91 of 94 checks and installation passes 3 of 3. Three leaf tests still fail, each on both candidates so far; the first repair did not clear them. Read your feedback for each issue and the original source of the capability before changing anything; the diagnosis is yours, I cannot see the code.
+
+1) check-101, capability layers (leaf test, compared by exit status). Confirmed evidence: exit code 1, one case, an AttributeError raised in the check's own code, not inside the candidate. So the test reaches for an attribute that the original's layers capability provides and the candidate does not: a public name of the layers package or of one of its modules, or a member of a class or object it exposes. My hypothesis only: a public layers name or member was left out or is bound differently. Compare everything the original's layers package and its modules export and bind (functions, classes, their attributes, methods, properties, module-level constants and aliases) with the candidate, and supply what is missing with the original's behavior, not a stub.
+
+2) check-110, capability model-zoo (leaf test, compared by exit status). Confirmed evidence: exit code 1, two cases, an ImportError raised at detectron2/utils/registry.py:32 in locate. Before the first repair this check failed with a RuntimeError at detectron2/model_zoo/__init__.py:114, so that repair moved the failure further along the same path. My hypothesis only: a model-zoo configuration that the test loads or instantiates names a dotted target (a module, class or function) that the candidate cannot import, or locate resolves names differently from the original. Find which names are asked for along the model-zoo paths the original supports (yaml and lazy python configs, get_config, get_config_file, get, get_checkpoint_url) and make every target those configs reference importable and behave as in the original. If the target belongs to a selected capability, implement it there; do not catch or hide the ImportError and do not change what locate reports for names that truly do not exist.
+
+3) check-111, capability model-zoo (leaf test, compared by output). Confirmed evidence: the check exits 0, but four cases that pass on the original do not pass on the candidate; your feedback carries the compared values of those four assertion cases. It likely shares its cause with check-110, which is not confirmed: treat it on its own evidence.
+
+Must keep passing: every other check, in particular the model-zoo checks repaired last time (check-3, check-12, check-16, check-29, check-39, check-42, check-43, check-69, check-70, check-71, check-109), the layers checks (check-1, check-6 to check-11, check-59, check-97 to check-100, check-102, check-112), the rotated operators, and the packaging checks check-72 to check-74 with the installation. Change setup.py or build inputs only if one of these three failures requires it.
+
+Retest first: check-101, check-110, check-111, then the model-zoo and layers checks named above.
+
+Rules: preserve selected functionality, input validation, error types and messages, logs and observable output. Do not special-case tests, do not weaken behavior, do not add placeholder shells. Write your own implementation; do not copy the original's code.
+</code></pre>
+</details>
+</li>
+<li>
+<p><code>save_candidate</code> {&quot;reason&quot;: &quot;Second behavior repair: check-101 (layers), check-110 and check-111 (model-zoo)&quot;}（条件：{&quot;call&quot;: 1, &quot;outcome&quot;: [&quot;completed&quot;]}）</p>
+</li>
+<li>
+<p><code>prepare_environment</code> {&quot;target&quot;: &quot;candidate&quot;}（条件：{&quot;call&quot;: 2, &quot;outcome&quot;: [&quot;done&quot;]}）</p>
+</li>
+<li>
+<p><code>capture_baseline</code> （条件：{&quot;call&quot;: 3, &quot;outcome&quot;: [&quot;passed&quot;]}）</p>
+</li>
+<li>
+<p><code>compare_behavior</code> {&quot;check_names&quot;: [&quot;check-101&quot;, &quot;check-110&quot;, &quot;check-111&quot;]}（条件：{&quot;call&quot;: 4, &quot;outcome&quot;: [&quot;ready&quot;]}）</p>
+</li>
+<li>
+<p><code>compare_behavior</code> （条件：{&quot;call&quot;: 5, &quot;outcome&quot;: [&quot;unverified&quot;]}）</p>
+</li>
+<li>
+<p><code>check_installation</code> （条件：{&quot;call&quot;: 6, &quot;outcome&quot;: [&quot;checks_passed&quot;]}）</p>
+</li>
+<li>
+<p><code>select_candidate</code> {&quot;candidate_id&quot;: &quot;$2.candidate_id&quot;, &quot;reason&quot;: &quot;Full comparison passed and installation checks passed on this candidate&quot;}（条件：{&quot;call&quot;: 7, &quot;outcome&quot;: [&quot;passed&quot;]}）</p>
+</li>
+<li>
+<p><code>deliver</code> {&quot;reason&quot;: &quot;Full comparison and installation checks passed on the selected candidate; the only remaining gap is the cap original_checks_not_verified, which no tool can close&quot;, &quot;require&quot;: &quot;best_reachable&quot;}（条件：{&quot;call&quot;: 8, &quot;outcome&quot;: [&quot;selected&quot;]}）</p>
+</li>
+</ol>
+</li>
+</ul>
+<p>相邻两个候选之间改了什么（比较主作业保存的两个候选）：</p>
+<p>candidate-1 → candidate-2：</p>
+<pre><code> configs/COCO-Detection/fcos_R_50_FPN_1x.py         |  11 +
+ configs/COCO-Detection/retinanet_R_50_FPN_1x.py    |  11 +
+ .../mask_rcnn_R_50_C4_1x.py                        |   8 +
+ .../mask_rcnn_R_50_FPN_1x.py                       |   8 +
+ .../mask_rcnn_regnetx_4gf_dds_fpn_1x.py            |  32 +
+ .../mask_rcnn_regnety_4gf_dds_fpn_1x.py            |  33 ++
+ .../COCO-Keypoints/keypoint_rcnn_R_50_FPN_1x.py    |   8 +
+ .../panoptic_fpn_R_50_1x.py                        |   8 +
+ configs/Misc/mmdet_mask_rcnn_R_50_FPN_1x.py        | 146 +++++
+ configs/Misc/torchvision_imagenet_R_50.py          | 140 +++++
+ configs/common/coco_schedule.py                    |  31 +
+ configs/common/data/coco.py                        |  44 ++
+ configs/common/data/coco_keypoint.py               |  13 +
+ configs/common/data/coco_panoptic_separated.py     |  12 +
+ configs/common/data/constants.py                   |   8 +
+ configs/common/models/cascade_rcnn.py              |  41 ++
+ configs/common/models/fcos.py                      |  20 +
+ configs/common/models/keypoint_rcnn_fpn.py         |  32 +
+ configs/common/models/mask_rcnn_c4.py              |  90 +++
+ configs/common/models/mask_rcnn_fpn.py             |  95 +++
+ configs/common/models/mask_rcnn_vitdet.py          |  51 ++
+ configs/common/models/panoptic_fpn.py              |  18 +
+ configs/common/models/retinanet.py                 |  51 ++
+ configs/common/optim.py                            |  22 +
+ configs/common/train.py                            |  16 +
+ .../new_baselines/mask_rcnn_R_101_FPN_100ep_LSJ.py |   9 +
+ .../new_baselines/mask_rcnn_R_101_FPN_200ep_LSJ.py |  14 +
+ .../new_baselines/mask_rcnn_R_101_FPN_400ep_LSJ.py |  14 +
+ .../new_baselines/mask_rcnn_R_50_FPN_100ep_LSJ.py  |  64 ++
+ .../new_baselines/mask_rcnn_R_50_FPN_200ep_LSJ.py  |  14 +
+ .../new_baselines/mask_rcnn_R_50_FPN_400ep_LSJ.py  |  14 +
+ .../new_baselines/mask_rcnn_R_50_FPN_50ep_LSJ.py   |  14 +
+ .../mask_rcnn_regnetx_4gf_dds_FPN_100ep_LSJ.py     |  27 +
+ .../mask_rcnn_regnetx_4gf_dds_FPN_200ep_LSJ.py     |  14 +
+ .../mask_rcnn_regnetx_4gf_dds_FPN_400ep_LSJ.py     |  14 +
+ .../mask_rcnn_regnety_4gf_dds_FPN_100ep_LSJ.py     |  28 +
+ .../mask_rcnn_regnety_4gf_dds_FPN_200ep_LSJ.py     |  14 +
+ .../mask_rcnn_regnety_4gf_dds_FPN_400ep_LSJ.py     |  14 +
+ detectron2/config/lazy.py                          |   4 +-
+ detectron2/data/__init__.py                        |   3 +
+ detectron2/data/datasets/__init__.py               |  15 +
+ detectron2/data/datasets/builtin.py                | 238 ++++++++
+ detectron2/data/datasets/builtin_meta.py           | 292 ++++++++++
+ detectron2/data/datasets/formats.py                | 641 +++++++++++++++++++++
+ detectron2/data/detection_utils.py                 |   9 +-
+ detectron2/layers/__init__.py                      |   5 +-
+ detectron2/layers/aspp.py                          |  93 +++
+ detectron2/layers/blocks.py                        |  87 ---
+ detectron2/layers/shape_spec.py                    |  10 +
+ detectron2/layers/wrappers.py                      |   9 -
+ detectron2/projects/__init__.py                    |  29 +
+ detectron2/solver/__init__.py                      | 117 ++++
+ projects/DeepLab/deeplab/__init__.py               |   1 +
+ .../Panoptic-DeepLab/panoptic_deeplab/__init__.py  |   1 +
+ projects/PointRend/point_rend/__init__.py          |   1 +
+ setup.py                                           |  13 +-
+ 56 files changed, 2659 insertions(+), 112 deletions(-)
+</code></pre>
+<p>candidate-2 → candidate-3：</p>
+<pre><code> .../mask_rcnn_regnetx_4gf_dds_fpn_1x.py            |   9 +-
+ .../mask_rcnn_regnety_4gf_dds_fpn_1x.py            |   9 +-
+ configs/Detectron1-Comparisons/README.md           |   3 +
+ configs/common/README.md                           |   3 +
+ configs/common/models/fcos.py                      |   6 +-
+ configs/common/models/panoptic_fpn.py              |   6 +-
+ configs/common/models/retinanet.py                 |   6 +-
+ .../mask_rcnn_regnetx_4gf_dds_FPN_100ep_LSJ.py     |   9 +-
+ .../mask_rcnn_regnety_4gf_dds_FPN_100ep_LSJ.py     |   9 +-
+ configs/quick_schedules/README.md                  |   5 +
+ detectron2/modeling/__init__.py                    |  23 +-
+ detectron2/modeling/backbone/__init__.py           |   1 +
+ detectron2/modeling/backbone/regnet.py             | 384 +++++++++++++++++++++
+ detectron2/modeling/meta_arch/__init__.py          |   7 +
+ detectron2/modeling/meta_arch/dense_detector.py    | 212 ++++++++++++
+ detectron2/modeling/meta_arch/fcos.py              | 252 ++++++++++++++
+ detectron2/modeling/meta_arch/panoptic_fpn.py      | 210 +++++++++++
+ detectron2/modeling/meta_arch/retinanet.py         | 303 ++++++++++++++++
+ detectron2/modeling/meta_arch/semantic_seg.py      | 213 ++++++++++++
+ 19 files changed, 1646 insertions(+), 24 deletions(-)
+</code></pre>
+<h2 id="s8">8. 节点申请</h2>
+<p>主作业事件里记下的节点申请（草稿作业的检查在它自己所在的机器上跑，不要节点）。对比阶段另外两个分配的申请没有留下事件，只能在下面第二张表里看到它们接下的请求：</p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>提交</th>
+<th>第几分钟</th>
+<th>是什么</th>
+<th>申请时长（分钟）</th>
+<th>核</th>
+<th>内存（MB）</th>
+<th>等待（秒）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="n">00:44:55</td>
+<td class="n">0.8</td>
+<td>The probe (an empty batch that settles where the job's checks run)</td>
+<td class="n">7</td>
+<td class="n">1</td>
+<td class="n">32768</td>
+<td class="n">27</td>
+</tr>
+<tr>
+<td class="n">00:46:01</td>
+<td class="n">1.9</td>
+<td>A batch of 46 checks</td>
+<td class="n">240</td>
+<td class="n">4</td>
+<td class="n">32768</td>
+<td class="n">38</td>
+</tr>
+<tr>
+<td class="n">02:21:33</td>
+<td class="n">97.4</td>
+<td>A batch of 96 checks</td>
+<td class="n">240</td>
+<td class="n">4</td>
+<td class="n">32768</td>
+<td class="n">31</td>
+</tr>
+</tbody>
+</table></div>
+<p>每个分配接下和拒收的请求（运行期间每 10 秒抓一次，时间是第一次看到的时间；<code>_run_checks</code> 是一批检查，<code>knockouts</code> 是敲除，<code>run_each</code> 是交付后回放原测试，带 <code>refused</code> 的是节点拒收）：</p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>分配（作业/分配，各前 8 位）</th>
+<th>第一条请求</th>
+<th>最后一条请求</th>
+<th>接下和拒收的请求，按先后</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>c7e2eea8/8b1f5c24</td>
+<td>00:46:43（第 2.6 分钟）</td>
+<td>02:21:14（第 97.1 分钟）</td>
+<td><code>_run_checks</code>、<code>knockouts</code>、<code>_run_checks</code>、<code>knockouts</code>、<code>_run_checks</code>、<code>knockouts</code>、<code>_run_checks</code>、<code>knockouts</code>、<code>_run_checks refused</code></td>
+</tr>
+<tr>
+<td>c7e2eea8/d029c4ae</td>
+<td>02:21:54（第 97.8 分钟）</td>
+<td>03:10:15（第 146.1 分钟）</td>
+<td><code>_run_checks</code>、<code>knockouts</code>、<code>_run_checks</code>、<code>_run_checks</code></td>
+</tr>
+<tr>
+<td>c7e2eea8/a728aa47</td>
+<td>03:57:25（第 193.3 分钟）</td>
+<td>04:00:15（第 196.1 分钟）</td>
+<td><code>_run_checks</code>、<code>_run_checks</code></td>
+</tr>
+<tr>
+<td>c7e2eea8/1b9fd3e3</td>
+<td>04:34:05（第 230.0 分钟）</td>
+<td>04:46:26（第 242.3 分钟）</td>
+<td><code>_run_checks</code>、<code>_run_checks</code>、<code>run_each</code>、<code>run_each</code>、<code>run_each</code>、<code>run_each</code>、<code>run_each</code>、<code>run_each</code>、<code>run_each</code>、<code>run_each</code>、<code>run_each</code>、<code>run_each</code></td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="s9">9. 收尾</h2>
+<ul>
+<li>
+<p>结束状态 <code>completed_with_gaps</code>：Delivered with gaps (original checks not verified: 2 test functions of 8 original checks left acceptance at conversion, 0 of them use only the public interface); no full preservation claim is made.</p>
+</li>
+<li>
+<p>选定并交付的候选：<code>candidate-3</code>；行为验收 <code>passed</code>，体积验收 <code>met</code>；主作业的作者尝试 3 次（导入的第一版算 1 次，其中修复 2 次）。</p>
+</li>
+<li>
+<p>体积：原版 641,353 token（71,975 行），交付 143,801 token（21,055 行，157 个源文件），保留 22.42%。</p>
+</li>
+<li>
+<p>交付后回放原测试：保留的 9 个测试里 9 个在原版上通过、9 个在交付版本上通过，退步 0 个；和内部名字绑在一起的 10 个里原版通过 10 个、交付版本通过 6 个。</p>
+</li>
+<li>
+<p>草稿作业：结束状态 <code>draft_ready</code>，137.1 分钟写完 5 个范围。</p>
+</li>
+<li>
+<p>作业自己写的限制（原文）：Passing checks is not proof of semantic equivalence.</p>
+</li>
+<li>
+<p>作业自己写的限制（原文）：The report lists gaps; it does not choose the next action.</p>
+</li>
+</ul>
+
+<footer>这一页由脚本从同目录的 Markdown 文件生成，内容相同。本机的路径、账户名、队列名、节点名、调度器作业编号等已换成占位符。</footer>
+</main>
+<a class="top" href="#top">回到顶部</a>
+</body>
+</html>

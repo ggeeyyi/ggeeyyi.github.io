@@ -1,0 +1,3179 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<meta name="description" content="nanolize 最新 main（a003430）上从零跑的一次 detectron2 压缩实验的完整轨迹：主持会话的每一步、两个作业的事件和操作、每个模型会话、controller 的每一轮、候选和对比。">
+<title>detectron2 压缩实验的轨迹：最新 main a003430</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%231c5cab'/%3E%3Cpath d='M4 11V5l8 6V5' fill='none' stroke='white' stroke-width='1.6'/%3E%3C/svg%3E">
+<style>
+:root { color-scheme: light; --bg:#f7f8fa; --card:#ffffff; --ink:#1b2230; --soft:#566074; --line:#dfe3ea; --head:#eef1f6;
+  --accent:#1c5cab; --code:#f1f3f7; --mark:#fff6d6; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { color-scheme: dark; --bg:#12151b; --card:#1a1e26; --ink:#e4e8ef;
+  --soft:#9aa5b8; --line:#2d3340; --head:#222834; --accent:#7fb0ee; --code:#222733; --mark:#3a3413; } }
+:root[data-theme="dark"] { color-scheme: dark; --bg:#12151b; --card:#1a1e26; --ink:#e4e8ef; --soft:#9aa5b8; --line:#2d3340; --head:#222834;
+  --accent:#7fb0ee; --code:#222733; --mark:#3a3413; }
+html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+  "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif; }
+main { max-width: 1180px; margin: 0 auto; padding: 28px 16px 80px; }
+h1 { font-size: 26px; line-height: 1.3; margin: 0 0 10px; letter-spacing: -0.01em; }
+h2 { font-size: 20px; margin: 44px 0 12px; padding-top: 14px; border-top: 2px solid var(--line); scroll-margin-top: 12px; }
+p { margin: 10px 0; }
+a { color: var(--accent); }
+.lead { color: var(--soft); font-size: 14px; }
+.bar { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 6px; }
+.bar a { display: inline-block; padding: 6px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); text-decoration: none; font-size: 14px; }
+.bar a:hover { border-color: var(--accent); }
+nav.toc { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; margin: 14px 0 8px; }
+nav.toc b { font-size: 13px; color: var(--soft); font-weight: 600; }
+nav.toc ol { margin: 6px 0 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 2px 18px; }
+nav.toc a { text-decoration: none; font-size: 14px; }
+nav.toc a:hover { text-decoration: underline; }
+.tw { overflow-x: auto; margin: 12px 0 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); }
+table { border-collapse: collapse; width: 100%; font-size: 13px; line-height: 1.5; }
+th, td { padding: 6px 10px; border-bottom: 1px solid var(--line); border-right: 1px solid var(--line); text-align: left; vertical-align: top; }
+th:last-child, td:last-child { border-right: 0; }
+tr:last-child td { border-bottom: 0; }
+th { background: var(--head); font-weight: 600; white-space: nowrap; position: sticky; top: 0; }
+td { min-width: 3.2em; overflow-wrap: anywhere; }
+td:last-child { min-width: 16em; }
+td.n { white-space: nowrap; min-width: 0; }
+tbody tr:hover td { background: var(--mark); }
+code { font: 12.5px/1.5 ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; background: var(--code); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+pre { background: var(--code); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; margin: 8px 0 12px; overflow-x: auto;
+  white-space: pre-wrap; overflow-wrap: anywhere; max-height: 560px; overflow-y: auto; }
+pre code { background: none; padding: 0; font-size: 12.5px; }
+details { margin: 8px 0; border: 1px solid var(--line); border-radius: 8px; background: var(--card); padding: 0 12px; }
+details > summary { cursor: pointer; padding: 8px 0; color: var(--accent); font-size: 14px; }
+details[open] > summary { border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+ul, ol { padding-left: 22px; }
+li { margin: 4px 0; }
+strong { font-weight: 650; }
+footer { margin-top: 48px; color: var(--soft); font-size: 13px; border-top: 1px solid var(--line); padding-top: 12px; }
+.top { position: fixed; right: 16px; bottom: 16px; padding: 7px 11px; border-radius: 8px; border: 1px solid var(--line); background: var(--card);
+  text-decoration: none; font-size: 13px; box-shadow: 0 2px 8px rgba(0,0,0,.12); }
+@media (max-width: 640px) { body { font-size: 14.5px; } h1 { font-size: 21px; } h2 { font-size: 18px; } table { font-size: 12.5px; } }
+</style>
+</head>
+<body>
+<main id="top">
+<h1>detectron2 压缩实验的轨迹：最新 main <code>a003430</code>（PR #56 合并后），pair 开、parallel 开</h1>
+
+<p class="lead">这份文件按时间顺序记录这次实验里发生的每一步：主持会话（host）的每一步、两个作业的每条事件和每个操作、每个模型会话、controller 的每一轮、每个候选和它的对比、检查节点接下的每个请求。内容全部取自这次运行自己的记录（主持会话保存的会话、作业的事件和操作记录、各次模型调用的记录、启动记录、运行期间对节点请求的抽样），由脚本生成；事件、工具返回和 controller 写的理由与指示是英文原文，照原样保留。时间都是 UTC，“第几分钟”从主作业的第一条事件算起（之前的为负数）。本机的路径、账户名、队列名、节点名、调度器作业编号、页面密钥和仓库所有者的姓名已经换成占位符。章节的排法和 2026-11-20 那几份 tqdm、detectron2 轨迹相同。</p>
+
+<div class="bar"><a href="detectron2-main-a003430-trajectory.md" download>下载 Markdown 原文件</a><a href="detectron2-main-trajectory-20261122.zip" download>下载 zip（轨迹和生成脚本）</a></div>
+<nav class="toc"><b>章节</b><ol><li><a href="#s1">1. 配置和结果</a></li><li><a href="#s2">2. 阶段</a></li><li><a href="#s3">3. 主持会话的轨迹</a></li><li><a href="#s4">4. 两个作业的事件和操作（按时间）</a></li><li><a href="#s5">5. 模型会话（每次调用）</a></li><li><a href="#s6">6. 测试设计和评审</a></li><li><a href="#s7">7. 候选、对比和修复</a></li><li><a href="#s8">8. 节点申请</a></li><li><a href="#s9">9. 收尾</a></li></ol></nav>
+<h2 id="s1">1. 配置和结果</h2>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>项目</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="n">实验</td>
+<td>用 nanolize 压缩 detectron2（<code>main</code> @ <code>247691a</code>），从零开始：主持会话自己做完整的阶段 01，得到的功能图有 76 项能力、57 条检查；选核心能力：选中 25 项，排除 51 项，留下 34 条检查</td>
+</tr>
+<tr>
+<td>nanolize 代码</td>
+<td>最新 main <code>a003430</code>（PR #56 合并后），pair 开、parallel 开，版本 0.8.0</td>
+</tr>
+<tr>
+<td class="n">选项</td>
+<td><code>agent=claude model=claude-fable-5-2 effort=high unattended=on parallel=on pair=on account=&lt;账户&gt; partition=&lt;队列&gt; qos=normal scope=core --cn</code>；并行模式的设置（原样）<code>{&quot;enabled&quot;: true, &quot;max_agents&quot;: 4, &quot;speculation&quot;: 2, &quot;widen&quot;: true}</code>；不做性能验收；行为修复上限用这个版本的默认值；检查经 nanolize 自己的执行器上计算节点</td>
+</tr>
+<tr>
+<td class="n">独立性</td>
+<td>不用任何早先运行的产物：detectron2 从公开仓库重新克隆到同一个提交；主持会话是全新的会话，功能图、清单、恢复的测试、runner 设置都由它重新做；整次运行在一个看不到早先运行文件（归档、包、运行记录、分析目录、Claude Code 的历史会话和记忆）的挂载命名空间里。测试环境和预编译的 C++ 扩展是实验前用脚本建好的机器环境，不是任何一次运行的产物，运行前后指纹相同</td>
+</tr>
+<tr>
+<td class="n">主持会话</td>
+<td>Claude Code 2.1.327，Fable 5.2，effort high；2026-11-22 08:04:34 UTC 启动，08:34:12 提交作业（阶段 01 和提交共 29.6 分钟），值守到 11:06:41；127 轮，$18.24</td>
+</tr>
+<tr>
+<td class="n">两个作业</td>
+<td>主作业 <code>501560e4</code>（冻结契约、验证、交付），草稿作业 <code>e68af35c</code>（同时写第一版）</td>
+</tr>
+<tr>
+<td class="n">主作业起止</td>
+<td>08:34:12 – 10:58:56，144.7 分钟（从批处理作业启动算起 174.4 分钟）</td>
+</tr>
+<tr>
+<td class="n">结束状态</td>
+<td><code>completed_with_gaps</code>；缺口：<code>current_full_behavior_comparison_missing_or_failed</code>、<code>original_retained_checks_not_passed</code>、<code>installation_not_passed</code>、<code>original_coverage_incomplete</code>、<code>behavior_obligations_incomplete</code></td>
+</tr>
+<tr>
+<td class="n">花费</td>
+<td>作业里的模型调用 $159.83（23 次），试调 $0.40（6 次），主持会话 $18.24；合计 $178.47</td>
+</tr>
+<tr>
+<td class="n">体积</td>
+<td>633,182 → 127,649 token，20.16%（目标 50%）</td>
+</tr>
+<tr>
+<td class="n">行为验收</td>
+<td>最后一次完整对比（<code>verification-9</code>）：out_of_scope 19 条、passed 67 条、preexisting_failure 1 条、unverified 4 条；没有运行的检查 4 条；行为修复 1 次；controller 主作业 2 轮、草稿作业 1 轮</td>
+</tr>
+<tr>
+<td class="n">安装检查</td>
+<td>状态 <code>not_configured</code>（0 / 0 步）</td>
+</tr>
+<tr>
+<td class="n">原测试的迁移</td>
+<td>给了 12 条，迁移成 12 条；没能验证的 0 条</td>
+</tr>
+<tr>
+<td class="n">交付后回放原测试</td>
+<td>保留的 13 个测试里回放 3 个、交付版本通过 3 个、退步 0 个；和内部名字绑在一起的 12 个里回放 12 个、原版通过 12 个、交付版本通过 10 个</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="s2">2. 阶段</h2>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>阶段</th>
+<th>开始</th>
+<th>结束</th>
+<th>分钟</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>主持会话的阶段 01 和提交（启动到主作业第一条事件）</td>
+<td class="n">08:04:34</td>
+<td class="n">08:34:12</td>
+<td class="n">29.6</td>
+</tr>
+<tr>
+<td>冻结（主作业开始到封存）</td>
+<td class="n">08:34:12</td>
+<td class="n">09:30:30</td>
+<td class="n">56.3</td>
+</tr>
+<tr>
+<td>等草稿作业并导入（封存到第一次完整对比开始）</td>
+<td class="n">09:30:30</td>
+<td class="n">10:17:15</td>
+<td class="n">46.7</td>
+</tr>
+<tr>
+<td>对比与修复（到选定候选）</td>
+<td class="n">10:17:15</td>
+<td class="n">10:57:40</td>
+<td class="n">40.4</td>
+</tr>
+<tr>
+<td>交付（到最后一条事件）</td>
+<td class="n">10:57:40</td>
+<td class="n">10:58:56</td>
+<td class="n">1.3</td>
+</tr>
+<tr>
+<td>草稿作业（和冻结同时开始）</td>
+<td class="n">08:34:12</td>
+<td class="n">10:16:18</td>
+<td class="n">102.1</td>
+</tr>
+<tr>
+<td>主持会话在作业结束后的收尾</td>
+<td class="n">10:58:56</td>
+<td class="n">11:06:41</td>
+<td class="n">7.8</td>
+</tr>
+</tbody>
+</table></div>
+<p>主作业封存后等了草稿作业 46.3 分钟（<code>import_draft</code> 记下的等待）。这个版本的作业事件里不记检查节点的排队时间；节点接下每个请求的时间见第 8 节。</p>
+<h2 id="s3">3. 主持会话的轨迹</h2>
+<p>主持会话是一个无人值守的 Claude Code 会话（<code>claude -p</code>，带 nanolize 插件），在计算节点上按 nanolize 的 skill 做完阶段 01、启动评审、提交选择，然后定时查看两个作业直到结束。下面依次是给它的提示、它传给 <code>start_execution_review</code> 的参数、它的每一步（调用了什么，说了什么；工具返回的内容不列）。</p>
+<details><summary>给主持会话的提示（原文）</summary>
+<pre><code>You are the host agent of an unattended nanolize run. Do exactly what the nanolize plugin's skill &quot;nanolize&quot; (nanolize:nanolize) says for this invocation, as if the user had typed it in this conversation:
+
+$nanolize detectron2 agent=claude model=claude-fable-5-2 effort=high unattended=on parallel=on pair=on account=&lt;账户&gt; partition=&lt;队列&gt; qos=normal scope=core --cn
+
+Facts about this machine that the skill cannot know. Follow them exactly:
+- Your working directory is &lt;共享盘路径&gt; and the folder is &lt;原仓库&gt;. Use the skill's default working root, &lt;工作根&gt;.
+- This is a fresh, independent run: do everything of stage 01 yourself, from this checkout alone. Use no result of any earlier run of nanolize on this or any project (no code graph, manifest, notes, plan, report, recovered tests, runner settings), and do not look for one.
+- You are already on a compute node inside a scheduler allocation of 32 CPUs and 96 GB. Run everything you do yourself here, directly: start no scheduler job of your own (no sbatch, no srun, no salloc), whatever other instructions say about a login node; this is not the login node. nanolize's own checks are different: they go to the scheduler through the check executor, and the scheduler's commands work from this node. Start the review with the check executor the skill builds from account=, partition= and qos= (account &lt;账户&gt;, partition &lt;队列&gt;, qos normal: given, do not search for others), with &quot;queue_timeout&quot;: 1800 and &quot;python&quot;: &quot;&lt;nanolize 解释器&gt;/a003430d/bin/python&quot; (nanolize's interpreter, on storage every node sees). Every compute node has the same system libraries as this one, and &lt;共享盘&gt; and /home are the same on all of them.
+- The run is two jobs (pair=on) with the parallel mode on (parallel=on), as the skill says for these options; add no limit of your own to either.
+- A test environment for this project exists on this machine; use it as the run's test environment instead of building one in test-env/ (a build of it needs a CPU-only PyTorch from another package index and a compiler run of minutes): &lt;测试环境&gt;/bin/python is Python 3.11 with CPU torch 2.5.1, torchvision 0.20.1 and the project's test dependencies (pytest included); the project itself is not installed in it. It is shared and must stay as it is: install nothing into it and change nothing in it. The project's C++ extension was built once from this commit with this node's compiler: &lt;预编译扩展&gt; holds the built file (detectron2/_C.*.so). Copying that file into a tree's detectron2/ directory is all that tree needs to import detectron2._C; make that the preparation recipe of the original and of the candidate (a copy takes a second; a build takes minutes). Checks must run one thread each: set OMP_NUM_THREADS=1 and MKL_NUM_THREADS=1 in every check's environment. PIP_CONFIG_FILE=/dev/null is set: the machine's own pip index does not resolve here; pypi.org is reachable for what nanolize itself installs (Graphify).
+- Tests that cannot pass on the original in this environment (no GPU, no dataset files, no network model zoo, an optional package that is not installed) are left out as the skill says for such tests; do not spend the run on making them pass.
+- The account's home directory is limited to 10 GB and nearly full: create nothing large under $HOME. The working root is on a large filesystem; keep everything the run writes there.
+- The nanolize MCP server can take a minute to connect; load its tools before deciding they are missing.
+- In claude-runners.json: nanolize's interpreter is &lt;nanolize 解释器&gt;/a003430d/bin/python; it reads nanolize from &lt;nanolize 代码&gt;/src and its dependencies from ~/workspace/geyi/nanolize/.venv, so none of these three places may be hidden from a session, and the test environment &lt;测试环境&gt; is exposed as the skill says for test-env. Beside what the skill names, the hide list must contain: &lt;预编译扩展&gt; &lt;共享盘路径&gt; &lt;共享盘路径&gt; 
+- Nobody attends this run and nobody will answer a question: never wait for a person, and decide what the skill leaves to you. Do not stop to ask.
+- Once the job is submitted, follow the skill's section for an unattended run. If you cannot keep observing until the job ends, stop: the jobs go on by themselves and another process records how they end.
+- In your last message, state the run_id, the review_id, the job ids, the working root, and the commit that holds the recovered tests (or that there is none).
+</code></pre>
+</details>
+<details><summary>启动记录</summary>
+<pre><code>run=r1 host=&lt;节点&gt; slurm_job=&lt;调度作业&gt; started=2026-11-22T00:04:34-08:00 runtime=&lt;nanolize 代码&gt; nanolize_commit=a003430d dirty=0
+python=&lt;nanolize 解释器&gt;/a003430d/bin/python nanolize=0.8.0 &lt;nanolize 代码&gt;/src/nanolize/__init__.py
+folder=&lt;原仓库&gt; commit=247691a1c292654867deb35cabb27f18d75a1363 branch=main
+claude=2.1.327 (Claude Code) host_model=claude-fable-5-2 host_effort=high pip_config=/dev/null sbatch=&lt;调度器命令&gt;
+args=agent=claude model=claude-fable-5-2 effort=high unattended=on parallel=on pair=on account=&lt;账户&gt; partition=&lt;队列&gt; qos=normal scope=core --cn
+test_env_fingerprint=604659d50561e108 (before the first run of this batch: 604659d50561e108)
+host start 2026-11-22T00:04:35-08:00
+host exit=0 at 2026-11-22T03:06:42-08:00
+wait exit=0 at 2026-11-22T03:06:42-08:00
+namespace exit=0 at 2026-11-22T03:06:51-08:00
+test_env_fingerprint_end=604659d50561e108
+</code></pre>
+</details>
+<details><summary>传给 start_execution_review 的参数</summary>
+<pre><code class="language-json">{
+ &quot;path&quot;: &quot;&lt;原仓库&gt;&quot;,
+ &quot;manifest_path&quot;: &quot;&lt;工作根&gt;/notes/graph-manifest-6.json&quot;,
+ &quot;state_root&quot;: &quot;&lt;工作根&gt;/state&quot;,
+ &quot;allow_execution&quot;: true,
+ &quot;public&quot;: false,
+ &quot;scope_preset&quot;: &quot;core&quot;,
+ &quot;unattended&quot;: true,
+ &quot;pair&quot;: &quot;on&quot;,
+ &quot;runner_argv&quot;: [
+  &quot;&lt;nanolize 解释器&gt;/a003430d/bin/python3&quot;,
+  &quot;-P&quot;,
+  &quot;-m&quot;,
+  &quot;nanolize.runners.claude_author&quot;,
+  &quot;--settings&quot;,
+  &quot;&lt;工作根&gt;/claude-runners.json&quot;
+ ],
+ &quot;controller_policy&quot;: {
+  &quot;runner_argv&quot;: [
+   &quot;&lt;nanolize 解释器&gt;/a003430d/bin/python3&quot;,
+   &quot;-P&quot;,
+   &quot;-m&quot;,
+   &quot;nanolize.runners.claude_controller&quot;,
+   &quot;--settings&quot;,
+   &quot;&lt;工作根&gt;/claude-runners.json&quot;,
+   &quot;{result_path}&quot;,
+   &quot;{schema_path}&quot;
+  ],
+  &quot;parallel&quot;: {
+   &quot;enabled&quot;: true
+  }
+ },
+ &quot;check_validation&quot;: {
+  &quot;runner_argv&quot;: [
+   &quot;&lt;nanolize 解释器&gt;/a003430d/bin/python3&quot;,
+   &quot;-P&quot;,
+   &quot;-m&quot;,
+   &quot;nanolize.runners.claude_role&quot;,
+   &quot;--settings&quot;,
+   &quot;&lt;工作根&gt;/claude-runners.json&quot;,
+   &quot;{result_path}&quot;,
+   &quot;{schema_path}&quot;
+  ]
+ },
+ &quot;check_executor&quot;: {
+  &quot;kind&quot;: &quot;auto&quot;,
+  &quot;account&quot;: &quot;&lt;账户&gt;&quot;,
+  &quot;partition&quot;: &quot;&lt;队列&gt;&quot;,
+  &quot;qos&quot;: &quot;normal&quot;,
+  &quot;queue_timeout&quot;: 1800,
+  &quot;python&quot;: &quot;&lt;nanolize 解释器&gt;/a003430d/bin/python&quot;
+ },
+ &quot;prepare_checks&quot;: [
+  {
+   &quot;name&quot;: &quot;native-extension-and-model-zoo-link&quot;,
+   &quot;argv&quot;: [
+    &quot;/bin/sh&quot;,
+    &quot;-c&quot;,
+    &quot;mkdir -p detectron2/model_zoo &amp;&amp; cp -f &lt;预编译扩展&gt;/_C.cpython-311-x86_64-linux-gnu.so detectron2/ &amp;&amp; ln -sfn ../../configs detectron2/model_zoo/configs&quot;
+   ],
+   &quot;compare&quot;: &quot;exit&quot;,
+   &quot;timeout&quot;: 120,
+   &quot;sandbox&quot;: &quot;none&quot;
+  }
+ ]
+}
+</code></pre>
+</details>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>时间</th>
+<th>第几分钟</th>
+<th>类型</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="n">08:04:42</td>
+<td class="n">-29.5</td>
+<td class="n">调用</td>
+<td><code>Skill</code> nanolize:nanolize detectron2 agent=claude model=claude-fable-5-2 effort=high unattended=on parallel=on pair=on account=&lt;账户&gt; partition=&lt;队列&gt; qos=normal scope=core --cn</td>
+</tr>
+<tr>
+<td class="n">08:04:47</td>
+<td class="n">-29.4</td>
+<td class="n">调用</td>
+<td><code>Read</code> <code>&lt;nanolize 代码&gt;/skills/nanolize-run/SKILL.md</code></td>
+</tr>
+<tr>
+<td class="n">08:04:51</td>
+<td class="n">-29.4</td>
+<td class="n">调用</td>
+<td><code>ToolSearch</code> select:start_run_dashboard,record_run_progress,task_doctor,propose_test_environment,prepare_test_environment,prepa …</td>
+</tr>
+<tr>
+<td class="n">08:04:58</td>
+<td class="n">-29.2</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Inspect the target checkout and skill reference files：<code>ls; ls nanolize-runs 2&gt;/dev/null; cd detectron2 &amp;&amp; git status --short | head; git log --oneline | head -3; git branch --show-current; ls; nproc; ls &lt;nanolize 代码&gt;/skills/simplify-code/ &lt;nanolize 代码&gt;/skills/simplify-code/references</code></td>
+</tr>
+<tr>
+<td class="n">08:04:59</td>
+<td class="n">-29.2</td>
+<td class="n">调用</td>
+<td><code>ToolSearch</code> select:propose_contract,resume_execution_job,stop_execution_review,capture_capability_baseline</td>
+</tr>
+<tr>
+<td class="n">08:05:05</td>
+<td class="n">-29.1</td>
+<td class="n">调用</td>
+<td><code>nanolize:start_run_dashboard</code> {&quot;path&quot;: &quot;&lt;原仓库&gt;&quot;, &quot;language&quot;: &quot;zh-CN&quot;}</td>
+</tr>
+<tr>
+<td class="n">08:05:05</td>
+<td class="n">-29.1</td>
+<td class="n">调用</td>
+<td><code>Read</code> <code>&lt;nanolize 代码&gt;/skills/simplify-code/references/capabilities.md</code></td>
+</tr>
+<tr>
+<td class="n">08:05:06</td>
+<td class="n">-29.1</td>
+<td class="n">调用</td>
+<td><code>Read</code> <code>&lt;nanolize 代码&gt;/skills/simplify-code/references/graphify.md</code></td>
+</tr>
+<tr>
+<td class="n">08:05:06</td>
+<td class="n">-29.1</td>
+<td class="n">调用</td>
+<td><code>Read</code> <code>&lt;nanolize 代码&gt;/skills/simplify-code/SKILL.md</code></td>
+</tr>
+<tr>
+<td class="n">08:05:19</td>
+<td class="n">-28.9</td>
+<td class="n">调用</td>
+<td><code>nanolize:record_run_progress</code> {&quot;stage&quot;: &quot;discover&quot;, &quot;status&quot;: &quot;active&quot;, &quot;summary&quot;: &quot;开始发现阶段：使用本机已有的测试环境（Python 3.11 + CPU torch 2.5.1），在原始代码副本上试跑测试。&quot;, &quot;steps&quot;: [{&quot;id&quot;: &quot;env&quot;, &quot;status&quot;: &quot;active&quot;}]}</td>
+</tr>
+<tr>
+<td class="n">08:05:20</td>
+<td class="n">-28.9</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Locate nanolize source and prepare_checks documentation：<code>S=&lt;nanolize 代码&gt;; ls $S $S/src $S/src/nanolize | head -100; grep -rn &quot;prepare_checks&quot; $S/src/nanolize/*.py | head -40; ls $S/docs 2&gt;/dev/null</code></td>
+</tr>
+<tr>
+<td class="n">08:05:23</td>
+<td class="n">-28.8</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Survey repository layout and the prebuilt extension：<code>cd &lt;原仓库&gt;; cat .gitignore; git ls-files | wc -l; git ls-files | awk -F/ '{print $1&quot;/&quot;$2}' | sort | uniq -c | sort -rn | head -60; ls &lt;共享盘路径&gt; &lt;预编译扩展&gt; &lt;预编译扩展&gt;/*; git remote -v; git status --short --ignored | head</code></td>
+</tr>
+<tr>
+<td class="n">08:05:28</td>
+<td class="n">-28.7</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Read prepare_checks handling in nanolize source：<code>S=&lt;nanolize 代码&gt;/src/nanolize; sed -n 736,975p $S/mcp_server.py | cut -c1-1500 | grep -n &quot;prepare_checks\|candidate_checks\|runner_trial\|installation_checks\|execution_backend&quot; ; sed -n 1305,1372p $S/execution.py</code></td>
+</tr>
+<tr>
+<td class="n">08:05:32</td>
+<td class="n">-28.7</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Read remaining start_execution_review docs：<code>S=&lt;nanolize 代码&gt;; sed -n 745,975p $S/src/nanolize/mcp_server.py | sed -n 95,235p; grep -rn &quot;prepare_checks\|prepare recipe\|preparation recipe&quot; $S/docs/*.md | cut -c1-600 | head -30</code></td>
+</tr>
+<tr>
+<td class="n">08:05:37</td>
+<td class="n">-28.6</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Read docs on preparation recipes and pair mode：<code>S=&lt;nanolize 代码&gt;; sed -n 555,600p $S/docs/job-tools.md; sed -n 1895,1915p $S/docs/job-tools.md; sed -n 3815,3832p $S/docs/graph-rewrite.md; grep -n &quot;prepare&quot; $S/src/nanolize/pair.py | head -20; grep -n &quot;sandbox\|native\|\.so\b&quot; $S/docs/reliable-workflows.md | head -40</code></td>
+</tr>
+<tr>
+<td class="n">08:05:43</td>
+<td class="n">-28.5</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Find prepare-checks examples and check schema：<code>S=&lt;nanolize 代码&gt;; grep -rn &quot;prepare_checks\|--prepare-checks\|prepare-checks&quot; $S/docs/*.md $S/README.md $S/examples -r | cut -c1-700 | head -20; grep -n &quot;def _checks&quot; -A60 $S/src/nanolize/checks_api.py 2&gt;/dev/null | head -120; ls $S/src/nanolize | sed -n 80,200p</code></td>
+</tr>
+<tr>
+<td class="n">08:05:48</td>
+<td class="n">-28.4</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Read the check schema validator：<code>S=&lt;nanolize 代码&gt;/src/nanolize; grep -n &quot;checks_api&quot; $S/execution.py | head -3; grep -n &quot;^def _checks\|^def _check\b\|def normalize_check&quot; -A70 $S/verification.py | head -200</code></td>
+</tr>
+<tr>
+<td class="n">08:05:56</td>
+<td class="n">-28.3</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Read prepare_environment implementation：<code>S=&lt;nanolize 代码&gt;/src/nanolize; ls $S/job_tools; grep -rn &quot;def prepare_environment&quot; -A80 $S/job_tools/*.py | head -160</code></td>
+</tr>
+<tr>
+<td class="n">08:06:00</td>
+<td class="n">-28.2</td>
+<td class="n">说</td>
+<td>正在读 nanolize 的准备配方（prepare recipe）实现，确认把预编译的 <code>_C.so</code> 拷进原始树和候选树的写法；随后在原始代码副本上试跑测试。</td>
+</tr>
+<tr>
+<td class="n">08:06:02</td>
+<td class="n">-28.2</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Locate preparation recipe code：<code>S=&lt;nanolize 代码&gt;/src/nanolize; grep -rn &quot;prepare_environment\|def _prepare\|prepare_checks&quot; $S/job_tools/*.py $S/job_runner.py $S/rewrite.py | cut -c1-220 | head -40</code></td>
+</tr>
+<tr>
+<td class="n">08:06:06</td>
+<td class="n">-28.1</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Read how recipes run in each worktree：<code>S=&lt;nanolize 代码&gt;/src/nanolize; sed -n 630,660p $S/job_tools/freeze.py; sed -n 720,800p $S/job_tools/freeze.py; grep -n &quot;def _checks_phase&quot; -A45 $S/execution.py</code></td>
+</tr>
+<tr>
+<td class="n">08:06:11</td>
+<td class="n">-28.0</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Read candidate tree identity logic：<code>S=&lt;nanolize 代码&gt;/src/nanolize; grep -n &quot;def _candidate_tree&quot; -A40 $S/execution.py; grep -n &quot;def original_root&quot; -A15 $S/job_tools/*.py | head -40</code></td>
+</tr>
+<tr>
+<td class="n">08:06:18</td>
+<td class="n">-27.9</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Check which files count as private or cache：<code>S=&lt;nanolize 代码&gt;/src/nanolize; grep -n &quot;def _private_or_cache&quot; -B12 -A25 $S/execution.py; grep -n &quot;native binar&quot; $S/*.py | cut -c1-260 | head -20</code></td>
+</tr>
+<tr>
+<td class="n">08:06:25</td>
+<td class="n">-27.8</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Check how native binaries and .gitignore carry to candidates：<code>S=&lt;nanolize 代码&gt;/src/nanolize; sed -n 4690,4740p $S/execution.py; grep -n &quot;gitignore&quot; $S/execution.py $S/rewrite.py $S/job_tools/*.py | cut -c1-240 | head -30</code></td>
+</tr>
+<tr>
+<td class="n">08:06:34</td>
+<td class="n">-27.6</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Make a private copy of the original, add the built extension, list tests and env packages：<code>WR=&lt;工作根&gt;; mkdir -p $WR/notes $WR/notes/orig-tree; cd &lt;原仓库&gt; &amp;&amp; git archive HEAD | tar -x -C $WR/notes/orig-tree &amp;&amp; cp &lt;预编译扩展&gt;/_C.cpython-311-x86_64-linux-gnu.so $WR/notes/orig-tree/detectron2/ &amp;&amp; cd $WR/notes/orig-tree &amp;&amp; find tests -name &quot;*.py&quot; | sort | xargs wc -l | tail -80; PY=&lt;测试环境&gt;/bin/python; OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 $PY -c &quot;import detectron2, torch, torchvision; from detectron2 import _C; print(dete …</code></td>
+</tr>
+<tr>
+<td class="n">08:06:34</td>
+<td class="n">-27.6</td>
+<td class="n">调用</td>
+<td><code>nanolize:propose_test_environment</code> {&quot;path&quot;: &quot;&lt;原仓库&gt;&quot;}</td>
+</tr>
+<tr>
+<td class="n">08:06:55</td>
+<td class="n">-27.3</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Run every original test file once in the provided environment：<code>WR=&lt;工作根&gt;; cd $WR/notes/orig-tree; mkdir -p $WR/notes/trial; PY=&lt;测试环境&gt;/bin/python; export OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 PYTHONDONTWRITEBYTECODE=1; find tests -name &quot;test_*.py&quot; | sort &gt; $WR/notes/trial/files.txt; time (cat $WR/notes/trial/files.txt | xargs -P 16 -I{} sh -c 'n=$(echo {} | tr / _); /usr/bin/time -f &quot;%e s {}&quot; timeout 1500 '$PY' -m pytest {} -q -p no:cacheprovider --junitxml='$WR'/notes/trial/$n.xml …</code></td>
+</tr>
+<tr>
+<td class="n">08:06:55</td>
+<td class="n">-27.3</td>
+<td class="n">调用</td>
+<td><code>nanolize:discover_capabilities</code> {&quot;path&quot;: &quot;&lt;原仓库&gt;&quot;}</td>
+</tr>
+<tr>
+<td class="n">08:07:06</td>
+<td class="n">-27.1</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Summarize the discovery inventory：<code>F=~/.claude/projects/&lt;会话目录名&gt;/4ebcfd72-5c7a-4068-84a4-78a56ad4322f/tool-results/mcp-plugin_nanolize_nanolize-discover_capabilities-1795334818503-n6tr4n.txt; cp $F &lt;工作根&gt;/notes/discover.json; python3 - &lt;&lt;'E' import json,collections d=json.load(open('&lt;工作根&gt;/notes/discover.json')) print({k:(type(v).__name__, len(v) if hasattr(v,'__len__') else v) for k,v in d.items()}) inv=d['inventory'] k=next(iter(inv)); print(k, json.du …</code></td>
+</tr>
+<tr>
+<td class="n">08:07:11</td>
+<td class="n">-27.0</td>
+<td class="n">说</td>
+<td>测试试跑在后台进行中；我同时在整理源码清单（450 个生产源文件），准备编写能力清单。</td>
+</tr>
+<tr>
+<td class="n">08:07:13</td>
+<td class="n">-27.0</td>
+<td class="n">调用</td>
+<td><code>Bash</code> List production files of the main package：<code>python3 - &lt;&lt;'E' import json,collections d=json.load(open('&lt;工作根&gt;/notes/discover.json')) inv=d['inventory'] ext=collections.Counter(p.rsplit('.',1)[-1] for p in inv); print(ext) for p,v in inv.items(): if p.startswith('detectron2/') or p.startswith('tools') or p.startswith('demo') or p.startswith('dev') or p.startswith('docs') or p.startswith('datasets') or p=='setup.py': print(v['lines'], p) print([t for t in d['test_ …</code></td>
+</tr>
+<tr>
+<td class="n">08:07:24</td>
+<td class="n">-26.8</td>
+<td class="n">调用</td>
+<td><code>nanolize:discover_evidence</code> {&quot;path&quot;: &quot;&lt;原仓库&gt;&quot;, &quot;store_dir&quot;: &quot;&lt;工作根&gt;/notes/evidence&quot;}</td>
+</tr>
+<tr>
+<td class="n">08:07:25</td>
+<td class="n">-26.8</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Check interim test trial output：<code>cat /tmp/&lt;节点&gt;/&lt;会话目录名&gt;/4ebcfd72-5c7a-4068-84a4-78a56ad4322f/tasks/bif3jxayw.output | tail -70</code></td>
+</tr>
+<tr>
+<td class="n">08:07:39</td>
+<td class="n">-26.5</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Summarize pass/fail/skip per test file：<code>cd &lt;工作根&gt;/notes/trial; python3 - &lt;&lt;'E' import glob, xml.etree.ElementTree as ET, collections tot=collections.Counter() for f in sorted(glob.glob('*.xml')): r=ET.parse(f).getroot() c=collections.Counter(); bad=[] for tc in r.iter('testcase'): st='passed' for ch in tc: if ch.tag in('failure','error','skipped'): st=ch.tag; msg=(ch.get('message') or '')[:230].replace('\n',' ') bad.append((st, tc.get('name'), msg)) c[st]+= …</code></td>
+</tr>
+<tr>
+<td class="n">08:07:55</td>
+<td class="n">-26.3</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Check how nanolize classifies YAML config files：<code>S=&lt;nanolize 代码&gt;/src/nanolize; grep -n &quot;yaml\|\.yml\|CONFIG_SUFFIX\|SOURCE_SUFFIX\|_SUFFIXES&quot; $S/repository.py $S/code_size.py $S/capabilities.py | cut -c1-220 | head -50</code></td>
+</tr>
+<tr>
+<td class="n">08:07:59</td>
+<td class="n">-26.2</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Read size classification and candidate assembly rules：<code>S=&lt;nanolize 代码&gt;/src/nanolize; sed -n 25,135p $S/code_size.py; sed -n 1640,1760p $S/rewrite.py</code></td>
+</tr>
+<tr>
+<td class="n">08:08:11</td>
+<td class="n">-26.0</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Read how checks copy the tree and lend built files：<code>S=&lt;nanolize 代码&gt;/src/nanolize; sed -n 1610,1665p $S/leaf_test_validity.py; grep -n &quot;private copy\|def _copy_tree\|copytree\|symlinks=&quot; $S/check_executor.py $S/check_worker.py $S/verification.py $S/check_sandbox.py | cut -c1-200 | head -40</code></td>
+</tr>
+<tr>
+<td class="n">08:08:54</td>
+<td class="n">-25.3</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Inspect model zoo config lookup and add the configs link in the private copy：<code>WR=&lt;工作根&gt;; cd $WR/notes/orig-tree; grep -n &quot;configs&quot; setup.py | head -20; sed -n 120,150p detectron2/model_zoo/model_zoo.py; ln -sfn ../../configs detectron2/model_zoo/configs; git -C &lt;原仓库&gt; ls-files configs projects | grep -c &quot;\.yaml$&quot;; git -C &lt;原仓库&gt; ls-files | grep -v &quot;\.py$&quot; | sed 's/.*\.//' | sort | uniq -c | sort -rn | head -20</code></td>
+</tr>
+<tr>
+<td class="n">08:08:58</td>
+<td class="n">-25.2</td>
+<td class="n">说</td>
+<td>在原始副本里加上 model_zoo 配置链接后，重跑之前失败的测试文件，确认哪些测试能在此环境通过。</td>
+</tr>
+<tr>
+<td class="n">08:09:04</td>
+<td class="n">-25.1</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Rerun previously failing test files with the configs link：<code>WR=&lt;工作根&gt;; cd $WR/notes/orig-tree; mkdir -p $WR/notes/trial2; PY=&lt;测试环境&gt;/bin/python; export OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 PYTHONDONTWRITEBYTECODE=1; (echo tests/config/test_yacs_config.py tests/data/test_coco_evaluation.py tests/data/test_dataset.py tests/modeling/test_backbone.py tests/modeling/test_model_e2e.py tests/modeling/test_roi_heads.py tests/test_engine.py tests/test_export_torchscript.py tests/test_mod …</code></td>
+</tr>
+<tr>
+<td class="n">08:13:26</td>
+<td class="n">-20.8</td>
+<td class="n">调用</td>
+<td><code>nanolize:record_run_progress</code> {&quot;stage&quot;: &quot;discover&quot;, &quot;status&quot;: &quot;active&quot;, &quot;summary&quot;: &quot;测试环境就绪（共享环境，未改动）：原始代码副本上 53 个测试文件试跑，加上预编译 _C 扩展与 model_zoo 配置链接后 297 通过、29 跳过（无 GPU/数据集/mmdet）、5 失败（缺数据集文件，将剔除）；onnx/caffe2 相关文件无法收集，剔除。&quot;, &quot;steps&quot;: [{&quot;id&quot;: &quot;env&quot;, &quot;status&quot;: &quot;done&quot;, &quot;label&quot;: &quot;使用现有环境 Python 3.11 + torch 2.5.1 CPU&quot;}, {&quot;id&quot;: &quot;evidence&quot;, &quot;status&quot;: &quot;done&quot;, &quot;label&quot;: &quot;450 个源文件，71975 行，6214 条证据&quot;}, {&quot;id&quot;: &quot;graph&quot;, &quot;status&quot;: &quot;active&quot;}]}</td>
+</tr>
+<tr>
+<td class="n">08:13:26</td>
+<td class="n">-20.8</td>
+<td class="n">调用</td>
+<td><code>nanolize:prepare_graphify</code> {&quot;allow_execution&quot;: true}</td>
+</tr>
+<tr>
+<td class="n">08:13:30</td>
+<td class="n">-20.7</td>
+<td class="n">说</td>
+<td>Graphify 已就绪（复用已有安装 0.9.111），现在对仓库生成代码图。</td>
+</tr>
+<tr>
+<td class="n">08:13:33</td>
+<td class="n">-20.6</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Generate the code-only Graphify graph into the working root：<code>WR=&lt;工作根&gt;; cd $WR &amp;&amp; time (GRAPHIFY_NO_AUTO_REFRESH=1 GRAPHIFY_BACKEND=none &lt;共享盘路径&gt; extract &lt;原仓库&gt; --code-only --max-workers 1 --out $WR/notes/graphify 2&gt;&amp;1 | tail -15); ls -la $WR/notes/graphify/graphify-out | head; git -C &lt;原仓库&gt; status --short | head</code></td>
+</tr>
+<tr>
+<td class="n">08:14:04</td>
+<td class="n">-20.1</td>
+<td class="n">调用</td>
+<td><code>nanolize:import_understanding</code> {&quot;path&quot;: &quot;&lt;原仓库&gt;&quot;, &quot;graph_path&quot;: &quot;&lt;工作根&gt;/notes/graphify/graphify-out/graph.json&quot;, &quot;manifest_output&quot;: &quot;&lt;工作根&gt;/notes/understanding-manifest.json&quot;, &quot;plan_output&quot;: &quot;&lt;工作根&gt;/notes/understanding-plan.json&quot;}</td>
+</tr>
+<tr>
+<td class="n">08:14:53</td>
+<td class="n">-19.3</td>
+<td class="n">调用</td>
+<td><code>nanolize:record_run_progress</code> {&quot;stage&quot;: &quot;discover&quot;, &quot;status&quot;: &quot;active&quot;, &quot;steps&quot;: [{&quot;id&quot;: &quot;graph&quot;, &quot;status&quot;: &quot;done&quot;, &quot;label&quot;: &quot;Graphify 0.9.111：10257 节点，594 社区&quot;}, {&quot;id&quot;: &quot;manifest&quot;, &quot;status&quot;: &quot;active&quot;}]}</td>
+</tr>
+<tr>
+<td class="n">08:14:57</td>
+<td class="n">-19.2</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Summarize what each test file imports from the project：<code>cd &lt;原仓库&gt; &amp;&amp; python3 - &lt;&lt;'E' import ast, os, subprocess, collections files=subprocess.check_output(['git','ls-files','tests']).decode().split() for f in files: if not f.endswith('.py') or '/dir1/' in f or f.endswith('__init__.py') or f.endswith('root_cfg.py'): continue t=ast.parse(open(f).read()) mods=collections.OrderedDict() for n in ast.walk(t): if isinstance(n, ast.ImportFrom) and n.module and (n.module.startswith …</code></td>
+</tr>
+<tr>
+<td class="n">08:16:03</td>
+<td class="n">-18.2</td>
+<td class="n">说</td>
+<td>继续：正在分析模块间依赖并起草能力清单（核心 = 标准 R-CNN 检测的配置/结构/层/建模/数据/引擎等）。</td>
+</tr>
+<tr>
+<td class="n">08:16:07</td>
+<td class="n">-18.1</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Read key package init files and per-file token sizes：<code>sed -n 1,40p detectron2/utils/testing.py &amp;&amp; cat detectron2/export/__init__.py detectron2/modeling/__init__.py detectron2/projects/__init__.py detectron2/layers/__init__.py | grep -v &quot;^#&quot; &amp;&amp; python3 - &lt;&lt;'E' import json p=json.load(open('&lt;工作根&gt;/notes/understanding-plan.json')) sm=p['size_measurement']; inv=sm['inventory'] print(type(inv), len(inv)); items=inv.items() if isinstance(inv,dict) else [(i.get('path'),i) for i …</code></td>
+</tr>
+<tr>
+<td class="n">08:17:21</td>
+<td class="n">-16.8</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Read manifest example and runtime audit format：<code>S=&lt;nanolize 代码&gt;; cat $S/examples/capability_project/capabilities.json | head -80; grep -n &quot;def validate_runtime&quot; -A45 $S/src/nanolize/runtime_guard.py; sed -n 212,260p $S/src/nanolize/verification.py; grep -rn &quot;\&quot;runtime\&quot;&quot; $S/docs/*.md | cut -c1-400 | head -8</code></td>
+</tr>
+<tr>
+<td class="n">08:17:28</td>
+<td class="n">-16.7</td>
+<td class="n">说</td>
+<td>正在编写能力清单生成脚本（文件→能力映射、依赖校验、检查项）。</td>
+</tr>
+<tr>
+<td class="n">08:19:22</td>
+<td class="n">-14.8</td>
+<td class="n">调用</td>
+<td><code>Write</code> <code>&lt;工作根&gt;/notes/build_manifest.py</code></td>
+</tr>
+<tr>
+<td class="n">08:19:24</td>
+<td class="n">-14.8</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Build a draft manifest and list undeclared cross-capability imports：<code>cd &lt;工作根&gt;/notes &amp;&amp; python3 build_manifest.py &lt;临时目录&gt; --edges 2&gt;&amp;1 | cut -c1-330</code></td>
+</tr>
+<tr>
+<td class="n">08:20:00</td>
+<td class="n">-14.2</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Check test durations and model zoo usage in tests：<code>grep -h &quot; s tests/&quot; trial/*.log trial2/*.log | sort -rn | head -14; git -C ../../../detectron2 ls-files configs | grep -c yaml; grep -n &quot;model_zoo\|get_model_no_weights\|get_config&quot; ../../../detectron2/tests/test_engine.py ../../../detectron2/tests/config/test_yacs_config.py ../../../detectron2/tests/modeling/test_roi_heads.py ../../../detectron2/tests/modeling/test_backbone.py ../../../detectron2/tests/test_registry …</code></td>
+</tr>
+<tr>
+<td class="n">08:20:23</td>
+<td class="n">-13.8</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Fix dependencies and check splits, write the manifest：<code>grep -n &quot;class \|def testOmegaConf&quot; ../../../detectron2/tests/config/test_yacs_config.py | grep -B1 testOmegaConf; grep -n &quot;MAX_CHECK_TIMEOUT =&quot; &lt;nanolize 代码&gt;/src/nanolize/*.py; python3 - &lt;&lt;'E' import re p='build_manifest.py'; s=open(p).read() def rep(a,b,count=1): global s assert s.count(a)&gt;=1, a s=s.replace(a,b,count) # dependency fixes rep(''' [&quot;roi-pooling&quot;, &quot;anchors-matching&quot;, &quot;backbones-resnet-fpn&quot;, &quot;box-ops&quot;, …</code></td>
+</tr>
+<tr>
+<td class="n">08:20:30</td>
+<td class="n">-13.7</td>
+<td class="n">说</td>
+<td>清单草稿已生成（76 个能力、58 个检查）；现在在原始副本上逐条验证这些检查命令都能通过。</td>
+</tr>
+<tr>
+<td class="n">08:20:35</td>
+<td class="n">-13.6</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Run every manifest check once on the private original copy：<code>WR=&lt;工作根&gt;; cd $WR/notes/orig-tree; mkdir -p $WR/notes/trial3; python3 - &lt;&lt;'E' &gt; $WR/notes/trial3/cmds.txt import json,shlex m=json.load(open('&lt;工作根&gt;/notes/manifest.json')) for c in m['checks']: print(c['name']+'\t'+' '.join(shlex.quote(a) for a in c['argv'])) E export OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 PYTHONDONTWRITEBYTECODE=1; time (cat $WR/notes/trial3/cmds.txt | xargs -P 16 -d '\n' -I{} sh -c 'n=$(printf &quot;%s&quot; &quot;{}&quot; …</code></td>
+</tr>
+<tr>
+<td class="n">08:24:41</td>
+<td class="n">-9.5</td>
+<td class="n">调用</td>
+<td><code>nanolize:propose_contract</code> {&quot;path&quot;: &quot;&lt;原仓库&gt;&quot;, &quot;manifest_path&quot;: &quot;&lt;工作根&gt;/notes/manifest.json&quot;, &quot;output_path&quot;: &quot;&lt;工作根&gt;/notes/graph-manifest.json&quot;}</td>
+</tr>
+<tr>
+<td class="n">08:25:31</td>
+<td class="n">-8.7</td>
+<td class="n">说</td>
+<td>转换已写出 11 个恢复测试文件（尚未提交）。先检查生成的契约清单，补上静态分析漏掉的公开名称后再提交。</td>
+</tr>
+<tr>
+<td class="n">08:25:35</td>
+<td class="n">-8.6</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Inspect the converted manifest's interface entries and checks：<code>cd &lt;工作根&gt;/notes &amp;&amp; python3 - &lt;&lt;'E' import json m=json.load(open('graph-manifest.json')) print(list(m.keys())) caps={c['id']:c for c in m['capabilities']} for cid in ['runtime-utils','coco-datasets','model-analysis']: c=caps[cid]; print(cid, {k:(v if k not in('interface','paths','evidence') else len(v)) for k,v in c.items()}) for e in c.get('interface',[])[:400]: print(' ',e) print([ (c['id'],c.get('surface'),len(c.get …</code></td>
+</tr>
+<tr>
+<td class="n">08:26:04</td>
+<td class="n">-8.1</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Take back the uncommitted recovered files with the reported discard command and collect test ids：<code>cd &lt;原仓库&gt; &amp;&amp; git status --short &amp;&amp; git reset -q -- tests/data/test_nanolize_recovered_test_detection_utils_1.py tests/data/test_nanolize_recovered_test_detection_utils_2.py tests/data/test_nanolize_recovered_test_sampler.py tests/modeling/test_nanolize_recovered_test_roi_heads_1.py tests/modeling/test_nanolize_recovered_test_roi_heads_2.py tests/structures/test_nanolize_recovered_test_instances.py tests/test_nanolize_ …</code></td>
+</tr>
+<tr>
+<td class="n">08:26:28</td>
+<td class="n">-7.7</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Rebuild the manifest with positive test selections and added public names：<code>cd &lt;工作根&gt;/notes &amp;&amp; python3 - &lt;&lt;'E' p='build_manifest.py'; s=open(p).read() def rep(a,b): global s assert s.count(a)==1, (s.count(a), a) s=s.replace(a,b) rep('''def check(name, target, caps, timeout=600, deselect=(), inputs=()): argv = [PY, &quot;-m&quot;, &quot;pytest&quot;, target, &quot;-q&quot;, &quot;-p&quot;, &quot;no:cacheprovider&quot;] for item in deselect: argv += [&quot;--deselect&quot;, item] ''','''COLLECTED = [line.strip() for line in open(NOTES + &quot;/collected.txt&quot; …</code></td>
+</tr>
+<tr>
+<td class="n">08:26:33</td>
+<td class="n">-7.6</td>
+<td class="n">调用</td>
+<td><code>nanolize:propose_contract</code> {&quot;path&quot;: &quot;&lt;原仓库&gt;&quot;, &quot;manifest_path&quot;: &quot;&lt;工作根&gt;/notes/manifest-2.json&quot;, &quot;output_path&quot;: &quot;&lt;工作根&gt;/notes/graph-manifest-2.json&quot;}</td>
+</tr>
+<tr>
+<td class="n">08:27:07</td>
+<td class="n">-7.1</td>
+<td class="n">说</td>
+<td>第二次转换完成（保留 56 个检查，恢复 6 个测试文件）。正在复查契约条目并补充注册名、默认配置等说明，然后提交恢复的测试文件。</td>
+</tr>
+<tr>
+<td class="n">08:27:12</td>
+<td class="n">-7.0</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Review interface entries and list registered names：<code>python3 - &lt;&lt;'E' import json m=json.load(open('graph-manifest-2.json')) caps={c['id']:c for c in m['capabilities']} for cid in ['yacs-config','model-zoo','checkpointing','lazy-config','testing-utils','evaluation-framework','dataset-catalog','solver','roi-pooling']: print('==',cid) for e in caps[cid]['interface']: print(' ',e[:230]) for cid in ['data-transforms','training-engine','event-logging']: print('==',cid,[e for …</code></td>
+</tr>
+<tr>
+<td class="n">08:27:39</td>
+<td class="n">-6.5</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Add reviewed interface sentences and carry the COCO metadata table：<code>cd &lt;工作根&gt;/notes &amp;&amp; grep -n &quot;__version__&quot; ../../../detectron2/detectron2/__init__.py &amp;&amp; grep -n &quot;_PREDEFINED_SPLITS_COCO\[\|DETECTRON2_DATASETS\|^ \&quot;coco_\|^ \&quot;coco_\|keypoints_coco_&quot; ../../../detectron2/detectron2/data/datasets/builtin.py | cut -c1-120 | head -40 &amp;&amp; python3 - &lt;&lt;'E' import json m=json.load(open('graph-manifest-2.json')) caps={c['id']:c for c in m['capabilities']} add={ 'yacs-config': [ &quot;get_cfg() retur …</code></td>
+</tr>
+<tr>
+<td class="n">08:27:42</td>
+<td class="n">-6.5</td>
+<td class="n">说</td>
+<td>Now commit exactly the recovered test files with the command the conversion reported.</td>
+</tr>
+<tr>
+<td class="n">08:27:46</td>
+<td class="n">-6.4</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Commit the recovered test files on main with the reported command：<code>cd &lt;原仓库&gt; &amp;&amp; git status --short &amp;&amp; git add -- tests/data/test_nanolize_recovered_test_sampler.py tests/modeling/test_nanolize_recovered_test_roi_heads_1.py tests/modeling/test_nanolize_recovered_test_roi_heads_2.py tests/test_nanolize_recovered_test_checkpoint.py tests/test_nanolize_recovered_test_packaging.py tests/test_nanolize_recovered_test_solver.py &amp;&amp; git commit -m 'Add the test files nanolize recovered' -- test …</code></td>
+</tr>
+<tr>
+<td class="n">08:27:54</td>
+<td class="n">-6.3</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Run the recovered test files once on the private original copy：<code>WR=&lt;工作根&gt;; R=&lt;原仓库&gt;; cd $WR/notes/orig-tree &amp;&amp; for f in tests/data/test_nanolize_recovered_test_sampler.py tests/modeling/test_nanolize_recovered_test_roi_heads_1.py tests/modeling/test_nanolize_recovered_test_roi_heads_2.py tests/test_nanolize_recovered_test_checkpoint.py tests/test_nanolize_recovered_test_packaging.py tests/test_nanolize_recovered_test_solver.py; do cp $R/$f $f; done; export OMP_NUM_THREADS=1 MKL_NUM …</code></td>
+</tr>
+<tr>
+<td class="n">08:28:00</td>
+<td class="n">-6.2</td>
+<td class="n">调用</td>
+<td><code>nanolize:record_run_progress</code> {&quot;stage&quot;: &quot;discover&quot;, &quot;status&quot;: &quot;active&quot;, &quot;summary&quot;: &quot;能力清单已转换为图契约：76 个能力（59 外部 / 17 内部），1815 条接口条目；保留 56 个检查，8 个被拆分并恢复出 6 个测试文件（已提交到 main：8b1c43f）；113 个文件按原样携带（YAML 配置、C++ 源码、LVIS 与 COCO 元数据表）。&quot;, &quot;steps&quot;: [{&quot;id&quot;: &quot;manifest&quot;, &quot;status&quot;: &quot;done&quot;, &quot;label&quot;: &quot;76 个能力：59 外部 / 17 内部，62 个检查&quot;}, {&quot;id&quot;: &quot;knowledge&quot;, &quot;status&quot;: &quot;skipped&quot;, &quot;label&quot;: &quot;使用外部契约，无需知识库&quot;}, {&quot;id&quot;: &quot;plan&quot;, &quot;status&quot;: &quot;active&quot;}]}</td>
+</tr>
+<tr>
+<td class="n">08:28:11</td>
+<td class="n">-6.0</td>
+<td class="n">调用</td>
+<td><code>nanolize:plan_capabilities</code> {&quot;path&quot;: &quot;&lt;原仓库&gt;&quot;, &quot;manifest_path&quot;: &quot;&lt;工作根&gt;/notes/graph-manifest-3.json&quot;, &quot;plan_output&quot;: &quot;&lt;工作根&gt;/notes/plan.json&quot;, &quot;scope_preset&quot;: &quot;core&quot;}</td>
+</tr>
+<tr>
+<td class="n">08:28:22</td>
+<td class="n">-5.8</td>
+<td class="n">调用</td>
+<td><code>Bash</code> List retained, retired and mixed checks in the plan：<code>cd &lt;工作根&gt;/notes &amp;&amp; python3 - &lt;&lt;'E' import json p=json.load(open('plan.json')) ch=p['checks'] for k,v in ch.items(): print('==',k,len(v)) for c in v: if isinstance(c,dict): print(' ',c.get('name'), c.get('capabilities'), {kk:vv for kk,vv in c.items() if kk not in('name','argv','capabilities','env','runtime','timeout','compare','role','inputs','test_nodes')}) else: print(' ',c) print(p['unverified_capabilities']) E</code></td>
+</tr>
+<tr>
+<td class="n">08:28:49</td>
+<td class="n">-5.4</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Map feature-specific checks to the optional capability they test：<code>python3 - &lt;&lt;'E' import json m=json.load(open('graph-manifest-3.json')) remap={ 'visualizer':['visualization'], 'tracking-bbox-iou':['tracking'],'tracking-hungarian':['tracking'], 'tracking-iou-weighted-hungarian':['tracking'],'tracking-vanilla-hungarian':['tracking'], 'modeling-e2e-retinanet':['dense-detectors'], 'modeling-e2e-fcos':['dense-detectors','lazy-model-configs'], 'modeling-e2e-semseg':['semantic-panoptic-f …</code></td>
+</tr>
+<tr>
+<td class="n">08:28:51</td>
+<td class="n">-5.3</td>
+<td class="n">调用</td>
+<td><code>nanolize:plan_capabilities</code> {&quot;path&quot;: &quot;&lt;原仓库&gt;&quot;, &quot;manifest_path&quot;: &quot;&lt;工作根&gt;/notes/graph-manifest-4.json&quot;, &quot;plan_output&quot;: &quot;&lt;工作根&gt;/notes/plan-2.json&quot;, &quot;scope_preset&quot;: &quot;core&quot;}</td>
+</tr>
+<tr>
+<td class="n">08:29:01</td>
+<td class="n">-5.2</td>
+<td class="n">说</td>
+<td>计划已生成（核心 25 个能力，117 个文件，约 19.9 万源码 token）。现在审计检查覆盖范围。</td>
+</tr>
+<tr>
+<td class="n">08:29:02</td>
+<td class="n">-5.2</td>
+<td class="n">调用</td>
+<td><code>nanolize:audit_check_scope</code> {&quot;path&quot;: &quot;&lt;原仓库&gt;&quot;, &quot;plan_path&quot;: &quot;&lt;工作根&gt;/notes/plan-2.json&quot;}</td>
+</tr>
+<tr>
+<td class="n">08:29:05</td>
+<td class="n">-5.1</td>
+<td class="n">调用</td>
+<td><code>nanolize:record_run_progress</code> {&quot;stage&quot;: &quot;discover&quot;, &quot;status&quot;: &quot;active&quot;, &quot;steps&quot;: [{&quot;id&quot;: &quot;plan&quot;, &quot;status&quot;: &quot;done&quot;, &quot;label&quot;: &quot;核心：25 个能力，117 个文件，34 个保留检查&quot;}, {&quot;id&quot;: &quot;audit&quot;, &quot;status&quot;: &quot;active&quot;}]}</td>
+</tr>
+<tr>
+<td class="n">08:29:19</td>
+<td class="n">-4.9</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Inspect recovered test files for use of removed features：<code>cd &lt;原仓库&gt; &amp;&amp; grep -n &quot;def test\|RRPN\|RROI\|Rotated\|NAME = \|^from\|^import&quot; tests/modeling/test_nanolize_recovered_test_roi_heads_1.py | head -50; grep -n &quot;def test\|^from\|^import&quot; tests/data/test_nanolize_recovered_test_sampler.py tests/test_nanolize_recovered_test_packaging.py | head -30</code></td>
+</tr>
+<tr>
+<td class="n">08:29:45</td>
+<td class="n">-4.5</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Scan retained checks for runtime use of removed features：<code>grep -n &quot;^class &quot; tests/modeling/test_nanolize_recovered_test_roi_heads_1.py tests/modeling/test_nanolize_recovered_test_roi_heads_2.py; grep -rn &quot;RRPN\|RROIHeads\|RetinaNet\|PanopticFPN\|SemanticSegmentor\|CascadeROIHeads\|regnet\|ViT\|Swin\|visualizer\|Visualizer\|COCOEvaluator\|tracking\|lvis\|cityscapes\|TTA\|DeformConv\|DEFORM&quot; tests/config/test_instantiate_config.py tests/config/test_lazy_config.py tests/config …</code></td>
+</tr>
+<tr>
+<td class="n">08:30:02</td>
+<td class="n">-4.2</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Split two checks so tests of removed features leave the core criteria：<code>WR=&lt;工作根&gt;; cd $WR/notes/orig-tree &amp;&amp; OMP_NUM_THREADS=1 PYTHONDONTWRITEBYTECODE=1 &lt;测试环境&gt;/bin/python -m pytest tests/data/test_detection_utils.py tests/modeling/test_nanolize_recovered_test_roi_heads_1.py --collect-only -q -p no:cacheprovider 2&gt;/dev/null | grep &quot;::&quot; &gt; $WR/notes/collected-2.txt; cd $WR/notes &amp;&amp; python3 - &lt;&lt;'E' import json, copy m=json.load(open('graph-manifest-4.json')) nodes=[l.strip() for l in open('co …</code></td>
+</tr>
+<tr>
+<td class="n">08:30:16</td>
+<td class="n">-3.9</td>
+<td class="n">说</td>
+<td>修正了两个检查的范围（旋转框头、cityscapes 相关测试移出核心准则），现在重新生成计划并审计。</td>
+</tr>
+<tr>
+<td class="n">08:30:18</td>
+<td class="n">-3.9</td>
+<td class="n">调用</td>
+<td><code>nanolize:plan_capabilities</code> {&quot;path&quot;: &quot;&lt;原仓库&gt;&quot;, &quot;manifest_path&quot;: &quot;&lt;工作根&gt;/notes/graph-manifest-5.json&quot;, &quot;plan_output&quot;: &quot;&lt;工作根&gt;/notes/plan-3.json&quot;, &quot;scope_preset&quot;: &quot;core&quot;}</td>
+</tr>
+<tr>
+<td class="n">08:30:34</td>
+<td class="n">-3.6</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Drop the duplicate recovered check：<code>python3 - &lt;&lt;'E' import json m=json.load(open('graph-manifest-5.json')) m['checks']=[c for c in m['checks'] if c['name']!='recovered-test_roi_heads-1-rotated'] json.dump(m, open('graph-manifest-6.json','w'), indent=1) print(len(m['checks'])) E</code></td>
+</tr>
+<tr>
+<td class="n">08:30:36</td>
+<td class="n">-3.6</td>
+<td class="n">调用</td>
+<td><code>nanolize:plan_capabilities</code> {&quot;path&quot;: &quot;&lt;原仓库&gt;&quot;, &quot;manifest_path&quot;: &quot;&lt;工作根&gt;/notes/graph-manifest-6.json&quot;, &quot;plan_output&quot;: &quot;&lt;工作根&gt;/notes/plan-3.json&quot;, &quot;scope_preset&quot;: &quot;core&quot;}</td>
+</tr>
+<tr>
+<td class="n">08:31:03</td>
+<td class="n">-3.2</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Inspect the test environment layout and cache locations：<code>D=&lt;共享盘路径&gt;; ls -la $D/env/bin/python* | cut -c1-250; cat $D/env/pyvenv.cfg; ls $D/env/lib/python3.11/site-packages | grep -i -c detectron; ls -la ~/.cache/nanolize 2&gt;&amp;1 | head -5; ls &lt;共享盘路径&gt; 2&gt;&amp;1 | head; echo XDG=$XDG_CACHE_HOME; which bwrap sinfo sbatch; ls &lt;共享盘路径&gt;; ls &lt;工作根&gt;</code></td>
+</tr>
+<tr>
+<td class="n">08:31:04</td>
+<td class="n">-3.1</td>
+<td class="n">调用</td>
+<td><code>nanolize:audit_check_scope</code> {&quot;path&quot;: &quot;&lt;原仓库&gt;&quot;, &quot;plan_path&quot;: &quot;&lt;工作根&gt;/notes/plan-3.json&quot;}</td>
+</tr>
+<tr>
+<td class="n">08:31:17</td>
+<td class="n">-2.9</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Write the Claude runner settings file：<code>WR=&lt;工作根&gt;; readlink -f ~/.cache; readlink -f ~/.cache/nanolize; cat &gt; $WR/claude-runners.json &lt;&lt;'E' { &quot;model&quot;: &quot;claude-fable-5-2&quot;, &quot;effort&quot;: &quot;high&quot;, &quot;hide&quot;: [ &quot;&lt;原仓库&gt;&quot;, &quot;&lt;工作根&gt;&quot;, &quot;~/.cache/nanolize&quot;, &quot;&lt;预编译扩展&gt;&quot;, &quot;&lt;共享盘路径&gt;&quot;, &quot;&lt;共享盘路径&gt;&quot; ], &quot;expose&quot;: [ &quot;&lt;测试环境&gt;&quot; ], &quot;record_dir&quot;: &quot;&lt;工作根&gt;/model-calls&quot;, &quot;author&quot;: { &quot;base_python&quot;: &quot;&lt;测试环境&gt;/bin/python&quot;, &quot;dependencies&quot;: &quot;&lt;测试环境&gt;/lib/python3.11/site-packages&quot;, &quot;forbidden_in_dependencies …</code></td>
+</tr>
+<tr>
+<td class="n">08:31:20</td>
+<td class="n">-2.9</td>
+<td class="n">调用</td>
+<td><code>nanolize:task_doctor</code> {&quot;path&quot;: &quot;&lt;原仓库&gt;&quot;, &quot;manifest_path&quot;: &quot;&lt;工作根&gt;/notes/graph-manifest-6.json&quot;, &quot;runner_argv&quot;: [&quot;&lt;nanolize 解释器&gt;/a003430d/bin/python&quot;, &quot;-P&quot;, &quot;-m&quot;, &quot;nanolize.runners.claude_author&quot;, &quot;--settings&quot;, &quot;&lt;工作根&gt;/claude-runners.json&quot;]}</td>
+</tr>
+<tr>
+<td class="n">08:31:24</td>
+<td class="n">-2.8</td>
+<td class="n">调用</td>
+<td><code>nanolize:record_run_progress</code> {&quot;stage&quot;: &quot;discover&quot;, &quot;status&quot;: &quot;active&quot;, &quot;steps&quot;: [{&quot;id&quot;: &quot;audit&quot;, &quot;status&quot;: &quot;done&quot;, &quot;label&quot;: &quot;审计通过：57 个检查，4 个混合待适配，1 个叶子待设计测试&quot;}, {&quot;id&quot;: &quot;doctor&quot;, &quot;status&quot;: &quot;active&quot;}]}</td>
+</tr>
+<tr>
+<td class="n">08:31:33</td>
+<td class="n">-2.7</td>
+<td class="n">说</td>
+<td>诊断通过（调度器可达）。现在试跑三个 Claude runner（作者、控制器、测试设计）。</td>
+</tr>
+<tr>
+<td class="n">08:31:37</td>
+<td class="n">-2.6</td>
+<td class="n">调用</td>
+<td><code>nanolize:try_runners</code> {&quot;allow_execution&quot;: true, &quot;runner_argv&quot;: [&quot;&lt;nanolize 解释器&gt;/a003430d/bin/python3&quot;, &quot;-P&quot;, &quot;-m&quot;, &quot;nanolize.runners.claude_author&quot;, &quot;--settings&quot;, &quot;&lt;工作根&gt;/claude-runners.json&quot;], &quot;controller_policy&quot;: {&quot;runner_argv&quot;: [&quot;&lt;nanolize 解释器&gt;/a003430d/bin/python3&quot;, &quot;-P&quot;, &quot;-m&quot;, &quot;nanolize.runners.claude_controller&quot;, &quot;--settings&quot;, &quot;&lt;工作根&gt;/claude-runners.json&quot;, &quot;{result_path}&quot;, &quot;{schema_path}&quot;], &quot;parallel&quot;: {&quot;enabled&quot;: true}}, &quot;check_validation&quot;: {&quot;runner_argv&quot;: [&quot;&lt;nanolize 解释器&gt;/a003430d/bin/python3&quot;, &quot;-P&quot;, &quot;-m&quot;, &quot;nanolize.runners.claude …</td>
+</tr>
+<tr>
+<td class="n">08:32:21</td>
+<td class="n">-1.9</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Read the given partition and QOS limits (read-only scheduler queries)：<code>sinfo -p &lt;队列&gt; -o &quot;%P %a %l %D %G %c %m&quot; 2&gt;&amp;1 | head -5; sacctmgr -nP show assoc user=$USER format=account,partition,qos 2&gt;&amp;1 | head -8; sacctmgr -nP show qos normal format=name,maxwall,flags 2&gt;&amp;1 | head -3; date</code></td>
+</tr>
+<tr>
+<td class="n">08:32:56</td>
+<td class="n">-1.3</td>
+<td class="n">调用</td>
+<td><code>Write</code> <code>&lt;工作根&gt;/issues.md</code></td>
+</tr>
+<tr>
+<td class="n">08:33:05</td>
+<td class="n">-1.1</td>
+<td class="n">调用</td>
+<td><code>nanolize:record_run_progress</code> {&quot;stage&quot;: &quot;discover&quot;, &quot;status&quot;: &quot;done&quot;, &quot;summary&quot;: &quot;发现阶段完成。核心范围为标准 R-CNN 检测库（配置、数据结构、层、建模、数据、求解器、训练引擎、模型库）。三个 Claude runner 试跑全部通过；检查将提交到 Slurm（账户 &lt;账户&gt;、分区 &lt;队列&gt;、QOS normal，均为用户给定）。未配置安装检查（需另装 CPU 版 PyTorch 并编译 C++），结果会把安装列为缺口。&quot;, &quot;steps&quot;: [{&quot;id&quot;: &quot;doctor&quot;, &quot;status&quot;: &quot;done&quot;, &quot;label&quot;: &quot;诊断通过；3 个 runner 试跑通过；Slurm 可达&quot;}], &quot;metrics&quot;: [{&quot;label&quot;: &quot;能力&quot;, &quot;value&quot;: &quot;76（59 外部 / 17 内部）&quot;}, {&quot;label&quot;: &quot;核心选择&quot;, &quot;value&quot;: &quot;25 个能力，117 个源文件&quot;}, {&quot;label&quot;: &quot;原始规模&quot;, &quot;value&quot;: &quot;633,182 token（源码 593,154 + 配置 40,028，已扣除携带文件）&quot;}, {&quot;label&quot;: &quot;核心源码&quot;, &quot;v …</td>
+</tr>
+<tr>
+<td class="n">08:33:08</td>
+<td class="n">-1.1</td>
+<td class="n">说</td>
+<td>阶段 01 完成。现在启动阶段 02 的评审服务（无人值守、两个作业、并行模式）。</td>
+</tr>
+<tr>
+<td class="n">08:33:17</td>
+<td class="n">-0.9</td>
+<td class="n">调用</td>
+<td><code>nanolize:start_execution_review</code> {&quot;path&quot;: &quot;&lt;原仓库&gt;&quot;, &quot;manifest_path&quot;: &quot;&lt;工作根&gt;/notes/graph-manifest-6.json&quot;, &quot;allow_execution&quot;: true, &quot;public&quot;: false, &quot;scope_preset&quot;: &quot;core&quot;, &quot;unattended&quot;: true, &quot;pair&quot;: &quot;on&quot;, &quot;runner_argv&quot;: [&quot;&lt;nanolize 解释器&gt;/a003430d/bin/python3&quot;, &quot;-P&quot;, &quot;-m&quot;, &quot;nanolize.runners.claude_author&quot;, &quot;--settings&quot;, &quot;&lt;工作根&gt;/claude-runners.json&quot;], &quot;controller_policy&quot;: {&quot;runner_argv&quot;: [&quot;&lt;nanolize 解释器&gt;/a003430d/bin/python3&quot;, &quot;-P&quot;, &quot;-m&quot;, &quot;nanolize.runners.claude_controller&quot;, &quot;--settings&quot;, &quot;&lt;工作根&gt;/claude-runners.json&quot;, &quot;{result_path}&quot;, &quot;{schema_path}&quot;] …</td>
+</tr>
+<tr>
+<td class="n">08:33:44</td>
+<td class="n">-0.5</td>
+<td class="n">调用</td>
+<td><code>nanolize:record_run_progress</code> {&quot;stage&quot;: &quot;scope&quot;, &quot;status&quot;: &quot;active&quot;, &quot;review_id&quot;: &quot;78a49ae493e84bd3be739480c075608d&quot;, &quot;summary&quot;: &quot;评审服务已启动（无人值守）。按用户选项提交核心预设：25 个能力；两个作业（pair=on）、并行模式开启。&quot;}</td>
+</tr>
+<tr>
+<td class="n">08:33:49</td>
+<td class="n">-0.4</td>
+<td class="n">调用</td>
+<td><code>nanolize:submit_execution_review</code> {&quot;review_id&quot;: &quot;78a49ae493e84bd3be739480c075608d&quot;, &quot;scope_preset&quot;: &quot;core&quot;, &quot;allow_execution&quot;: true, &quot;submit_code&quot;: &quot;TH3Z-J9WX-H4LC&quot;}</td>
+</tr>
+<tr>
+<td class="n">08:34:21</td>
+<td class="n">0.2</td>
+<td class="n">调用</td>
+<td><code>nanolize:record_run_progress</code> {&quot;stage&quot;: &quot;scope&quot;, &quot;status&quot;: &quot;done&quot;, &quot;summary&quot;: &quot;已按无人值守授权提交核心预设。主作业 501560e483b44d338c1a60c4ba15cd1b 冻结契约并验证；草稿作业 e68af35c55bf4af1bb0007f444c2deed 同时编写首版实现。&quot;}</td>
+</tr>
+<tr>
+<td class="n">08:34:22</td>
+<td class="n">0.2</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Wait four minutes before the first status poll：<code>sleep 240; echo waited</code></td>
+</tr>
+<tr>
+<td class="n">08:34:25</td>
+<td class="n">0.2</td>
+<td class="n">说</td>
+<td>作业已提交并在运行： - 主作业 <code>501560e483b44d338c1a60c4ba15cd1b</code>（冻结契约并验证） - 草稿作业 <code>e68af35c55bf4af1bb0007f444c2deed</code>（同时编写首版实现） 我在等第一次状态轮询（约 4 分钟后），之后按阶段变化汇报。</td>
+</tr>
+<tr>
+<td class="n">08:38:27</td>
+<td class="n">4.2</td>
+<td class="n">调用</td>
+<td><code>nanolize:run_dashboard_status</code> {}</td>
+</tr>
+<tr>
+<td class="n">08:38:31</td>
+<td class="n">4.3</td>
+<td class="n">调用</td>
+<td><code>nanolize:execution_job_status</code> {&quot;review_id&quot;: &quot;78a49ae493e84bd3be739480c075608d&quot;, &quot;job_id&quot;: &quot;&lt;调度作业&gt;e483b44d338c1a60c4ba15cd1b&quot;}</td>
+</tr>
+<tr>
+<td class="n">08:38:37</td>
+<td class="n">4.4</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Wait about ten minutes before the next status poll：<code>sleep 590; echo waited</code></td>
+</tr>
+<tr>
+<td class="n">08:38:40</td>
+<td class="n">4.5</td>
+<td class="n">说</td>
+<td>基线采集进行中，约 10 分钟后再次查看状态。</td>
+</tr>
+<tr>
+<td class="n">08:48:32</td>
+<td class="n">14.3</td>
+<td class="n">调用</td>
+<td><code>nanolize:execution_job_status</code> {&quot;review_id&quot;: &quot;78a49ae493e84bd3be739480c075608d&quot;, &quot;job_id&quot;: &quot;&lt;调度作业&gt;e483b44d338c1a60c4ba15cd1b&quot;}</td>
+</tr>
+<tr>
+<td class="n">08:48:38</td>
+<td class="n">14.4</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Wait about fifteen minutes before the next status poll：<code>sleep 890; echo waited</code></td>
+</tr>
+<tr>
+<td class="n">08:48:41</td>
+<td class="n">14.5</td>
+<td class="n">说</td>
+<td>测试设计进行中，约 15 分钟后再次查看。</td>
+</tr>
+<tr>
+<td class="n">09:03:33</td>
+<td class="n">29.3</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Look at the state directory layout：<code>cd &lt;工作根&gt;/state &amp;&amp; ls; find . -maxdepth 3 -name &quot;events*.json*&quot; -o -maxdepth 3 -name &quot;status.json&quot; | head;</code></td>
+</tr>
+<tr>
+<td class="n">09:03:34</td>
+<td class="n">29.4</td>
+<td class="n">调用</td>
+<td><code>nanolize:run_dashboard_status</code> {}</td>
+</tr>
+<tr>
+<td class="n">09:03:39</td>
+<td class="n">29.5</td>
+<td class="n">调用</td>
+<td><code>nanolize:execution_job_status</code> {&quot;review_id&quot;: &quot;78a49ae493e84bd3be739480c075608d&quot;, &quot;job_id&quot;: &quot;e68af35c55bf4af1bb0007f444c2deed&quot;}</td>
+</tr>
+<tr>
+<td class="n">09:03:47</td>
+<td class="n">29.6</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Read the draft job's baseline problem：<code>cd &lt;工作根&gt;/state/jobs &amp;&amp; ls; ls e68af35c55bf4af1bb0007f444c2deed | head -50; python3 - &lt;&lt;'E' import json,glob d='e68af35c55bf4af1bb0007f444c2deed' for f in ['baseline-result.json']: try: b=json.load(open(d+'/'+f)) print(list(b.keys())[:40]) for k in ('freeze','problems','usable','status'): if k in b: print(k, json.dumps(b[k])[:1500]) except Exception as e: print('ERR',e) E</code></td>
+</tr>
+<tr>
+<td class="n">09:03:53</td>
+<td class="n">29.7</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Read the draft job's baseline problem from its job directory：<code>cd &lt;工作根&gt;/state/jobs/jobs &amp;&amp; ls; D=e68af35c55bf4af1bb0007f444c2deed; ls $D | head -60; python3 - &lt;&lt;'E' import json d='e68af35c55bf4af1bb0007f444c2deed' try: b=json.load(open(d+'/baseline-result.json')) print(list(b.keys())[:40]) def find(o,path=''): if isinstance(o,dict): for k,v in o.items(): if 'problem' in k.lower(): print(path+'/'+k, json.dumps(v)[:2500]) find(v,path+'/'+k) elif isinstance(o,list): for i,v in enum …</code></td>
+</tr>
+<tr>
+<td class="n">09:04:00</td>
+<td class="n">29.8</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Find which baseline check is a problem in the draft job：<code>python3 - &lt;&lt;'E' import json for d in ['e68af35c55bf4af1bb0007f444c2deed','501560e483b44d338c1a60c4ba15cd1b']: try: b=json.load(open(d+'/baseline-result.json')) except Exception as e: print(d,'ERR',e); continue print(d, b['status'], b.get('verification_status'), json.dumps(b['issues'])[:1500]) ch=b['checks'] print(type(ch), (list(ch.keys())[:10] if isinstance(ch,dict) else len(ch))) rows=ch if isinstance(ch,list) else …</code></td>
+</tr>
+<tr>
+<td class="n">09:04:14</td>
+<td class="n">30.0</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Read how a job treats a baseline check that fails on the original：<code>S=&lt;nanolize 代码&gt;/src/nanolize; grep -n &quot;no usable oracle\|baseline_problems\|diagnostic contract\|diagnostic_contract\|Strict execution has no frozen&quot; $S/job_tools/*.py $S/execution.py $S/pair.py | cut -c1-260 | head -40; grep -n &quot;exif\|http&quot; &lt;原仓库&gt;/tests/data/test_detection_utils.py | head</code></td>
+</tr>
+<tr>
+<td class="n">09:04:19</td>
+<td class="n">30.1</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Read seal behavior under a baseline problem：<code>S=&lt;nanolize 代码&gt;/src/nanolize; sed -n 285,318p $S/job_tools/freeze.py; sed -n 1345,1425p $S/job_tools/freeze.py; sed -n 3900,3920p $S/execution.py; sed -n 152,170p &lt;原仓库&gt;/tests/data/test_detection_utils.py</code></td>
+</tr>
+<tr>
+<td class="n">09:04:25</td>
+<td class="n">30.2</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Read the behavior-baseline requirement and the draft job's readiness record：<code>S=&lt;nanolize 代码&gt;/src/nanolize; sed -n 3920,3965p $S/execution.py; cd &lt;工作根&gt;/state/jobs/jobs; python3 - &lt;&lt;'E' import json r=json.load(open('e68af35c55bf4af1bb0007f444c2deed/execution-readiness.json')) print(r.get('status'), {k:(v if not isinstance(v,(list,dict)) else (len(v))) for k,v in r.items()}) c=r.get('coverage',{}); print({k:(v if not isinstance(v,(list,dict)) else len(v)) for k,v in c.items()}) print(json.dumps( …</code></td>
+</tr>
+<tr>
+<td class="n">09:04:35</td>
+<td class="n">30.4</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Read what an unusable baseline means for delivery：<code>S=&lt;nanolize 代码&gt;/src/nanolize; sed -n 20,70p $S/job_tools/acceptance.py; sed -n 785,800p $S/job_tools/acceptance.py; grep -n &quot;mixed_check_needs_adaptation\|selected_leaf_checks_missing&quot; $S/*.py | cut -c1-220; grep -n &quot;advisory&quot; $S/execution_readiness.py | cut -c1-240 | head -20</code></td>
+</tr>
+<tr>
+<td class="n">09:05:18</td>
+<td class="n">31.1</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Read how an owner revises a running job's checks：<code>S=&lt;nanolize 代码&gt;; sed -n 1120,1200p $S/docs/job-tools.md; sed -n 200,225p $S/src/nanolize/cli_workflow.py</code></td>
+</tr>
+<tr>
+<td class="n">09:05:39</td>
+<td class="n">31.5</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Record the failing baseline check in issues.md：<code>cat &gt;&gt; &lt;工作根&gt;/issues.md &lt;&lt;'E' ## 8. Stage 03 (freeze), jobs 501560e483b44d338c1a60c4ba15cd1b (main) and e68af35c55bf4af1bb0007f444c2deed (draft): one retained check fails on the original in the check sandbox - Error text (baseline issue of both jobs): 'preexisting_failure: Baseline check 'data-detection-utils' did not pass: failed.' Its cases 'test_read_exif_orientation' and 'test_opencv_exif_orientation' raise in 'de …</code></td>
+</tr>
+<tr>
+<td class="n">09:05:40</td>
+<td class="n">31.5</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Wait about fifteen minutes before the next status poll：<code>sleep 880; echo waited</code></td>
+</tr>
+<tr>
+<td class="n">09:05:46</td>
+<td class="n">31.6</td>
+<td class="n">说</td>
+<td>进展汇报： - 主作业仍在阶段 03（冻结）：测试设计进行中。草稿作业已封存自己的契约，5 个作者会话正在并行写首版实现。 - <strong>发现一个问题（我的清单错误）</strong>：检查 <code>data-detection-utils</code> 在检查沙箱里对原始代码失败，因为其中 2 个测试要联网下载 <code>detectron2://assets/Landscape_5.jpg</code>，而我在阶段 01 的试跑没有断网，所以没把它们剔除。作业按规则把整个检查列为&quot;非准则&quot;并继续，结果是该文件另外 12 个能通过的测试不再作为本次验收准则。运行中的作业不能改检查，我也没有取消重启，已记入 <code>issues.md</code> 第 8 条。 - 4 个混合检查让就绪审计为 <code>blocked</code>，交付最多为 <code>completed_with_gaps</code>（未配置安装检查，本来也是这个上限）。 约 15 分钟后再看状态。</td>
+</tr>
+<tr>
+<td class="n">09:20:26</td>
+<td class="n">46.2</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Read the latest events of both jobs：<code>python3 - &lt;&lt;'E' import json for d in ['501560e483b44d338c1a60c4ba15cd1b','e68af35c55bf4af1bb0007f444c2deed']: p=json.load(open(d+'/public.json')) print('==',d[:8], p.get('status'), p.get('phase'), p.get('step_progress')) for e in p.get('events',[])[-7:]: print(' ',e['time'][11:19], e.get('codes',''), e['message'][:420]) E</code></td>
+</tr>
+<tr>
+<td class="n">09:20:32</td>
+<td class="n">46.3</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Wait about twenty minutes before the next status poll：<code>sleep 1190; echo waited</code></td>
+</tr>
+<tr>
+<td class="n">09:20:34</td>
+<td class="n">46.4</td>
+<td class="n">说</td>
+<td>约 20 分钟后再次查看两个作业的状态。</td>
+</tr>
+<tr>
+<td class="n">09:40:28</td>
+<td class="n">66.3</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Read the latest events of both jobs：<code>python3 - &lt;&lt;'E' import json for d in ['501560e483b44d338c1a60c4ba15cd1b','e68af35c55bf4af1bb0007f444c2deed']: p=json.load(open(d+'/public.json')) print('==',d[:8], p.get('status'), p.get('phase'), p.get('step_progress'), p.get('waits_for')) for e in p.get('events',[])[-8:]: print(' ',e['time'][11:19], e.get('codes',''), e['message'][:500]) E date -u +%H:%M:%S</code></td>
+</tr>
+<tr>
+<td class="n">09:40:35</td>
+<td class="n">66.4</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Wait about twenty-five minutes before the next status poll：<code>sleep 1490; echo waited</code></td>
+</tr>
+<tr>
+<td class="n">09:40:37</td>
+<td class="n">66.4</td>
+<td class="n">说</td>
+<td>约 25 分钟后再次查看。</td>
+</tr>
+<tr>
+<td class="n">10:05:32</td>
+<td class="n">91.3</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Read new events of both jobs：<code>python3 - &lt;&lt;'E' import json for d,n in [('501560e483b44d338c1a60c4ba15cd1b',6),('e68af35c55bf4af1bb0007f444c2deed',8)]: p=json.load(open(d+'/public.json')) print('==',d[:8], p.get('status'), p.get('phase'), p.get('step_progress'), p.get('waits_for')) for e in p.get('events',[])[-n:]: if e['time'][11:19] &gt; '09:30:31': print(' ',e['time'][11:19], e.get('codes',''), e['message'][:600]) E date -u +%H:%M:%S</code></td>
+</tr>
+<tr>
+<td class="n">10:05:37</td>
+<td class="n">91.4</td>
+<td class="n">说</td>
+<td>两个作业都在运行，没有新事件：草稿作业的作者会话自 09:29（UTC）起在写整合后的首版实现，主作业在等它。继续观察，约 30 分钟后再看。</td>
+</tr>
+<tr>
+<td class="n">10:05:37</td>
+<td class="n">91.4</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Wait about thirty minutes before the next status poll：<code>sleep 1790; echo waited</code></td>
+</tr>
+<tr>
+<td class="n">10:05:41</td>
+<td class="n">91.5</td>
+<td class="n">说</td>
+<td>等待中，下一次轮询在约 30 分钟后。</td>
+</tr>
+<tr>
+<td class="n">10:35:34</td>
+<td class="n">121.4</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Read new events of both jobs：<code>python3 - &lt;&lt;'E' import json for d,n in [('501560e483b44d338c1a60c4ba15cd1b',12),('e68af35c55bf4af1bb0007f444c2deed',12)]: p=json.load(open(d+'/public.json')) print('==',d[:8], p.get('status'), p.get('phase'), p.get('step_progress'), p.get('waits_for')) for e in p.get('events',[])[-n:]: if e['time'][11:19] &gt; '09:30:31': print(' ',e['time'][11:19], e.get('codes',''), e['message'][:700]) E date -u +%H:%M:%S</code></td>
+</tr>
+<tr>
+<td class="n">10:35:41</td>
+<td class="n">121.5</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Wait about thirty minutes before the next status poll：<code>sleep 1790; echo waited</code></td>
+</tr>
+<tr>
+<td class="n">10:35:44</td>
+<td class="n">121.5</td>
+<td class="n">说</td>
+<td>修复轮进行中，等待下一次轮询。</td>
+</tr>
+<tr>
+<td class="n">11:05:37</td>
+<td class="n">151.4</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Read new events of the main job：<code>python3 - &lt;&lt;'E' import json d='501560e483b44d338c1a60c4ba15cd1b' p=json.load(open(d+'/public.json')) print('==',d[:8], p.get('status'), p.get('phase'), p.get('step_progress'), p.get('waits_for')) for e in p.get('events',[]): if e['time'][11:19] &gt; '10:23:46': print(' ',e['time'][11:19], e.get('codes',''), e['message'][:700]) E date -u +%H:%M:%S</code></td>
+</tr>
+<tr>
+<td class="n">11:05:43</td>
+<td class="n">151.5</td>
+<td class="n">调用</td>
+<td><code>nanolize:execution_job_status</code> {&quot;review_id&quot;: &quot;78a49ae493e84bd3be739480c075608d&quot;, &quot;job_id&quot;: &quot;&lt;调度作业&gt;e483b44d338c1a60c4ba15cd1b&quot;}</td>
+</tr>
+<tr>
+<td class="n">11:05:52</td>
+<td class="n">151.7</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Locate the delivery branch and the report site：<code>cd &lt;主作业目录&gt; &amp;&amp; ls | head -80; find . -maxdepth 3 -name &quot;index.html&quot; | head; cd &lt;原仓库&gt; &amp;&amp; git status --short | head -5; git branch -a | head; git log --oneline -3 claude/nanolize-501560e483b44d338c1a60c4ba15cd1b; git log --oneline -1 main</code></td>
+</tr>
+<tr>
+<td class="n">11:06:03</td>
+<td class="n">151.9</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Read code overlap, token usage and replay regressions of the delivery：<code>cd &lt;工作根&gt;/state/jobs/jobs &amp;&amp; python3 - &lt;&lt;'E' import json d='501560e483b44d338c1a60c4ba15cd1b' q=json.load(open(d+'/code-quality.json')) print({k:(v if not isinstance(v,(list,dict)) else (list(v.keys())[:12] if isinstance(v,dict) else len(v))) for k,v in q.items()}) for k in ('original_overlap','overlap','summary'): if k in q: print(k, json.dumps(q[k])[:900]) tot=0;n=0 for dd in (d,'e68af35c55bf4af1bb0007f444c2deed'): …</code></td>
+</tr>
+<tr>
+<td class="n">11:06:16</td>
+<td class="n">152.1</td>
+<td class="n">调用</td>
+<td><code>Bash</code> Read overall overlap and append the final outcome to issues.md：<code>python3 -c &quot; import json q=json.load(open('501560e483b44d338c1a60c4ba15cd1b/code-quality.json'))['original_overlap'] print(q['percent'], q['limit_percent'], q['functions'], q['mode'], q['max_rewrites']) r=json.load(open('501560e483b44d338c1a60c4ba15cd1b/original-replay.json')) print(json.dumps(r['differences'])[:1200]) &quot;; cat &gt;&gt; &lt;工作根&gt;/issues.md &lt;&lt;'E' ## 9. Stages 05-06, job 501560e483b44d338c1a60c4ba15cd1b: delivered …</code></td>
+</tr>
+<tr>
+<td class="n">11:06:41</td>
+<td class="n">152.5</td>
+<td class="n">说</td>
+<td>运行已结束：主作业以 <code>completed_with_gaps</code> 交付，核心范围的重写通过了所有实际运行的检查，但有 5 类缺口，不能视为完整的行为保持。 ## 标识 - <strong>run_id</strong>：<code>9eba41d2e24548c3a42f6a03f5090c18</code> - <strong>review_id</strong>：<code>78a49ae493e84bd3be739480c075608d</code> - <strong>主作业</strong>：<code>501560e483b44d338c1a60c4ba15cd1b</code>（<code>completed_with_gaps</code>） - <strong>草稿作业</strong>：<code>e68af35c55bf4af1bb0007f444c2deed</code>（<code>draft_ready</code>，首版实现已被主作业导入） - <strong>工作根目录</strong>：<code>&lt;工作根&gt;</code> - <strong>恢复测试的提交</strong>：<code>8b1c43f61db11d17d733521fcf34103b9e0cf9f6</code>，在 <code>main</code> 分支，作者和提交者都是仓库所有者 &lt;仓库所有者&gt;，只含 6 个 <code>test_nanolize_recovered_*.py</code> 文件 - <strong>结果分支</strong>：<code>claude/nanolize-501560e483b44d338c1a60c4ba15cd1b</code>（头 <code>026ec81</code>，未推送、未合并） - <strong>运行页面</strong>：<code>http://127.0.0.1:&lt;端口&gt;/?key=&lt;已隐去&gt;</code> - <strong>报告站点</strong>：主作业目录下 <code>report-site-d9d5c854a09ae6effe1858a2/index.html</code> ## 结果 - <strong>范围</strong>：核心预设，25 个能力、117 个源文件，即标准 R-CNN 检测库（配置、数据结构、层、建模、数据、求解器、训练引擎、模型库）。 - <strong>行为验证</strong>： - 首版实现（95 个文件）在 68 个检查中失败 9 个。 - 一次行为修复（2 个并行作者会话）后，完整对比没有失败的检查。 - 4 个混合检查始终未运行，状态为&quot;未验证&quot;。 - 25 个能力中 15 个已验证，10 个部分验证。 - <strong>代码规模</strong>：交付 127,649 token，为原始 633,182 的 20.2%，低于 50% 的参考目标。 - <strong>与原始代码的重合</strong>：交付函数体与原始代码的重合度为 57%，高于 40% 的报告标记线；按默认设置只测量、不拒绝。 - <strong>安装</strong>：未配置安装检查，因此列为缺口。安装需要另装 CPU 版 PyTorch，并为每个候选编译几分钟 C++。 - <strong>原始测试回放</strong>（只是度量，不改变状态）：回放了 12 个被留在验收之外的测试，其中 2 个在原始代码上通过、在交付代码上不通过；有 4 个测试文件未回放。 - <strong>检查运行位置</strong>：Slurm 计算节点，账户 <code>&lt;账户&gt;</code>、分区 <code>&lt;队列&gt;</code>、QOS <code>normal</code>，三项均为你给定，我没有另找。准备配方在本机运行。 ## 缺口 1. <strong>4 个混合检查未验证</strong>：<code>modeling-backbone</code>、<code>modeling-fast-rcnn</code>、<code>modeling-rpn</code>、<code>structures-instances</code>。这些测试文件在模块级导入了核心之外的导出或旋转框模块，核心候选无法运行它们。我没有把它们改映射成&quot;已退役&quot;来掩盖这个缺口。 2. <strong><code>data-detection-utils</code> 不是验收准则（我的清单错误）</strong>：其中 2 个测试要联网下载图片，在检查沙箱里对原始代码失败。我在阶段 01 的试跑没有断网，所以没把它们剔除 …</td>
+</tr>
+</tbody>
+</table></div>
+<details><summary>主持会话写的 issues.md（它在运行中记下的问题和决定，原文）</summary>
+<pre><code># issues.md — unattended nanolize run on detectron2
+
+Run page run_id: 9eba41d2e24548c3a42f6a03f5090c18. Entries are in the order they happened.
+
+## 1. Stage 01, step 0 (env): the run's test environment is an existing one, not `test-env/`
+
+- What: `prepare_test_environment` was not called. The run uses
+  `&lt;测试环境&gt;/bin/python` (Python 3.11, CPU torch 2.5.1,
+  torchvision 0.20.1, pytest), as the owner's instructions for this machine say. Nothing was installed into it.
+- Consequence: there is no `nanolize-environment.json`; the target module for runtime audits (`detectron2`) and
+  `forbidden_in_dependencies` were written by hand. `claude-runners.json` exposes that environment instead of
+  `&lt;working root&gt;/test-env`.
+
+## 2. Stage 01, step 0 (env): preparation recipe also links the model-zoo configs
+
+- What: the original test command was run once on a private copy of the commit (`notes/orig-tree`, made with
+  `git archive`; the checkout was not touched). With only the prebuilt `detectron2/_C.*.so` copied in, 33 tests fail
+  with `RuntimeError: &lt;name&gt; not available in Model Zoo!`: `detectron2.model_zoo` looks for
+  `detectron2/model_zoo/configs`, which `setup.py` creates as a link to `configs/` when the project is built or
+  installed, and which the checkout does not hold (it is git-ignored).
+- Decision: the preparation recipe (`prepare_checks`, run in the original's and in the candidate's worktree) copies
+  the built extension **and** makes that link (`ln -sfn ../../configs detectron2/model_zoo/configs`). Both files are
+  git-ignored, so the recipe changes no tracked or non-ignored byte. With it the end-to-end model tests
+  (Mask R-CNN forward passes, model zoo, yacs config) can be acceptance criteria.
+- Known limit: the private exports that leaf knockouts and designer trials run in are lent built native binaries
+  but no links, so checks that read a model-zoo config there do not reproduce in an export
+  (`check_not_reproduced_in_export`): they stay criteria of the comparison but are a valid test of no leaf.
+- The YAML configs under `configs/` (92 files) are in the manifest's `carry`: they are configuration no capability
+  owns, the model zoo reads them by name, and every candidate needs them byte for byte.
+
+## 3. Stage 01: tests left out because they cannot pass on the original here
+
+- No GPU / CUDA: skipped by the tests themselves (29 skips), nothing to do.
+- No dataset files (`datasets/coco/...`): `tests/data/test_coco_evaluation.py` (whole file, 2 tests),
+  `tests/data/test_dataset.py::TestDataLoader::test_build_dataloader_train` and
+  `::test_build_iterable_dataloader_train`, `tests/test_engine.py::TestTrainer::test_default_trainer`.
+  `tests/layers/test_mask_ops.py` only skips (3 tests) and is in no check.
+- Optional packages not installed: `tests/test_export_onnx.py` (onnx: collection error),
+  `tests/test_export_caffe2.py` and `tests/export/test_c10.py` (caffe2: skipped at collection),
+  `tests/modeling/test_mmdet.py` (mmdet: both tests skip). In no check.
+- `projects/*/tests` were not run and are in no check (research projects are optional capabilities).
+
+## 4. Stage 01, step 4 (conversion): converted twice; the first conversion's files were taken back
+
+- What: the first `propose_contract` left 16 checks out, several only because a test uses a function its module
+  leaves out of `__all__` (`convert_to_coco_dict`, `set_default_dataset_from_list_serialize_method`,
+  `gen_crop_transform_with_instance`, `worker_init_reset_seed`, `find_unused_parameters`,
+  `detectron2.utils.env.TORCH_VERSION`, `detectron2.export.torchscript.patch_instances`), and it could not take
+  two checks apart whose `--deselect` selection it could not read statically (`data-dataset`,
+  `model-analysis-rcnn`).
+- What I changed: (a) ran the first report's `recovered_files.discard` command as given, before anything was
+  committed (the checkout was clean again); (b) in the input manifest, wrote every `--deselect` as the positive list
+  of the test functions the check runs, and declared the interface of five capabilities as the first conversion's
+  proposal plus those seven names (`notes/manifest-2.json`, `EXTRA_INTERFACE` in `notes/build_manifest.py`);
+  (c) converted again (`notes/graph-manifest-2.json`): 56 checks kept, 8 left out and taken apart, 6 recovered
+  test files written.
+- Commit: `8b1c43f61db11d17d733521fcf34103b9e0cf9f6` on `main`, made with the second report's
+  `recovered_files.command` as given; the owner's identity (author and committer `&lt;仓库所有者&gt;`), exactly these files:
+  `tests/data/test_nanolize_recovered_test_sampler.py`, `tests/modeling/test_nanolize_recovered_test_roi_heads_1.py`,
+  `tests/modeling/test_nanolize_recovered_test_roi_heads_2.py`, `tests/test_nanolize_recovered_test_checkpoint.py`,
+  `tests/test_nanolize_recovered_test_packaging.py`, `tests/test_nanolize_recovered_test_solver.py`.
+
+## 5. Stage 01, steps 4-5: edits to the converted manifest (`notes/graph-manifest-6.json` is the one submitted)
+
+- Interface sentences added for registered names, config defaults, the model-zoo lookup, checkpoint formats,
+  built-in COCO dataset names and `detectron2.__version__`; `AspectRatioGroupedDataset._buckets` stated for the
+  kept check that reads it (`checks_kept_with_names_not_stated`).
+- `detectron2/data/datasets/builtin_meta.py` added to `carry` (a `carry_candidate`, 55% data: the COCO category
+  table users rely on). The conversion itself carried the three LVIS category tables (160,343 tokens, 20%).
+  The C++/CUDA sources under `detectron2/layers/csrc` (17 files) are carried too: candidates run with the prebuilt
+  extension built from exactly these files and nothing in this run can build another.
+- Checks that test an optional capability were mapped to that capability alone (they were mapped to the core
+  capabilities they merely use as well, which made them &quot;needs adaptation&quot; instead of retired under the core
+  selection).
+- Two retained checks ran a test of a removed feature by a registered name, which a core-only candidate cannot
+  pass: `tests/data/test_detection_utils.py::...::test_read_sem_seg` (reads Cityscapes metadata; skipped on the
+  original) is now a check of its own on `cityscapes`, and `recovered-test_roi_heads-1` runs its two core tests
+  only, not `test_rroi_heads` (RRPN/RROIHeads, capability `rotated-detection`). A second check on the same
+  recovered file is refused by `plan_capabilities` (&quot;which a conversion writes for one check&quot;), so
+  `test_rroi_heads` of that file is run by no check in this run.
+- Under the core selection 4 original checks span kept and removed capabilities and stay &quot;needs adaptation&quot;
+  (`modeling-backbone`, `modeling-fast-rcnn`, `modeling-rpn`, `structures-instances`: their files import
+  `detectron2.export` or rotated heads at module level). No characterization or adapted check was added to the
+  repository (not authorized in an unattended run); the job's test design covers those leaves.
+
+## 6. Stage 01, step 9 (check executor): `sbatch --test-only` was not asked
+
+- The account, partition and QOS were all given (`&lt;账户&gt;`, `&lt;队列&gt;`, `normal`) and this session was told
+  to run no `sbatch` of its own, so the scheduler was only read: `&lt;队列&gt;` is up, 77 nodes, no GPUs, time limit
+  4:00:00; the account's association lists QOS `normal`, which has no wall-time limit. None of the three was found
+  by me.
+
+## 7. Stage 02: no installation checks
+
+- No `installation_checks` are configured: an installation of this project needs a CPU-only PyTorch from another
+  package index and a C++ build of minutes for every candidate, and pip's index configuration is disabled on this
+  machine. The job's result will therefore name installation as not run (a gap, `completed_with_gaps` at best).
+
+## 8. Stage 03 (freeze), jobs 501560e483b44d338c1a60c4ba15cd1b (main) and e68af35c55bf4af1bb0007f444c2deed (draft): one retained check fails on the original in the check sandbox
+
+- Error text (baseline issue of both jobs): `preexisting_failure: Baseline check 'data-detection-utils' did not
+  pass: failed.` Its cases `test_read_exif_orientation` and `test_opencv_exif_orientation` raise in
+  `detectron2/utils/file_io.py:32 in _open`.
+- Cause (my judgment): those two tests open `detectron2://assets/Landscape_5.jpg`, which is downloaded from the
+  network; a check runs without the network in its sandbox. My own trial run of stage 01 was not confined, so
+  they passed there and I did not leave them out of the check. This is my error in the manifest.
+- What I changed: nothing. A check's argv cannot be changed in a running job (an owner's revision only appends
+  checks, and needs the job stopped), and cancelling a running pair to start it again is not among the things an
+  unattended run does by itself. The job treats the check as the skill says: a check the original itself fails is
+  no criterion (`not_criteria`, `failed_on_original`), the job goes on with the others.
+- Consequence: the 12 other tests of `tests/data/test_detection_utils.py` (annotation transforms, crops, RLE and
+  keypoint handling of the capability `data-loading`) that pass on the original are not acceptance criteria of
+  this run; `data-loading` keeps its other checks (`data-dataset`, `data-transforms`, `recovered-test_sampler`).
+  Delivery reports `original_coverage_incomplete`.
+- Also seen in the same records: the draft job's seal says &quot;The original baseline is no usable oracle (1 problems)&quot;:
+  `Strict execution has no frozen usable behavior contract`. The readiness audit is `blocked` by the 4 mixed checks
+  of entry 5 (`mixed_check_needs_adaptation`) and by `evaluation-framework` having no check
+  (`selected_leaf_checks_missing`; the main job designs its tests, the draft job designs none). In a controller job
+  that audit is advisory: the job goes on and delivers `completed_with_gaps` at best. I did not re-map the mixed
+  checks to make the audit pass: that would hide a real gap.
+- Baseline of the main job otherwise: 33 of 34 retained checks pass on the original on the compute node; 3 pass
+  there but not in a pristine export (the model-zoo link of entry 2), as expected.
+
+## 9. Stages 05-06, job 501560e483b44d338c1a60c4ba15cd1b: delivered `completed_with_gaps`
+
+- No error. The draft (candidate-1, 95 files) failed 9 of 68 checks; one behavior repair (2 parallel author
+  sessions) cleared them; the full comparison of candidate-4 found no failed check and left 4 unverified (the 4
+  mixed checks of entry 5). The controller recorded that as open question `unknown-1` and delivered.
+- Gaps of the delivery, none worked around: `original_retained_checks_not_passed` (the 4 mixed checks,
+  `mixed_scope_needs_adaptation`), `original_coverage_incomplete` (`check-7` = `data-detection-utils` failed on the
+  original, entry 8; readiness audit blocked), `behavior_obligations_incomplete` (15 of 25 capabilities verified,
+  10 partial), `installation_not_passed` (`not_configured`, entry 7),
+  `current_full_behavior_comparison_missing_or_failed` (reason `unverified`, no failed check).
+- Original replay (a measure, changes no status): of 12 left-out tests replayed, 2 that pass on the original do not
+  pass on the delivered code (one of `tests/layers/test_roi_align.py`, which needs the PointRend project, and one of
+  `tests/test_checkpoint.py`, which uses a private helper); 4 files were not replayed.
+</code></pre>
+</details>
+<h2 id="s4">4. 两个作业的事件和操作（按时间）</h2>
+<p>“事件”是作业写给人看的进度消息；“操作”是作业执行的一步（工具名、结果、用时）；“controller”是 controller 的一轮决定。主作业和草稿作业的记录合在一起按时间排。</p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>时间</th>
+<th>第几分钟</th>
+<th>作业</th>
+<th>类型</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="n">08:34:12</td>
+<td class="n">0.0</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td>Selection accepted; waiting for an execution slot.</td>
+</tr>
+<tr>
+<td class="n">08:34:12</td>
+<td class="n">0.0</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td><code>pair_started</code> This run is two jobs: this one freezes the contract and verifies, and a draft job (e68af35c55bf4af1bb0007f444c2deed) writes the first implementation meanwhile on a second clone. This job imports it after its seal.</td>
+</tr>
+<tr>
+<td class="n">08:34:12</td>
+<td class="n">0.0</td>
+<td class="n">草稿</td>
+<td class="n">事件</td>
+<td><code>pair_started</code> The draft job of a pair: it writes the first implementation on a second clone while its main job (501560e483b44d338c1a60c4ba15cd1b) freezes the contract, then compares it with the original's own checks and repairs what fails, at the latest until its main job has sealed. It designs no test and delivers nothing, and what it compares is no evidence.</td>
+</tr>
+<tr>
+<td class="n">08:34:12</td>
+<td class="n">0.0</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td>Trying the job's runners with one small call each before anything is prepared: the author's runner, the controller's runner, the test designers' runner.</td>
+</tr>
+<tr>
+<td class="n">08:34:13</td>
+<td class="n">0.0</td>
+<td class="n">草稿</td>
+<td class="n">事件</td>
+<td><code>draft_job</code> The controller is not asked (draft job); the job follows the advice from create_workspace.</td>
+</tr>
+<tr>
+<td class="n">08:34:13</td>
+<td class="n">0.0</td>
+<td class="n">草稿</td>
+<td class="n">操作</td>
+<td><code>create_workspace</code> → created（16 秒），由 strategy:fixed 发起</td>
+</tr>
+<tr>
+<td class="n">08:34:20</td>
+<td class="n">0.1</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td>The author's runner passed its trial call (8 s).</td>
+</tr>
+<tr>
+<td class="n">08:34:21</td>
+<td class="n">0.1</td>
+<td class="n">草稿</td>
+<td class="n">事件</td>
+<td>Creating isolated original and candidate worktrees.</td>
+</tr>
+<tr>
+<td class="n">08:34:28</td>
+<td class="n">0.3</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td>The controller's runner passed its trial call (7 s).</td>
+</tr>
+<tr>
+<td class="n">08:34:29</td>
+<td class="n">0.3</td>
+<td class="n">草稿</td>
+<td class="n">操作</td>
+<td><code>prepare_environment</code> → passed（2 秒），由 strategy:fixed 发起</td>
+</tr>
+<tr>
+<td class="n">08:34:30</td>
+<td class="n">0.3</td>
+<td class="n">草稿</td>
+<td class="n">事件</td>
+<td>Running the owner's preparation recipes in the original's worktree.</td>
+</tr>
+<tr>
+<td class="n">08:34:30</td>
+<td class="n">0.3</td>
+<td class="n">草稿</td>
+<td class="n">操作</td>
+<td><code>prepare_environment</code> → passed（1 秒），由 strategy:fixed 发起</td>
+</tr>
+<tr>
+<td class="n">08:34:31</td>
+<td class="n">0.3</td>
+<td class="n">草稿</td>
+<td class="n">事件</td>
+<td>Running the owner's preparation recipes in the candidate's worktree.</td>
+</tr>
+<tr>
+<td class="n">08:34:32</td>
+<td class="n">0.3</td>
+<td class="n">草稿</td>
+<td class="n">操作</td>
+<td><code>capture_baseline</code> → unverified（98 秒），由 strategy:fixed 发起</td>
+</tr>
+<tr>
+<td class="n">08:34:32</td>
+<td class="n">0.3</td>
+<td class="n">草稿</td>
+<td class="n">事件</td>
+<td>Capturing the original baseline in the original's worktree, unless a saved one still observes it.</td>
+</tr>
+<tr>
+<td class="n">08:34:39</td>
+<td class="n">0.5</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td>The test designers' runner passed its trial call (11 s).</td>
+</tr>
+<tr>
+<td class="n">08:34:45</td>
+<td class="n">0.6</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td>The job's checks run on a compute node (Slurm, partition &lt;队列&gt;). Installation checks and preparation recipes run on this machine.</td>
+</tr>
+<tr>
+<td class="n">08:34:45</td>
+<td class="n">0.6</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td><code>before_first_comparison</code> The controller is not asked (before first comparison); the job follows the advice from create_workspace.</td>
+</tr>
+<tr>
+<td class="n">08:34:45</td>
+<td class="n">0.6</td>
+<td class="n">主</td>
+<td class="n">操作</td>
+<td><code>create_workspace</code> → created（17 秒），由 strategy:fixed 发起</td>
+</tr>
+<tr>
+<td class="n">08:34:53</td>
+<td class="n">0.7</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td>Creating isolated original and candidate worktrees.</td>
+</tr>
+<tr>
+<td class="n">08:35:02</td>
+<td class="n">0.8</td>
+<td class="n">主</td>
+<td class="n">操作</td>
+<td><code>prepare_environment</code> → passed（2 秒），由 strategy:fixed 发起</td>
+</tr>
+<tr>
+<td class="n">08:35:04</td>
+<td class="n">0.9</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td>Running the owner's preparation recipes in the original's worktree.</td>
+</tr>
+<tr>
+<td class="n">08:35:05</td>
+<td class="n">0.9</td>
+<td class="n">主</td>
+<td class="n">操作</td>
+<td><code>prepare_environment</code> → passed（2 秒），由 strategy:fixed 发起</td>
+</tr>
+<tr>
+<td class="n">08:35:05</td>
+<td class="n">0.9</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td>Running the owner's preparation recipes in the candidate's worktree.</td>
+</tr>
+<tr>
+<td class="n">08:35:06</td>
+<td class="n">0.9</td>
+<td class="n">主</td>
+<td class="n">操作</td>
+<td><code>capture_baseline</code> → unverified（531 秒），由 strategy:fixed 发起</td>
+</tr>
+<tr>
+<td class="n">08:35:06</td>
+<td class="n">0.9</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td>Capturing the original baseline in the original's worktree, unless a saved one still observes it. Validating leaf tests with repeated runs and leaf knockouts.</td>
+</tr>
+<tr>
+<td class="n">08:36:12</td>
+<td class="n">2.0</td>
+<td class="n">草稿</td>
+<td class="n">操作</td>
+<td><code>seal_contract</code> → done（16 秒），由 strategy:fixed 发起</td>
+</tr>
+<tr>
+<td class="n">08:36:29</td>
+<td class="n">2.3</td>
+<td class="n">草稿</td>
+<td class="n">事件</td>
+<td><code>contract_sealed</code> The contract is sealed: 203 verifier-owned files; the verification bundle is exported. The original baseline is no usable oracle (1 problems, named in this step's result).</td>
+</tr>
+<tr>
+<td class="n">08:36:29</td>
+<td class="n">2.3</td>
+<td class="n">草稿</td>
+<td class="n">事件</td>
+<td>Controller round 1: choosing the next tool calls.</td>
+</tr>
+<tr>
+<td class="n">08:38:34</td>
+<td class="n">4.4</td>
+<td class="n">草稿</td>
+<td>controller</td>
+<td>第 1 轮（applied，125 秒，4 个调用：<code>run_parallel_agents</code>、<code>run_agent</code>、<code>save_candidate</code>、<code>compare_behavior</code>）：Draft job with five chained scopes: the layers one by one would cost five sessions in sequence while the main job freezes, and the external contract fixes the names the scopes share, so I write all five in one split group (4 sessions at once), then one implement pass on the merged candidate to write the shared package-level files a split leaves out and reconcile the scopes, save it and compare in full. Repairs of what the comparison shows are decided next round.</td>
+</tr>
+<tr>
+<td class="n">08:38:34</td>
+<td class="n">4.4</td>
+<td class="n">草稿</td>
+<td class="n">事件</td>
+<td><code>applied</code> Controller round 1: run_parallel_agents, run_agent, save_candidate, compare_behavior then the mainline up to verify.</td>
+</tr>
+<tr>
+<td class="n">08:38:34</td>
+<td class="n">4.4</td>
+<td class="n">草稿</td>
+<td class="n">操作</td>
+<td><code>run_parallel_agents</code> → done（3035 秒），由 strategy:controller 发起</td>
+</tr>
+<tr>
+<td class="n">08:41:05</td>
+<td class="n">6.9</td>
+<td class="n">草稿</td>
+<td class="n">事件</td>
+<td>A parallel group (split) of 5 author sessions in implementation workspaces, 4 at a time.</td>
+</tr>
+<tr>
+<td class="n">08:43:57</td>
+<td class="n">9.8</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td><code>checks_not_reproduced_in_export</code> 3 of 34 retained checks pass on the original but not in a pristine export of its commit (what such a check needs beyond the committed files is missing there, or no export could be made): no knockout of them was tried, so they are a valid test of no leaf. The baseline record names each under validity.issues (check_not_reproduced_in_export), with the last line it printed.</td>
+</tr>
+<tr>
+<td class="n">08:43:58</td>
+<td class="n">9.8</td>
+<td class="n">主</td>
+<td class="n">操作</td>
+<td><code>design_leaf_tests</code> → done（2166 秒），由 strategy:fixed 发起</td>
+</tr>
+<tr>
+<td class="n">08:43:58</td>
+<td class="n">9.8</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td>Designing tests for 4 selected leaves without a valid test. 12 original tests that could not stay as written are given to the designers of 4 leaves to migrate.</td>
+</tr>
+<tr>
+<td class="n">09:19:56</td>
+<td class="n">45.7</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td>Accepted 24 designed tests for 7 leaves; 5 proposals rejected. Accepted 10 scenario files with 296 cases for 7 leaves; 0 scenario files rejected. What each case shows on the original is what a candidate must show. Of 12 original tests to migrate, 12 are migrated, 0 left out with a reason and 0 stay unverified. 5 of the refused files, holding 70 tests and scenario functions, were not given back to a designer: nothing checks what they checked.</td>
+</tr>
+<tr>
+<td class="n">09:20:02</td>
+<td class="n">45.8</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td><code>designed_tests_baseline</code> Committed 34 designed files on the original. The original baseline is captured again with them by the job's next step: 68 checks, validating leaf tests with repeated runs and leaf knockouts.</td>
+</tr>
+<tr>
+<td class="n">09:20:03</td>
+<td class="n">45.9</td>
+<td class="n">主</td>
+<td class="n">操作</td>
+<td><code>capture_baseline</code> → unverified（590 秒），由 strategy:fixed 发起</td>
+</tr>
+<tr>
+<td class="n">09:20:03</td>
+<td class="n">45.9</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td>Capturing the original baseline in the original's worktree, unless a saved one still observes it. Validating leaf tests with repeated runs and leaf knockouts.</td>
+</tr>
+<tr>
+<td class="n">09:28:50</td>
+<td class="n">54.6</td>
+<td class="n">草稿</td>
+<td class="n">事件</td>
+<td>Combining the files a parallel group's authors changed, without invoking an author.</td>
+</tr>
+<tr>
+<td class="n">09:29:09</td>
+<td class="n">54.9</td>
+<td class="n">草稿</td>
+<td class="n">操作</td>
+<td><code>run_agent</code> → completed（2795 秒），候选 candidate-6，由 strategy:controller 发起</td>
+</tr>
+<tr>
+<td class="n">09:29:11</td>
+<td class="n">55.0</td>
+<td class="n">草稿</td>
+<td class="n">事件</td>
+<td>The configured agent is writing its own implementation of the selected graph.</td>
+</tr>
+<tr>
+<td class="n">09:29:53</td>
+<td class="n">55.7</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td><code>checks_not_reproduced_in_export</code> 3 of 68 retained checks pass on the original but not in a pristine export of its commit (what such a check needs beyond the committed files is missing there, or no export could be made): no knockout of them was tried, so they are a valid test of no leaf. The baseline record names each under validity.issues (check_not_reproduced_in_export), with the last line it printed.</td>
+</tr>
+<tr>
+<td class="n">09:29:53</td>
+<td class="n">55.7</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td><code>designed_tests_baseline</code> The original baseline with the designed tests is captured (unverified): 0 selected leaves are still without a valid test.</td>
+</tr>
+<tr>
+<td class="n">09:30:04</td>
+<td class="n">55.9</td>
+<td class="n">主</td>
+<td class="n">操作</td>
+<td><code>seal_contract</code> → done（26 秒），由 strategy:fixed 发起</td>
+</tr>
+<tr>
+<td class="n">09:30:30</td>
+<td class="n">56.3</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td><code>contract_sealed</code> The contract is sealed: 237 verifier-owned files; the verification bundle is exported. The original baseline is no usable oracle (1 problems, named in this step's result).</td>
+</tr>
+<tr>
+<td class="n">09:30:31</td>
+<td class="n">56.3</td>
+<td class="n">主</td>
+<td class="n">操作</td>
+<td><code>import_draft</code> → imported（2789 秒），由 strategy:fixed 发起</td>
+</tr>
+<tr>
+<td class="n">09:30:31</td>
+<td class="n">56.3</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td><code>draft_awaited</code> The contract is sealed. Waiting for the draft job (e68af35c55bf4af1bb0007f444c2deed) to finish the first implementation.</td>
+</tr>
+<tr>
+<td class="n">10:15:44</td>
+<td class="n">101.5</td>
+<td class="n">草稿</td>
+<td class="n">操作</td>
+<td><code>save_candidate</code> → done（20 秒），候选 candidate-6，由 strategy:controller 发起</td>
+</tr>
+<tr>
+<td class="n">10:16:04</td>
+<td class="n">101.9</td>
+<td class="n">草稿</td>
+<td class="n">事件</td>
+<td><code>candidate_saved</code> The drafts are saved as candidate-7.</td>
+</tr>
+<tr>
+<td class="n">10:16:04</td>
+<td class="n">101.9</td>
+<td class="n">草稿</td>
+<td class="n">操作</td>
+<td><code>compare_behavior</code> → skipped（没有执行），由 strategy:controller 发起：The batch ended before this call ran</td>
+</tr>
+<tr>
+<td class="n">10:16:04</td>
+<td class="n">101.9</td>
+<td class="n">草稿</td>
+<td class="n">操作</td>
+<td><code>finish_draft</code> → ready（14 秒），候选 candidate-7，由 strategy:fixed 发起</td>
+</tr>
+<tr>
+<td class="n">10:16:18</td>
+<td class="n">102.1</td>
+<td class="n">草稿</td>
+<td class="n">事件</td>
+<td>The first implementation is written and saved (candidate-7, 95 files in 5 scopes). This draft job ends here: its main job imports the candidate, verifies it and delivers.</td>
+</tr>
+<tr>
+<td class="n">10:16:20</td>
+<td class="n">102.1</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td>Importing the draft job's first implementation (95 files), without invoking an author.</td>
+</tr>
+<tr>
+<td class="n">10:16:46</td>
+<td class="n">102.6</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td><code>draft_imported</code> The draft job's first implementation is this job's candidate-1 (95 files, 0 left out where the verifier provides its own, 4 modules its checks import are missing). It is compared next.</td>
+</tr>
+<tr>
+<td class="n">10:17:15</td>
+<td class="n">103.1</td>
+<td class="n">主</td>
+<td class="n">操作</td>
+<td><code>compare_behavior</code> → regressed（165 秒），候选 candidate-1，由 strategy:fixed 发起</td>
+</tr>
+<tr>
+<td class="n">10:17:15</td>
+<td class="n">103.1</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td>Comparing this candidate with the original frozen checks and source budget.</td>
+</tr>
+<tr>
+<td class="n">10:20:00</td>
+<td class="n">105.8</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td><code>comparison_regressed</code> The full comparison of candidate-1 found 9 failed checks, in box-ops, data-structures, native-ops, rcnn-models, roi-pooling and others; 4 checks were not run (regressed).</td>
+</tr>
+<tr>
+<td class="n">10:20:01</td>
+<td class="n">105.8</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td>Controller round 1: choosing the next tool calls.</td>
+</tr>
+<tr>
+<td class="n">10:22:29</td>
+<td class="n">108.3</td>
+<td class="n">主</td>
+<td>controller</td>
+<td>第 1 轮（applied，148 秒，3 个调用：<code>run_parallel_agents</code>、<code>compare_behavior</code>、<code>deliver</code>）：The 9 failed checks have two confirmed sites: AttributeError at the three rotated-operator call sites in detectron2/layers (8 checks, box-ops/native-ops) and a ModuleNotFoundError at meta_arch/rcnn.py:84 (check-65). They lie in disjoint files, so one split repair group (one repair round) mends both side by side; then a full comparison, and a delivery only if nothing closable remains.</td>
+</tr>
+<tr>
+<td class="n">10:22:29</td>
+<td class="n">108.3</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td><code>applied</code> Controller round 1: run_parallel_agents, compare_behavior, deliver.</td>
+</tr>
+<tr>
+<td class="n">10:22:29</td>
+<td class="n">108.3</td>
+<td class="n">主</td>
+<td class="n">操作</td>
+<td><code>run_parallel_agents</code> → done（1864 秒），候选 candidate-1，由 strategy:controller 发起</td>
+</tr>
+<tr>
+<td class="n">10:23:46</td>
+<td class="n">109.6</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td>A parallel group (split) of 2 author sessions in implementation workspaces, 2 at a time.</td>
+</tr>
+<tr>
+<td class="n">10:53:15</td>
+<td class="n">139.1</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td>Combining the files a parallel group's authors changed, without invoking an author.</td>
+</tr>
+<tr>
+<td class="n">10:53:32</td>
+<td class="n">139.3</td>
+<td class="n">主</td>
+<td class="n">操作</td>
+<td><code>compare_behavior</code> → unverified（111 秒），候选 candidate-4，由 strategy:controller 发起</td>
+</tr>
+<tr>
+<td class="n">10:53:32</td>
+<td class="n">139.3</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td>Comparing this candidate with the original frozen checks and source budget.</td>
+</tr>
+<tr>
+<td class="n">10:55:23</td>
+<td class="n">141.2</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td><code>comparison_unverified</code> The full comparison of candidate-4 found no failed check; 4 checks were not run (unverified).</td>
+</tr>
+<tr>
+<td class="n">10:55:23</td>
+<td class="n">141.2</td>
+<td class="n">主</td>
+<td class="n">操作</td>
+<td><code>deliver</code> → blocked（0 秒），候选 candidate-4，由 strategy:controller 发起：Not delivered: require best_reachable asks for no gap a tool can still close (each gap's closable is false; a failed comparison has it only at the limit on behavior repairs, with nothing better left to restore), and this delivery would be completed_with_gaps with current_full_behavior_comparison_missing_or_failed (closable), original_retained_checks_not_passed (closable), behavior_obligations_inco …</td>
+</tr>
+<tr>
+<td class="n">10:55:25</td>
+<td class="n">141.2</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td>Controller round 2: choosing the next tool calls.</td>
+</tr>
+<tr>
+<td class="n">10:57:27</td>
+<td class="n">143.3</td>
+<td class="n">主</td>
+<td>controller</td>
+<td>第 2 轮（applied，123 秒，3 个调用：<code>record_unknown</code>、<code>select_candidate</code>、<code>deliver</code>）：candidate-4 has no observed failure, so there is nothing for a repair to target. The gaps that held back best_reachable come from four original checks left unverified as mixed_scope_needs_adaptation plus check-7, which failed on the original. No tool adapts a check after the seal and nobody attends to authorize a revision; having an author add the modules those checks import would go beyond the selected contract. So I record the question for the owner, select candidate-4 and deliver with require no_failures, which gives completed_with_gaps.</td>
+</tr>
+<tr>
+<td class="n">10:57:27</td>
+<td class="n">143.3</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td><code>applied</code> Controller round 2: record_unknown, select_candidate, deliver.</td>
+</tr>
+<tr>
+<td class="n">10:57:27</td>
+<td class="n">143.3</td>
+<td class="n">主</td>
+<td class="n">操作</td>
+<td><code>record_unknown</code> → recorded（0 秒），候选 candidate-4，由 strategy:controller 发起</td>
+</tr>
+<tr>
+<td class="n">10:57:27</td>
+<td class="n">143.3</td>
+<td class="n">主</td>
+<td class="n">操作</td>
+<td><code>select_candidate</code> → selected（13 秒），候选 candidate-4，由 strategy:controller 发起</td>
+</tr>
+<tr>
+<td class="n">10:57:40</td>
+<td class="n">143.5</td>
+<td class="n">主</td>
+<td class="n">操作</td>
+<td><code>deliver</code> → completed_with_gaps（77 秒），候选 candidate-4，由 strategy:controller 发起</td>
+</tr>
+<tr>
+<td class="n">10:57:58</td>
+<td class="n">143.8</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td>Replaying the original tests that the conversion left out of acceptance on the delivered code. The result is reported; it changes no status.</td>
+</tr>
+<tr>
+<td class="n">10:58:56</td>
+<td class="n">144.7</td>
+<td class="n">主</td>
+<td class="n">事件</td>
+<td>Delivered with gaps (current full behavior comparison missing or failed, original retained checks not passed, installation not passed, original coverage incomplete, behavior obligations incomplete); no full preservation claim is made.</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="s5">5. 模型会话（每次调用）</h2>
+<p>“位置”是这次调用在作业目录里的位置：<code>design/round-N/&lt;叶子&gt;</code> 是第 N 轮的测试设计者，<code>design/review…</code> 是评审者，<code>authoring</code> 是作者，<code>implementation-workspaces/workspace-…/authoring</code> 是并行组里的一个作者，<code>controller/NNNN</code> 是 controller 的第 N 轮。每个会话逐步的记录（每条命令和输出）不在这份文件里，在归档的 <code>model-calls/&lt;编号&gt;/events.jsonl</code>。</p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>开始</th>
+<th>结束</th>
+<th>第几分钟</th>
+<th>作业</th>
+<th>角色</th>
+<th>位置</th>
+<th>秒</th>
+<th>轮数</th>
+<th>美元</th>
+<th>输入 token（含缓存）</th>
+<th>输出 token</th>
+<th>记录编号</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="n">08:31:38</td>
+<td class="n">08:31:46</td>
+<td class="n">-2.6</td>
+<td class="n">–</td>
+<td class="n">试调：作者</td>
+<td class="n">试调用的临时目录</td>
+<td class="n">8</td>
+<td class="n">2</td>
+<td class="n">0.07</td>
+<td class="n">14,182</td>
+<td class="n">150</td>
+<td><code>8cde538c</code></td>
+</tr>
+<tr>
+<td class="n">08:31:46</td>
+<td class="n">08:31:54</td>
+<td class="n">-2.4</td>
+<td class="n">–</td>
+<td>试调：controller</td>
+<td class="n">试调用的临时目录</td>
+<td class="n">7</td>
+<td class="n">1</td>
+<td class="n">0.07</td>
+<td class="n">6,599</td>
+<td class="n">269</td>
+<td><code>d6d7ba6e</code></td>
+</tr>
+<tr>
+<td class="n">08:31:54</td>
+<td class="n">08:32:04</td>
+<td class="n">-2.3</td>
+<td class="n">–</td>
+<td class="n">试调：测试设计者</td>
+<td class="n">试调用的临时目录</td>
+<td class="n">10</td>
+<td class="n">2</td>
+<td class="n">0.14</td>
+<td class="n">13,919</td>
+<td class="n">375</td>
+<td><code>3d1250a7</code></td>
+</tr>
+<tr>
+<td class="n">08:34:13</td>
+<td class="n">08:34:20</td>
+<td class="n">0.0</td>
+<td class="n">–</td>
+<td class="n">试调：作者</td>
+<td class="n">试调用的临时目录</td>
+<td class="n">7</td>
+<td class="n">2</td>
+<td class="n">0.03</td>
+<td class="n">14,190</td>
+<td class="n">154</td>
+<td><code>d4e047c4</code></td>
+</tr>
+<tr>
+<td class="n">08:34:21</td>
+<td class="n">08:34:28</td>
+<td class="n">0.2</td>
+<td class="n">–</td>
+<td>试调：controller</td>
+<td class="n">试调用的临时目录</td>
+<td class="n">7</td>
+<td class="n">1</td>
+<td class="n">0.03</td>
+<td class="n">6,601</td>
+<td class="n">259</td>
+<td><code>3f036e0d</code></td>
+</tr>
+<tr>
+<td class="n">08:34:29</td>
+<td class="n">08:34:39</td>
+<td class="n">0.3</td>
+<td class="n">–</td>
+<td class="n">试调：测试设计者</td>
+<td class="n">试调用的临时目录</td>
+<td class="n">10</td>
+<td class="n">2</td>
+<td class="n">0.05</td>
+<td class="n">13,983</td>
+<td class="n">429</td>
+<td><code>32117bb2</code></td>
+</tr>
+<tr>
+<td class="n">08:36:30</td>
+<td class="n">08:38:34</td>
+<td class="n">2.3</td>
+<td class="n">草稿</td>
+<td>controller</td>
+<td>controller/0001</td>
+<td class="n">124</td>
+<td class="n">4</td>
+<td class="n">1.62</td>
+<td class="n">208,542</td>
+<td class="n">12,361</td>
+<td><code>116cdab5</code></td>
+</tr>
+<tr>
+<td class="n">08:41:06</td>
+<td class="n">09:15:10</td>
+<td class="n">6.9</td>
+<td class="n">草稿</td>
+<td class="n">作者</td>
+<td>implementation-workspaces/workspace-4bdd2afcb3a3/authoring</td>
+<td class="n">2043</td>
+<td class="n">73</td>
+<td class="n">17.18</td>
+<td>15,835,500</td>
+<td class="n">174,874</td>
+<td><code>6d3812cd</code></td>
+</tr>
+<tr>
+<td class="n">08:41:06</td>
+<td class="n">09:03:43</td>
+<td class="n">6.9</td>
+<td class="n">草稿</td>
+<td class="n">作者</td>
+<td>implementation-workspaces/workspace-39321ea8077f/authoring</td>
+<td class="n">1357</td>
+<td class="n">50</td>
+<td class="n">13.19</td>
+<td class="n">8,645,145</td>
+<td class="n">139,417</td>
+<td><code>2b669d58</code></td>
+</tr>
+<tr>
+<td class="n">08:41:06</td>
+<td class="n">09:14:09</td>
+<td class="n">6.9</td>
+<td class="n">草稿</td>
+<td class="n">作者</td>
+<td>implementation-workspaces/workspace-269d2c576d39/authoring</td>
+<td class="n">1983</td>
+<td class="n">57</td>
+<td class="n">16.27</td>
+<td>12,264,415</td>
+<td class="n">173,024</td>
+<td><code>7317c5b3</code></td>
+</tr>
+<tr>
+<td class="n">08:41:07</td>
+<td class="n">09:18:12</td>
+<td class="n">6.9</td>
+<td class="n">草稿</td>
+<td class="n">作者</td>
+<td>implementation-workspaces/workspace-bb28fe23e80c/authoring</td>
+<td class="n">2226</td>
+<td class="n">65</td>
+<td class="n">19.67</td>
+<td>15,767,819</td>
+<td class="n">212,719</td>
+<td><code>08ad1868</code></td>
+</tr>
+<tr>
+<td class="n">08:44:06</td>
+<td class="n">08:56:40</td>
+<td class="n">9.9</td>
+<td class="n">主</td>
+<td class="n">测试设计者</td>
+<td>design/round-1/box_ops_2caca7c7</td>
+<td class="n">754</td>
+<td class="n">28</td>
+<td class="n">5.94</td>
+<td class="n">2,482,270</td>
+<td class="n">67,589</td>
+<td><code>94d146f1</code></td>
+</tr>
+<tr>
+<td class="n">08:44:06</td>
+<td class="n">08:52:59</td>
+<td class="n">9.9</td>
+<td class="n">主</td>
+<td class="n">测试设计者</td>
+<td>design/round-1/region_proposal_network_19d1f51a</td>
+<td class="n">533</td>
+<td class="n">21</td>
+<td class="n">4.61</td>
+<td class="n">1,174,156</td>
+<td class="n">56,175</td>
+<td><code>b9e2a010</code></td>
+</tr>
+<tr>
+<td class="n">08:44:06</td>
+<td class="n">08:53:02</td>
+<td class="n">9.9</td>
+<td class="n">主</td>
+<td class="n">测试设计者</td>
+<td>design/round-1/runtime_utils_6c9046d5</td>
+<td class="n">536</td>
+<td class="n">17</td>
+<td class="n">4.17</td>
+<td class="n">1,056,386</td>
+<td class="n">49,990</td>
+<td><code>ca563e01</code></td>
+</tr>
+<tr>
+<td class="n">08:44:06</td>
+<td class="n">08:51:50</td>
+<td class="n">9.9</td>
+<td class="n">主</td>
+<td class="n">测试设计者</td>
+<td>design/round-1/evaluation_framework_2181fb56</td>
+<td class="n">464</td>
+<td class="n">12</td>
+<td class="n">3.24</td>
+<td class="n">604,619</td>
+<td class="n">42,077</td>
+<td><code>6ebce63e</code></td>
+</tr>
+<tr>
+<td class="n">08:44:06</td>
+<td class="n">08:56:39</td>
+<td class="n">9.9</td>
+<td class="n">主</td>
+<td class="n">测试设计者</td>
+<td>design/round-1/model_zoo_b9ca42f9</td>
+<td class="n">753</td>
+<td class="n">2</td>
+<td class="n">3.44</td>
+<td class="n">1,117,798</td>
+<td class="n">41,085</td>
+<td><code>d88a9950</code></td>
+</tr>
+<tr>
+<td class="n">08:44:06</td>
+<td class="n">08:52:06</td>
+<td class="n">9.9</td>
+<td class="n">主</td>
+<td class="n">测试设计者</td>
+<td>design/round-1/data_transforms_8967f4a5</td>
+<td class="n">480</td>
+<td class="n">19</td>
+<td class="n">4.73</td>
+<td class="n">1,326,229</td>
+<td class="n">48,585</td>
+<td><code>932a2e64</code></td>
+</tr>
+<tr>
+<td class="n">08:44:06</td>
+<td class="n">08:52:29</td>
+<td class="n">9.9</td>
+<td class="n">主</td>
+<td class="n">测试设计者</td>
+<td>design/round-1/rcnn_models_63c3e169</td>
+<td class="n">503</td>
+<td class="n">15</td>
+<td class="n">3.95</td>
+<td class="n">973,367</td>
+<td class="n">46,779</td>
+<td><code>fe8f816f</code></td>
+</tr>
+<tr>
+<td class="n">09:03:48</td>
+<td class="n">09:27:28</td>
+<td class="n">29.6</td>
+<td class="n">草稿</td>
+<td class="n">作者</td>
+<td>implementation-workspaces/workspace-1ec70129add0/authoring</td>
+<td class="n">1420</td>
+<td class="n">60</td>
+<td class="n">13.68</td>
+<td>11,477,957</td>
+<td class="n">135,032</td>
+<td><code>fce41d71</code></td>
+</tr>
+<tr>
+<td class="n">09:06:55</td>
+<td class="n">09:10:22</td>
+<td class="n">32.7</td>
+<td class="n">主</td>
+<td class="n">测试评审者</td>
+<td>design/review/4</td>
+<td class="n">207</td>
+<td class="n">17</td>
+<td class="n">2.80</td>
+<td class="n">733,337</td>
+<td class="n">19,290</td>
+<td><code>80fec233</code></td>
+</tr>
+<tr>
+<td class="n">09:06:55</td>
+<td class="n">09:09:05</td>
+<td class="n">32.7</td>
+<td class="n">主</td>
+<td class="n">测试评审者</td>
+<td>design/review/1</td>
+<td class="n">130</td>
+<td class="n">16</td>
+<td class="n">2.35</td>
+<td class="n">594,227</td>
+<td class="n">12,314</td>
+<td><code>6fca4296</code></td>
+</tr>
+<tr>
+<td class="n">09:06:55</td>
+<td class="n">09:10:18</td>
+<td class="n">32.7</td>
+<td class="n">主</td>
+<td class="n">测试评审者</td>
+<td>design/review/2</td>
+<td class="n">203</td>
+<td class="n">19</td>
+<td class="n">2.95</td>
+<td class="n">726,191</td>
+<td class="n">18,252</td>
+<td><code>8222ae31</code></td>
+</tr>
+<tr>
+<td class="n">09:06:55</td>
+<td class="n">09:08:48</td>
+<td class="n">32.7</td>
+<td class="n">主</td>
+<td class="n">测试评审者</td>
+<td>design/review/5</td>
+<td class="n">113</td>
+<td class="n">6</td>
+<td class="n">1.20</td>
+<td class="n">152,483</td>
+<td class="n">10,575</td>
+<td><code>26b74ceb</code></td>
+</tr>
+<tr>
+<td class="n">09:06:55</td>
+<td class="n">09:10:11</td>
+<td class="n">32.7</td>
+<td class="n">主</td>
+<td class="n">测试评审者</td>
+<td>design/review/3</td>
+<td class="n">196</td>
+<td class="n">12</td>
+<td class="n">2.24</td>
+<td class="n">409,782</td>
+<td class="n">17,982</td>
+<td><code>313890a2</code></td>
+</tr>
+<tr>
+<td class="n">09:29:14</td>
+<td class="n">10:15:27</td>
+<td class="n">55.0</td>
+<td class="n">草稿</td>
+<td class="n">作者</td>
+<td class="n">authoring</td>
+<td class="n">2773</td>
+<td class="n">109</td>
+<td class="n">20.58</td>
+<td>24,699,944</td>
+<td class="n">186,517</td>
+<td><code>1aeba6e1</code></td>
+</tr>
+<tr>
+<td class="n">10:20:02</td>
+<td class="n">10:22:25</td>
+<td class="n">105.8</td>
+<td class="n">主</td>
+<td>controller</td>
+<td>controller/0001</td>
+<td class="n">143</td>
+<td class="n">7</td>
+<td class="n">2.03</td>
+<td class="n">387,745</td>
+<td class="n">14,216</td>
+<td><code>6a80d966</code></td>
+</tr>
+<tr>
+<td class="n">10:23:48</td>
+<td class="n">10:28:35</td>
+<td class="n">109.6</td>
+<td class="n">主</td>
+<td class="n">作者</td>
+<td>implementation-workspaces/workspace-574c6edaa17f/authoring</td>
+<td class="n">287</td>
+<td class="n">19</td>
+<td class="n">2.17</td>
+<td class="n">794,505</td>
+<td class="n">20,500</td>
+<td><code>88547a18</code></td>
+</tr>
+<tr>
+<td class="n">10:23:48</td>
+<td class="n">10:52:44</td>
+<td class="n">109.6</td>
+<td class="n">主</td>
+<td class="n">作者</td>
+<td>implementation-workspaces/workspace-a05c274b5ea4/authoring</td>
+<td class="n">1736</td>
+<td class="n">37</td>
+<td class="n">10.12</td>
+<td class="n">4,584,154</td>
+<td class="n">123,259</td>
+<td><code>4ad02b3e</code></td>
+</tr>
+<tr>
+<td class="n">10:55:25</td>
+<td class="n">10:57:27</td>
+<td class="n">141.2</td>
+<td class="n">主</td>
+<td>controller</td>
+<td>controller/0002</td>
+<td class="n">121</td>
+<td class="n">5</td>
+<td class="n">1.71</td>
+<td class="n">305,459</td>
+<td class="n">11,226</td>
+<td><code>3b78676c</code></td>
+</tr>
+</tbody>
+</table></div>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>角色</th>
+<th>调用次数</th>
+<th>美元</th>
+<th>会话时间合计（分钟）</th>
+<th>输出 token</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>controller</td>
+<td class="n">3</td>
+<td class="n">5.36</td>
+<td class="n">6.5</td>
+<td class="n">37,803</td>
+</tr>
+<tr>
+<td class="n">作者</td>
+<td class="n">8</td>
+<td class="n">112.85</td>
+<td class="n">230.4</td>
+<td class="n">1,165,342</td>
+</tr>
+<tr>
+<td class="n">测试设计者</td>
+<td class="n">7</td>
+<td class="n">30.08</td>
+<td class="n">67.1</td>
+<td class="n">352,280</td>
+</tr>
+<tr>
+<td class="n">测试评审者</td>
+<td class="n">5</td>
+<td class="n">11.54</td>
+<td class="n">14.2</td>
+<td class="n">78,413</td>
+</tr>
+<tr>
+<td>合计（不含试调和主持会话）</td>
+<td class="n">23</td>
+<td class="n">159.83</td>
+<td class="n">318.1</td>
+<td class="n">1,633,838</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="s6">6. 测试设计和评审</h2>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>项目</th>
+<th>数量</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>设计者会话 / 评审者会话</td>
+<td>7 / 5</td>
+</tr>
+<tr>
+<td>作业记下的会话数（原样）</td>
+<td><code>{&quot;completed&quot;: 12, &quot;failed&quot;: {}, &quot;started&quot;: 12}</code></td>
+</tr>
+<tr>
+<td>提交到原版上的设计文件</td>
+<td>24 个测试文件 + 10 个场景文件（性能文件 0 个）</td>
+</tr>
+<tr>
+<td class="n">通过的文件</td>
+<td class="n">34</td>
+</tr>
+<tr>
+<td>被拒的文件（按原因）</td>
+<td>outside_external_contract 2、not_passing_on_original 3</td>
+</tr>
+<tr>
+<td>没有按评审意见改完的文件</td>
+<td class="n">5</td>
+</tr>
+<tr>
+<td class="n">原测试的迁移</td>
+<td>给了 12 条，迁移成 12 条，没法验证 0 条</td>
+</tr>
+<tr>
+<td class="n">两次基线的检查数</td>
+<td>34 → 68</td>
+</tr>
+<tr>
+<td>第一次基线时没有有效测试的叶子</td>
+<td>evaluation-framework、model-zoo、rcnn-models、region-proposal-network</td>
+</tr>
+<tr>
+<td class="n">基线的问题（原文）</td>
+<td>Strict execution has no frozen usable behavior contract</td>
+</tr>
+<tr>
+<td>封存时校验方持有的文件</td>
+<td class="n">237</td>
+</tr>
+</tbody>
+</table></div>
+<p>每个叶子的结果：</p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>叶子</th>
+<th>通过的测试文件</th>
+<th>通过的场景文件</th>
+<th>被拒的测试（按原因）</th>
+<th>被拒的场景（按原因）</th>
+<th>原测试迁移 / 没验证</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="n">box-ops</td>
+<td class="n">5</td>
+<td class="n">3</td>
+<td class="n">–</td>
+<td class="n">–</td>
+<td>5 / 0</td>
+</tr>
+<tr>
+<td>data-transforms</td>
+<td class="n">2</td>
+<td class="n">1</td>
+<td>outside_external_contract 2</td>
+<td class="n">–</td>
+<td>1 / 0</td>
+</tr>
+<tr>
+<td>evaluation-framework</td>
+<td class="n">3</td>
+<td class="n">2</td>
+<td class="n">–</td>
+<td class="n">–</td>
+<td>– / –</td>
+</tr>
+<tr>
+<td class="n">model-zoo</td>
+<td class="n">1</td>
+<td class="n">1</td>
+<td>not_passing_on_original 3</td>
+<td class="n">–</td>
+<td>– / –</td>
+</tr>
+<tr>
+<td>rcnn-models</td>
+<td class="n">4</td>
+<td class="n">1</td>
+<td class="n">–</td>
+<td class="n">–</td>
+<td>1 / 0</td>
+</tr>
+<tr>
+<td>region-proposal-network</td>
+<td class="n">3</td>
+<td class="n">1</td>
+<td class="n">–</td>
+<td class="n">–</td>
+<td>– / –</td>
+</tr>
+<tr>
+<td>runtime-utils</td>
+<td class="n">6</td>
+<td class="n">1</td>
+<td class="n">–</td>
+<td class="n">–</td>
+<td>5 / 0</td>
+</tr>
+</tbody>
+</table></div>
+<p>被拒的文件和理由（原文的开头）：</p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>叶子</th>
+<th>轮</th>
+<th>文件</th>
+<th>理由</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>data-transforms</td>
+<td class="n">1</td>
+<td><code>tests/nanolize_contracts/data_transforms_8967f4a5/test_augmentation_policies.py</code></td>
+<td>outside_external_contract；not in the external contract: detectron2.data.transforms.(dynamic attribute), detectron2.data.transforms.augmentation_impl.(dynamic attribute)</td>
+</tr>
+<tr>
+<td>data-transforms</td>
+<td class="n">1</td>
+<td><code>tests/nanolize_contracts/data_transforms_8967f4a5/test_augmentation_core.py</code></td>
+<td>outside_external_contract；not in the external contract: detectron2.data.transforms.(dynamic attribute), detectron2.data.transforms.augmentation.(dynamic attribute)</td>
+</tr>
+<tr>
+<td class="n">model-zoo</td>
+<td class="n">1</td>
+<td><code>tests/nanolize_contracts/model_zoo_b9ca42f9/test_model_zoo_configs.py</code></td>
+<td>not_passing_on_original；not_repeated_identically；no_passing_cases；knockout_not_run；With this file the knockout of this leaf gave no verdict (baseline_not_passed), so nothing is known of how strong its assertions are, and this is no request for stronger ones. A file is knocked out only when it finishes within the light limit on the original and passes in a clean export of the commit, which holds no untracked file of t …</td>
+</tr>
+<tr>
+<td class="n">model-zoo</td>
+<td class="n">1</td>
+<td><code>tests/nanolize_contracts/model_zoo_b9ca42f9/test_model_zoo_get.py</code></td>
+<td>not_passing_on_original；not_repeated_identically；no_passing_cases；knockout_not_run；With this file the knockout of this leaf gave no verdict (baseline_not_passed), so nothing is known of how strong its assertions are, and this is no request for stronger ones. A file is knocked out only when it finishes within the light limit on the original and passes in a clean export of the commit, which holds no untracked file of t …</td>
+</tr>
+<tr>
+<td class="n">model-zoo</td>
+<td class="n">1</td>
+<td><code>tests/nanolize_contracts/model_zoo_b9ca42f9/test_model_zoo_get_backbone.py</code></td>
+<td>not_passing_on_original；not_repeated_identically；no_passing_cases；knockout_not_run；With this file the knockout of this leaf gave no verdict (baseline_not_passed), so nothing is known of how strong its assertions are, and this is no request for stronger ones. A file is knocked out only when it finishes within the light limit on the original and passes in a clean export of the commit, which holds no untracked file of t …</td>
+</tr>
+</tbody>
+</table></div>
+<p>封存时就定下的上限（这些缺口之后的工具关不掉，原样）：</p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>缺口</th>
+<th>原因</th>
+<th>涉及</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>installation_not_passed</td>
+<td>not_configured</td>
+<td class="n">{}</td>
+</tr>
+<tr>
+<td>original_coverage_incomplete</td>
+<td>coverage_incomplete</td>
+<td>{&quot;issues&quot;: [&quot;mixed_check_needs_adaptation&quot;]}</td>
+</tr>
+<tr>
+<td>original_coverage_incomplete</td>
+<td>baseline_unusable</td>
+<td>{&quot;problems&quot;: [&quot;Strict execution has no frozen usable behavior contract&quot;]}</td>
+</tr>
+<tr>
+<td>original_coverage_incomplete</td>
+<td>failed_on_original</td>
+<td>{&quot;checks&quot;: [&quot;check-7&quot;]}</td>
+</tr>
+<tr>
+<td>behavior_obligations_incomplete</td>
+<td>no_criterion</td>
+<td>{&quot;capabilities&quot;: [&quot;data-loading&quot;, &quot;data-structures&quot;, &quot;data-transforms&quot;, &quot;dataset-catalog&quot;]}</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="s7">7. 候选、对比和修复</h2>
+<p>作者的每次调用。并行组（<code>run_parallel_agents</code>）里的每个请求是一个作者会话，各在自己的工作区里写，写完由程序合并：</p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>开始</th>
+<th>第几分钟</th>
+<th>作业</th>
+<th>做什么</th>
+<th>范围或叶子</th>
+<th>分钟</th>
+<th>轮数</th>
+<th>美元</th>
+<th>文件（加 / 改 / 删）</th>
+<th>候选</th>
+<th>退出码</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="n">08:41:06</td>
+<td class="n">6.9</td>
+<td class="n">草稿</td>
+<td>并行组（split）的请求 1：第一版</td>
+<td class="n">scope-1</td>
+<td class="n">34.1</td>
+<td class="n">73</td>
+<td class="n">17.18</td>
+<td>+33 / 改 0 / 删 0</td>
+<td>candidate-1</td>
+<td class="n">0</td>
+</tr>
+<tr>
+<td class="n">08:41:06</td>
+<td class="n">6.9</td>
+<td class="n">草稿</td>
+<td>并行组（split）的请求 2：第一版</td>
+<td class="n">scope-2</td>
+<td class="n">33.1</td>
+<td class="n">57</td>
+<td class="n">16.27</td>
+<td>+16 / 改 0 / 删 0</td>
+<td>candidate-2</td>
+<td class="n">0</td>
+</tr>
+<tr>
+<td class="n">08:41:06</td>
+<td class="n">6.9</td>
+<td class="n">草稿</td>
+<td>并行组（split）的请求 3：第一版</td>
+<td class="n">scope-3</td>
+<td class="n">22.7</td>
+<td class="n">50</td>
+<td class="n">13.19</td>
+<td>+14 / 改 0 / 删 0</td>
+<td>candidate-3</td>
+<td class="n">0</td>
+</tr>
+<tr>
+<td class="n">08:41:07</td>
+<td class="n">6.9</td>
+<td class="n">草稿</td>
+<td>并行组（split）的请求 4：第一版</td>
+<td class="n">scope-4</td>
+<td class="n">37.1</td>
+<td class="n">65</td>
+<td class="n">19.67</td>
+<td>+14 / 改 0 / 删 0</td>
+<td>candidate-4</td>
+<td class="n">0</td>
+</tr>
+<tr>
+<td class="n">09:03:48</td>
+<td class="n">29.6</td>
+<td class="n">草稿</td>
+<td>并行组（split）的请求 5：第一版</td>
+<td class="n">scope-5</td>
+<td class="n">23.7</td>
+<td class="n">60</td>
+<td class="n">13.68</td>
+<td>+18 / 改 0 / 删 0</td>
+<td>candidate-5</td>
+<td class="n">0</td>
+</tr>
+<tr>
+<td class="n">08:38:34</td>
+<td class="n">4.4</td>
+<td class="n">草稿</td>
+<td>↑ 这个并行组整体（含合并）</td>
+<td>5 个请求，冲突 0 处</td>
+<td class="n">50.6</td>
+<td class="n">–</td>
+<td class="n">–</td>
+<td class="n">–</td>
+<td>candidate-6</td>
+<td class="n">–</td>
+</tr>
+<tr>
+<td class="n">09:29:09</td>
+<td class="n">54.9</td>
+<td class="n">草稿</td>
+<td>单个作者：第一版（并行组之后的集成）</td>
+<td class="n">整个选择</td>
+<td class="n">46.6</td>
+<td class="n">109</td>
+<td class="n">20.58</td>
+<td>+4 / 改 8 / 删 0</td>
+<td>candidate-6</td>
+<td class="n">0</td>
+</tr>
+<tr>
+<td class="n">10:23:48</td>
+<td class="n">109.6</td>
+<td class="n">主</td>
+<td>并行组（split）的请求 1：行为修复</td>
+<td>box-ops、native-ops</td>
+<td class="n">29.0</td>
+<td class="n">37</td>
+<td class="n">10.12</td>
+<td>+1 / 改 2 / 删 0</td>
+<td>candidate-2</td>
+<td class="n">0</td>
+</tr>
+<tr>
+<td class="n">10:23:48</td>
+<td class="n">109.6</td>
+<td class="n">主</td>
+<td>并行组（split）的请求 2：行为修复</td>
+<td>rcnn-models</td>
+<td class="n">4.8</td>
+<td class="n">19</td>
+<td class="n">2.17</td>
+<td>+1 / 改 2 / 删 0</td>
+<td>candidate-3</td>
+<td class="n">0</td>
+</tr>
+<tr>
+<td class="n">10:22:29</td>
+<td class="n">108.3</td>
+<td class="n">主</td>
+<td>↑ 这个并行组整体（含合并）</td>
+<td>2 个请求，冲突 0 处</td>
+<td class="n">31.1</td>
+<td class="n">–</td>
+<td class="n">–</td>
+<td class="n">–</td>
+<td>candidate-4</td>
+<td class="n">–</td>
+</tr>
+</tbody>
+</table></div>
+<p>作者会话读了多少原版、写出的代码和原版重合多少（作业在导入和修复时记下的，只测量、不拒绝）：</p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>作业</th>
+<th>范围</th>
+<th>叶子</th>
+<th>可查阅的原版文件</th>
+<th>打开过的</th>
+<th>和原版的重合</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="n">草稿</td>
+<td class="n">scope-1</td>
+<td>box-ops、event-logging、lazy-config、native-ops、nn-layers、runtime-utils、yacs-config</td>
+<td class="n">32</td>
+<td class="n">32</td>
+<td class="n">55%</td>
+</tr>
+<tr>
+<td class="n">草稿</td>
+<td class="n">scope-2</td>
+<td>anchors-matching、backbones-resnet-fpn、data-structures、roi-pooling</td>
+<td class="n">46</td>
+<td class="n">46</td>
+<td class="n">61%</td>
+</tr>
+<tr>
+<td class="n">草稿</td>
+<td class="n">scope-3</td>
+<td>checkpointing、data-transforms、dataset-catalog、region-proposal-network</td>
+<td class="n">55</td>
+<td class="n">55</td>
+<td class="n">57%</td>
+</tr>
+<tr>
+<td class="n">草稿</td>
+<td class="n">scope-4</td>
+<td>data-loading、rcnn-models、roi-heads</td>
+<td class="n">75</td>
+<td class="n">75</td>
+<td class="n">56%</td>
+</tr>
+<tr>
+<td class="n">草稿</td>
+<td class="n">scope-5</td>
+<td>coco-datasets、evaluation-framework、model-zoo、solver、testing-utils、training-engine</td>
+<td class="n">63</td>
+<td class="n">63</td>
+<td class="n">65%</td>
+</tr>
+<tr>
+<td class="n">草稿</td>
+<td class="n">–</td>
+<td>anchors-matching、backbones-resnet-fpn、box-ops、checkpointing、coco-datasets、core-library、data-loading、data-structures、data-transforms、dataset-catalog、evaluation-framework、event-logging、lazy-config、model-zoo、native-ops、nn-layers、rcnn-models、region-proposal-network、roi-heads、roi-pooling、runtime-utils、solver、testing-utils、training-engine、yacs-config</td>
+<td class="n">99</td>
+<td class="n">99</td>
+<td class="n">59%</td>
+</tr>
+<tr>
+<td class="n">主</td>
+<td class="n">修复</td>
+<td>box-ops、native-ops</td>
+<td class="n">12</td>
+<td class="n">5</td>
+<td class="n">57%</td>
+</tr>
+<tr>
+<td class="n">主</td>
+<td class="n">修复</td>
+<td>rcnn-models</td>
+<td class="n">64</td>
+<td class="n">64</td>
+<td class="n">59%</td>
+</tr>
+</tbody>
+</table></div>
+<p>行为对比（都在主作业里；草稿作业计划的那一次因为主作业已经封存被跳过）：</p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>开始</th>
+<th>第几分钟</th>
+<th>范围</th>
+<th>候选</th>
+<th>分钟</th>
+<th>结果</th>
+<th>失败的检查</th>
+<th>没有运行的检查</th>
+<th>体积</th>
+<th>记录</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="n">10:17:15</td>
+<td class="n">103.1</td>
+<td class="n">完整</td>
+<td>candidate-1</td>
+<td class="n">2.7</td>
+<td class="n">regressed</td>
+<td class="n">9</td>
+<td>mixed_scope_needs_adaptation: check-18、check-20、check-27、check-30</td>
+<td class="n">19.25%</td>
+<td><code>verification-6</code></td>
+</tr>
+<tr>
+<td class="n">10:53:32</td>
+<td class="n">139.3</td>
+<td class="n">完整</td>
+<td>candidate-4</td>
+<td class="n">1.8</td>
+<td>unverified</td>
+<td class="n">0</td>
+<td>mixed_scope_needs_adaptation: check-18、check-20、check-27、check-30</td>
+<td class="n">20.16%</td>
+<td><code>verification-9</code></td>
+</tr>
+</tbody>
+</table></div>
+<p><code>verification-6</code>（candidate-1，完整对比）里没过的检查：</p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>检查</th>
+<th>叶子</th>
+<th>测试文件</th>
+<th>结果变了的用例</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>layers-nms-rotated</code></td>
+<td>box-ops、native-ops、testing-utils</td>
+<td></td>
+<td><code>test_batched_nms_rotated_0_degree_cpu</code>、<code>test_nms_rotated_0_degree_cpu</code>、<code>test_nms_rotated_180_degrees_cpu</code>、<code>test_nms_rotated_90_degrees_cpu</code>、<code>test_scriptable_cpu</code></td>
+</tr>
+<tr>
+<td><code>layers-roi-align-rotated</code></td>
+<td>box-ops、native-ops</td>
+<td></td>
+<td><code>test_empty_box</code>、<code>test_forward_output_0_90_180_270</code>、<code>test_resize</code>、<code>test_roi_align_rotated_gradcheck_cpu</code></td>
+</tr>
+<tr>
+<td><code>modeling-roi-pooler</code></td>
+<td>roi-pooling、testing-utils</td>
+<td></td>
+<td><code>test_roialignv2_roialignrotated_match_cpu</code></td>
+</tr>
+<tr>
+<td><code>structures-rotated-boxes</code></td>
+<td>data-structures、box-ops、native-ops、testing-utils</td>
+<td></td>
+<td><code>test_iou_0_dim_cpu</code>、<code>test_iou_extreme</code>、<code>test_iou_half_overlap_cpu</code>、<code>test_iou_issue_2154</code>、<code>test_iou_issue_2167</code>、<code>test_iou_precision</code>、<code>test_pairwise_iou_0_degree</code>、<code>test_pairwise_iou_45_degrees</code> 等 13 个</td>
+</tr>
+<tr>
+<td><code>contract-rcnn_models_63c3e169-501560-11</code></td>
+<td>rcnn-models</td>
+<td><code>tests/nanolize_contracts/rcnn_models_63c3e169/test_rcnn_custom_components.py</code></td>
+<td><code>test_training_forward_visualizes_every_vis_period_iterations</code>、<code>test_visualize_training_needs_an_event_storage_and_takes_an_empty_batch</code>、<code>test_visualize_training_stores_ground_truth_and_proposals_side_by_side</code></td>
+</tr>
+<tr>
+<td><code>contract-box_ops_2caca7c7-501560-22</code></td>
+<td class="n">box-ops</td>
+<td><code>tests/nanolize_contracts/box_ops_2caca7c7/test_box_ops_roi_align.py</code></td>
+<td><code>test_roi_align_rotated_function_matches_module</code>、<code>test_roialignrotated_batch_index_and_dtypes</code>、<code>test_roialignrotated_empty_and_outside</code>、<code>test_roialignrotated_forward_values_by_angle</code>、<code>test_roialignrotated_gradient_reaches_sampled_pixels</code>、<code>test_roialignrotated_matches_roialign_at_zero_degrees</code>、<code>test_roialignrotated_output_size_scale_and_sampling_ratio</code>、<code>test_roialignrotated_rejects_malformed_rois</code></td>
+</tr>
+<tr>
+<td><code>contract-box_ops_2caca7c7-501560-23</code></td>
+<td class="n">box-ops</td>
+<td><code>tests/nanolize_contracts/box_ops_2caca7c7/test_box_ops_nms.py</code></td>
+<td><code>test_batched_nms_rotated_classes_do_not_suppress_each_other</code>、<code>test_batched_nms_rotated_half_and_double_boxes</code>、<code>test_batched_nms_rotated_matches_axis_aligned_on_upright_boxes</code>、<code>test_batched_nms_rotated_negative_coordinates</code>、<code>test_batched_nms_rotated_single_class_equals_nms_rotated</code>、<code>test_nms_rotated_angle_matters_for_non_square_boxes</code>、<code>test_nms_rotated_empty_and_input_untouched</code>、<code>test_nms_rotated_keeps_highest_scores_first</code> 等 15 个</td>
+</tr>
+<tr>
+<td><code>scenario-box_ops_2caca7c7-501560-25</code></td>
+<td class="n">box-ops</td>
+<td><code>tests/nanolize_contracts/box_ops_2caca7c7/scenario_box_ops_nms.py</code></td>
+<td><code>scenario_batched_nms_rotated_float16_and_float64_boxes</code>、<code>scenario_batched_nms_rotated_ladder_alternating_classes</code>、<code>scenario_batched_nms_rotated_negative_centres_two_classes</code>、<code>scenario_batched_nms_rotated_one_class_then_distinct_classes</code>、<code>scenario_nms_rotated_fan_of_bars_around_one_centre</code>、<code>scenario_nms_rotated_ladder_thresholds</code>、<code>scenario_nms_rotated_ladder_turned_quarter_and_half</code>、<code>scenario_nms_rotated_single_box_and_no_boxes</code> 等 14 个</td>
+</tr>
+<tr>
+<td><code>scenario-box_ops_2caca7c7-501560-26</code></td>
+<td class="n">box-ops</td>
+<td><code>tests/nanolize_contracts/box_ops_2caca7c7/scenario_box_ops_roi_align.py</code></td>
+<td><code>scenario_roi_align_rotated_function_on_ramp</code>、<code>scenario_roialignrotated_box_outside_and_box_without_area</code>、<code>scenario_roialignrotated_float16_and_float64_inputs</code>、<code>scenario_roialignrotated_gradient_of_sum_over_one_box</code>、<code>scenario_roialignrotated_gradient_with_quarter_turn_box</code>、<code>scenario_roialignrotated_module_reused_after_rejected_rois</code>、<code>scenario_roialignrotated_no_rois_and_no_images</code>、<code>scenario_roialignrotated_ramp_box_turned_by_oblique_angles</code> 等 11 个</td>
+</tr>
+</tbody>
+</table></div>
+<p>安装检查：这次没有配置（主持会话在 issues.md 第 7 条里写了原因），作业里没有运行过。</p>
+<p>controller 的每一轮（理由和它交给作者的指示是原文）：</p>
+<p><strong>草稿作业第 1 轮</strong> · 08:38:34（第 4.4 分钟）· applied · 用时 125 秒 · 220,903 token（其中缓存 149,540）</p>
+<ul>
+<li>
+<p>它面对的建议：<code>{&quot;action&quot;: &quot;initial&quot;, &quot;candidate&quot;: null, &quot;reason&quot;: &quot;no_candidate&quot;, &quot;stop_reason&quot;: null}</code></p>
+</li>
+<li>
+<p>理由：Draft job with five chained scopes: the layers one by one would cost five sessions in sequence while the main job freezes, and the external contract fixes the names the scopes share, so I write all five in one split group (4 sessions at once), then one implement pass on the merged candidate to write the shared package-level files a split leaves out and reconcile the scopes, save it and compare in full. Repairs of what the comparison shows are decided next round.</p>
+</li>
+<li>
+<p>它点的调用：</p>
+<ol>
+<li>
+<p><code>run_parallel_agents</code> {&quot;group&quot;: &quot;split&quot;, &quot;reason&quot;: &quot;Draft job: write all five scopes in one split group so a candidate exists well before the main job seals; the external contract fixes the cross-scope names.&quot;}</p>
+<ul>
+<li>
+<p>请求 1：<code>{&quot;role&quot;: &quot;implement&quot;, &quot;scope&quot;: &quot;scope-1&quot;}</code></p>
+<details><summary>交给这个作者的指示</summary>
+<pre><code>Your scope is written at the same time as the other four scopes of this package, by authors who cannot see your files and whose files you cannot see. The results are merged afterwards, and an integration call then writes the package-level files the scopes share and reconciles the parts. So that the parts fit together:
+1. Provide every external-contract entry of your capabilities at exactly the module path contract.json lists for it. Where an entry is listed both at a package path and at a submodule path, define it in the submodule; the integration call re-exports it from the shared package __init__.py. A package __init__.py that only your scope's capabilities export through is yours to write; one that other scopes also export through is not.
+2. Whatever you need from a capability of another scope, import through an entry of that capability's external contract, at the most specific module path the contract lists for it. Never rely on a private helper, an internal module name or a file layout that you assume another author will choose: the internals of the lent original are no promise about the rewritten files. When you need a small internal helper that no external contract provides, keep it inside your own scope's files instead of importing it from another scope.
+3. Keep the dependency direction of the capability graph (depends_on): at module import time, import nothing from a capability that depends on yours, so that the merged package has no circular import.
+4. You cannot run code that needs the other scopes' files. Exercise what you can of your own modules in isolation, write no stand-in for another scope's module into the workspace, and remove every scratch file before you finish.
+5. Implement all of your scope's capabilities completely, with their input validation, messages, logging, registered names and defaults as the knowledge records and the lent original state them; leave no placeholder for a later call.
+</code></pre>
+</details>
+</li>
+<li>
+<p>请求 2：<code>{&quot;role&quot;: &quot;implement&quot;, &quot;scope&quot;: &quot;scope-2&quot;}</code></p>
+<details><summary>交给这个作者的指示</summary>
+<pre><code>Your scope is written at the same time as the other four scopes of this package, by authors who cannot see your files and whose files you cannot see. The results are merged afterwards, and an integration call then writes the package-level files the scopes share and reconciles the parts. So that the parts fit together:
+1. Provide every external-contract entry of your capabilities at exactly the module path contract.json lists for it. Where an entry is listed both at a package path and at a submodule path, define it in the submodule; the integration call re-exports it from the shared package __init__.py. A package __init__.py that only your scope's capabilities export through is yours to write; one that other scopes also export through is not.
+2. Whatever you need from a capability of another scope, import through an entry of that capability's external contract, at the most specific module path the contract lists for it. Never rely on a private helper, an internal module name or a file layout that you assume another author will choose: the internals of the lent original are no promise about the rewritten files. When you need a small internal helper that no external contract provides, keep it inside your own scope's files instead of importing it from another scope.
+3. Keep the dependency direction of the capability graph (depends_on): at module import time, import nothing from a capability that depends on yours, so that the merged package has no circular import.
+4. You cannot run code that needs the other scopes' files. Exercise what you can of your own modules in isolation, write no stand-in for another scope's module into the workspace, and remove every scratch file before you finish.
+5. Implement all of your scope's capabilities completely, with their input validation, messages, logging, registered names and defaults as the knowledge records and the lent original state them; leave no placeholder for a later call.
+</code></pre>
+</details>
+</li>
+<li>
+<p>请求 3：<code>{&quot;role&quot;: &quot;implement&quot;, &quot;scope&quot;: &quot;scope-3&quot;}</code></p>
+<details><summary>交给这个作者的指示</summary>
+<pre><code>Your scope is written at the same time as the other four scopes of this package, by authors who cannot see your files and whose files you cannot see. The results are merged afterwards, and an integration call then writes the package-level files the scopes share and reconciles the parts. So that the parts fit together:
+1. Provide every external-contract entry of your capabilities at exactly the module path contract.json lists for it. Where an entry is listed both at a package path and at a submodule path, define it in the submodule; the integration call re-exports it from the shared package __init__.py. A package __init__.py that only your scope's capabilities export through is yours to write; one that other scopes also export through is not.
+2. Whatever you need from a capability of another scope, import through an entry of that capability's external contract, at the most specific module path the contract lists for it. Never rely on a private helper, an internal module name or a file layout that you assume another author will choose: the internals of the lent original are no promise about the rewritten files. When you need a small internal helper that no external contract provides, keep it inside your own scope's files instead of importing it from another scope.
+3. Keep the dependency direction of the capability graph (depends_on): at module import time, import nothing from a capability that depends on yours, so that the merged package has no circular import.
+4. You cannot run code that needs the other scopes' files. Exercise what you can of your own modules in isolation, write no stand-in for another scope's module into the workspace, and remove every scratch file before you finish.
+5. Implement all of your scope's capabilities completely, with their input validation, messages, logging, registered names and defaults as the knowledge records and the lent original state them; leave no placeholder for a later call.
+</code></pre>
+</details>
+</li>
+<li>
+<p>请求 4：<code>{&quot;role&quot;: &quot;implement&quot;, &quot;scope&quot;: &quot;scope-4&quot;}</code></p>
+<details><summary>交给这个作者的指示</summary>
+<pre><code>Your scope is written at the same time as the other four scopes of this package, by authors who cannot see your files and whose files you cannot see. The results are merged afterwards, and an integration call then writes the package-level files the scopes share and reconciles the parts. So that the parts fit together:
+1. Provide every external-contract entry of your capabilities at exactly the module path contract.json lists for it. Where an entry is listed both at a package path and at a submodule path, define it in the submodule; the integration call re-exports it from the shared package __init__.py. A package __init__.py that only your scope's capabilities export through is yours to write; one that other scopes also export through is not.
+2. Whatever you need from a capability of another scope, import through an entry of that capability's external contract, at the most specific module path the contract lists for it. Never rely on a private helper, an internal module name or a file layout that you assume another author will choose: the internals of the lent original are no promise about the rewritten files. When you need a small internal helper that no external contract provides, keep it inside your own scope's files instead of importing it from another scope.
+3. Keep the dependency direction of the capability graph (depends_on): at module import time, import nothing from a capability that depends on yours, so that the merged package has no circular import.
+4. You cannot run code that needs the other scopes' files. Exercise what you can of your own modules in isolation, write no stand-in for another scope's module into the workspace, and remove every scratch file before you finish.
+5. Implement all of your scope's capabilities completely, with their input validation, messages, logging, registered names and defaults as the knowledge records and the lent original state them; leave no placeholder for a later call.
+</code></pre>
+</details>
+</li>
+<li>
+<p>请求 5：<code>{&quot;role&quot;: &quot;implement&quot;, &quot;scope&quot;: &quot;scope-5&quot;}</code></p>
+<details><summary>交给这个作者的指示</summary>
+<pre><code>Your scope is written at the same time as the other four scopes of this package, by authors who cannot see your files and whose files you cannot see. The results are merged afterwards, and an integration call then writes the package-level files the scopes share and reconciles the parts. So that the parts fit together:
+1. Provide every external-contract entry of your capabilities at exactly the module path contract.json lists for it. Where an entry is listed both at a package path and at a submodule path, define it in the submodule; the integration call re-exports it from the shared package __init__.py. A package __init__.py that only your scope's capabilities export through is yours to write; one that other scopes also export through is not.
+2. Whatever you need from a capability of another scope, import through an entry of that capability's external contract, at the most specific module path the contract lists for it. Never rely on a private helper, an internal module name or a file layout that you assume another author will choose: the internals of the lent original are no promise about the rewritten files. When you need a small internal helper that no external contract provides, keep it inside your own scope's files instead of importing it from another scope.
+3. Keep the dependency direction of the capability graph (depends_on): at module import time, import nothing from a capability that depends on yours, so that the merged package has no circular import.
+4. You cannot run code that needs the other scopes' files. Exercise what you can of your own modules in isolation, write no stand-in for another scope's module into the workspace, and remove every scratch file before you finish.
+5. Implement all of your scope's capabilities completely, with their input validation, messages, logging, registered names and defaults as the knowledge records and the lent original state them; leave no placeholder for a later call.
+</code></pre>
+</details>
+</li>
+</ul>
+</li>
+<li>
+<p><code>run_agent</code> {&quot;role&quot;: &quot;implement&quot;}（条件：{&quot;call&quot;: 1, &quot;outcome&quot;: [&quot;done&quot;, &quot;partial&quot;]}）</p>
+<details><summary>交给作者的指示</summary>
+<pre><code>This is an integration pass, not a rewrite. The five scopes of the selection were just written side by side in separate workspaces and merged into the files you find here; no author saw another's files, and none was allowed to write the package-level files that several scopes share. Read what is there and build on it; change a working file only where integration needs it.
+1. Write every missing or incomplete package-level file: the __init__.py of the top package and of each subpackage that several capabilities export through, so that every external-contract entry in contract.json resolves at each path the contract lists for it (package paths and submodule paths alike), and whatever shared packaging or build file the contract and the knowledge records require and no scope wrote. Do not write the carried files.
+2. Go through the external contract of every selected capability and check, by importing, that each entry exists at its listed path with the listed signature. Where an entry or a whole capability is missing (a file lost in the merge, or an author that did not finish), implement it from its knowledge records and the lent original.
+3. Reconcile the scopes with each other: imports of modules or names that no file provides, calls whose arguments do not match the callee as written, registered names that one scope looks up and another registers differently, circular imports, and internal helpers that two scopes each wrote (keep one where that is simple and safe).
+4. Then exercise the package as a whole on CPU as far as this environment allows: import every module, and run the main paths that cross scopes (configuration to built model to a forward pass on a tiny input, data mapping and loading on a few synthetic records, a few training-loop iterations with its hooks, checkpoint save and load, evaluation entry points), and fix what breaks in whichever scope's file it lies. Where behavior is in doubt, the knowledge records and the lent original decide, not the convenience of the fix.
+5. Write no tests or fixtures, remove every scratch file and log before you finish, and keep input validation, diagnostics, logging and registered names intact.
+</code></pre>
+</details>
+</li>
+<li>
+<p><code>save_candidate</code> {&quot;reason&quot;: &quot;Integration pass over the split group's merged scopes: shared package files and cross-scope reconciliation.&quot;}（条件：{&quot;call&quot;: 2, &quot;outcome&quot;: [&quot;completed&quot;]}）</p>
+</li>
+<li>
+<p><code>compare_behavior</code> （条件：{&quot;call&quot;: 3, &quot;outcome&quot;: [&quot;done&quot;]}）</p>
+</li>
+</ol>
+</li>
+</ul>
+<p><strong>主作业第 1 轮</strong> · 10:22:29（第 108.3 分钟）· applied · 用时 148 秒 · 401,961 token（其中缓存 311,606）</p>
+<ul>
+<li>
+<p>它面对的建议：<code>{&quot;action&quot;: &quot;behavior_repair&quot;, &quot;behavior_accepted&quot;: false, &quot;candidate&quot;: &quot;candidate-1&quot;, &quot;reason&quot;: &quot;retrying_failed_checks&quot;, &quot;restore&quot;: null, &quot;stop_reason&quot;: null}</code></p>
+</li>
+<li>
+<p>理由：The 9 failed checks have two confirmed sites: AttributeError at the three rotated-operator call sites in detectron2/layers (8 checks, box-ops/native-ops) and a ModuleNotFoundError at meta_arch/rcnn.py:84 (check-65). They lie in disjoint files, so one split repair group (one repair round) mends both side by side; then a full comparison, and a delivery only if nothing closable remains.</p>
+</li>
+<li>
+<p>它点的调用：</p>
+<ol>
+<li>
+<p><code>run_parallel_agents</code> {&quot;base&quot;: null, &quot;group&quot;: &quot;split&quot;, &quot;reason&quot;: &quot;First behavior repair: rotated operators of box-ops/native-ops and the missing import in rcnn-models, two disjoint causes in disjoint files&quot;}</p>
+<ul>
+<li>
+<p>请求 1：<code>{&quot;capabilities&quot;: [&quot;box-ops&quot;, &quot;native-ops&quot;], &quot;issue_ids&quot;: [&quot;verification-678ff97d1463ff18857585b1394f25bde601fd9ddb161a428fd21eded61d06c5&quot;, &quot;verification-2edf9901c25b9fef4dcb8dc29608ae1270f4c16de90a2283c836de8f4de6a3f7&quot;, &quot;verification-c76f4fe0411e6de0ffaaf7464067ec2fc1a028cf17d4ea6e6fb6e1dce803db09&quot;, &quot;verification-9528aa9c1332a0e6a63583838e728903b97830fd836b6f95ed3bcbab251c4a20&quot;, &quot;verification-fcafee87121213ec8ecbbf25f754766c224a68d2371cdec4da9b421cd7189d18&quot;, &quot;verification-6acb83570bd341661c7ca19 …</code></p>
+<details><summary>交给这个作者的指示</summary>
+<pre><code>Repair the rotated-box operators of box-ops / native-ops. Evidence, owner-confirmed, from the full comparison of the current candidate: check-15, check-16, check-26, check-33, check-76 and check-77 fail with AttributeError raised inside a library the candidate called, at detectron2/layers/nms.py:21 (nms_rotated), detectron2/layers/roi_align_rotated.py:19 (ROIAlignRotated.forward) and detectron2/layers/rotated_boxes.py:7 (pairwise_iou_rotated); check-15 also has one RuntimeError case with no candidate frame. check-79 and check-80 (output comparisons of box-ops) exit 0 but 5 assertion cases each differ from the original's; your feedback holds their compared values. Every other box-ops check (axis-aligned NMS, ROIAlign, mask pasting) passes and must keep passing. My hypothesis, not confirmed: those three lines call operators that nothing provides in the candidate, because the internal capability native-ops (in the original a compiled extension: rotated RoIAlign, rotated box IoU, rotated NMS) was not implemented or is never loaded. Check first, in this workspace, what those calls resolve to and whether a compiled module exists and is importable here. Read in the lent original how these operators are provided and exactly what they compute: angle convention, sampling grid, empty and degenerate inputs, tiny or nearly identical boxes, NMS tie order, dtypes, devices, input validation and messages. Then make nms_rotated, batched_nms_rotated, pairwise_iou_rotated and ROIAlignRotated / roi_align_rotated work on CPU with results equal to the original's within float tolerance, including autograd through rotated RoIAlign and empty inputs. I assume (unconfirmed: the preparation recipe ran before your code existed and took under two seconds) that no build step compiles new sources before the checks run, so do not rely on code that must be compiled after your change: unless a compiled module that already loads here provides the operators, write them as your own Python/torch code under names of your choosing, vectorised so that inputs of thousands of boxes stay fast. Keep the external names and signatures of box-ops exactly as the contract lists them. Also look whether the other parts of native-ops that selected capabilities use (deformable convolution kernels, the fast COCO evaluation accumulator) are reachable but unprovided in the same way, and repair what you find broken without changing behavior that passes. Do not touch detectron2/modeling/meta_arch: another author repairs rcnn-models there at the same time. Check your work with small numeric runs of your own, then retest check-15, check-16, check-26, check-33, check-76, check-77, check-79 and check-80 first.
+</code></pre>
+</details>
+</li>
+<li>
+<p>请求 2：<code>{&quot;capabilities&quot;: [&quot;rcnn-models&quot;], &quot;issue_ids&quot;: [&quot;verification-fa8890753d89c9c9e9d80b812bd52476db17a9887c2f1b463b5fb62477842440&quot;], &quot;role&quot;: &quot;repair&quot;}</code></p>
+<details><summary>交给这个作者的指示</summary>
+<pre><code>Repair rcnn-models. Evidence, owner-confirmed, from the full comparison of the current candidate: check-65, a behavior test of rcnn-models, fails in 3 cases with ModuleNotFoundError raised by the candidate's own code at detectron2/modeling/meta_arch/rcnn.py:84: that line imports a module the candidate does not have. The other rcnn-models checks (check-3, check-4, check-22, check-66, check-67, check-68, check-69) pass and must keep passing. Read in the lent original what the code path around that import does and what it needs from that module, and what the knowledge records of rcnn-models say about it; then provide it so the path behaves as the original's does (what it stores or returns, names, shapes, ordering, messages). A module the original project has at the same place may exist there in the candidate too; write your own implementation of what the selected behavior needs from it, neither a copy of the original nor a stub that hides the behavior. Then search the other rcnn-models files for imports, also lazy ones inside functions, of modules the candidate lacks, and repair them the same way. Do not touch detectron2/layers: another author repairs box-ops there at the same time. Retest check-65 first.
+</code></pre>
+</details>
+</li>
+</ul>
+</li>
+<li>
+<p><code>compare_behavior</code> （条件：{&quot;call&quot;: 1, &quot;outcome&quot;: [&quot;done&quot;, &quot;partial&quot;]}）</p>
+</li>
+<li>
+<p><code>deliver</code> {&quot;reason&quot;: &quot;Full comparison of the repaired candidate found no failure; remaining gaps are the caps known at the seal&quot;, &quot;require&quot;: &quot;best_reachable&quot;}（条件：{&quot;call&quot;: 2, &quot;outcome&quot;: [&quot;checks_passed&quot;, &quot;unverified&quot;]}）</p>
+</li>
+</ol>
+</li>
+</ul>
+<p><strong>主作业第 2 轮</strong> · 10:57:27（第 143.3 分钟）· applied · 用时 123 秒 · 316,685 token（其中缓存 239,471）</p>
+<ul>
+<li>
+<p>它面对的建议：<code>{&quot;action&quot;: &quot;deliver&quot;, &quot;behavior_accepted&quot;: false, &quot;candidate&quot;: &quot;candidate-4&quot;, &quot;reason&quot;: &quot;no_executed_failures&quot;, &quot;restore&quot;: null, &quot;stop_reason&quot;: null}</code></p>
+</li>
+<li>
+<p>理由：candidate-4 has no observed failure, so there is nothing for a repair to target. The gaps that held back best_reachable come from four original checks left unverified as mixed_scope_needs_adaptation plus check-7, which failed on the original. No tool adapts a check after the seal and nobody attends to authorize a revision; having an author add the modules those checks import would go beyond the selected contract. So I record the question for the owner, select candidate-4 and deliver with require no_failures, which gives completed_with_gaps.</p>
+</li>
+<li>
+<p>它点的调用：</p>
+<ol>
+<li>
+<p><code>record_unknown</code> {&quot;blocker&quot;: &quot;The readiness audit flagged mixed_check_needs_adaptation before any candidate existed and the seal made it a cap. No tool adapts a check after the seal, and nobody attends the job to authorize a revision.&quot;, &quot;capabilities&quot;: [&quot;backbones-resnet-fpn&quot;, &quot;roi-heads&quot;, &quot;region-proposal-network&quot;, &quot;data-structures&quot;, &quot;model-zoo&quot;, &quot;testing-utils&quot;], &quot;evidence&quot;: [&quot;verification-9&quot;, &quot;verification-6&quot;], &quot;next_step&quot;: &quot;Owner: adapt the four original checks to the selected external contract, then re-freeze and compare candidate-4 again. No author call is warranted, because the candidate has no observed failure.&quot;, &quot;question&quot;: &quot;Do backbones-resnet-fpn, roi-heads, region-proposal-network, data-structures, model-zoo and testing-utils behave as the original checks check-18, check-20, check-27 and check-30 require? Every full comparison leaves these four unverified as mixed_scope_needs_adaptation, and …</p>
+</li>
+<li>
+<p><code>select_candidate</code> {&quot;candidate_id&quot;: &quot;candidate-4&quot;, &quot;reason&quot;: &quot;Full comparison verification-9 of candidate-4 found 0 failures in every obligation that ran, and the 9 issues from candidate-1 are verified resolved. Size is met at about 20% of the original. It is the best and current candidate.&quot;}</p>
+</li>
+<li>
+<p><code>deliver</code> {&quot;reason&quot;: &quot;candidate-4 passed the full comparison with no failure. What remains is missing evidence that no tool in this job can supply: four original checks (check-18, check-20, check-27, check-30) need an owner adaptation for mixed scope, check-7 failed on the original, installation is not configured, and the baseline is unusable for the same readiness issue. No owner attends, so this is delivered as completed_with_gaps with those gaps listed.&quot;, &quot;require&quot;: &quot;no_failures&quot;}（条件：{&quot;call&quot;: 2, &quot;outcome&quot;: [&quot;selected&quot;, &quot;done&quot;]}）</p>
+</li>
+</ol>
+</li>
+</ul>
+<p>主作业里相邻两个被对比过的候选之间改了什么：</p>
+<p>candidate-1 → candidate-4：</p>
+<pre><code> detectron2/layers/__init__.py         |   6 +-
+ detectron2/layers/_rotated_ops.py     | 347 ++++++++++++++++++++++++++++++++++
+ detectron2/modeling/meta_arch/rcnn.py |  22 +--
+ detectron2/utils/visualizer.py        |  82 ++++++++
+ 4 files changed, 443 insertions(+), 14 deletions(-)
+</code></pre>
+<h2 id="s8">8. 节点申请</h2>
+<p>主作业的检查发到计算节点上跑（草稿作业的检查在它自己所在的机器上跑，不要节点）。这个版本的作业事件里不记节点的申请和排队，下面是运行期间每 10 秒抓一次得到的：每个分配接下的请求，时间是第一次看到的时间（<code>_run_checks</code> 是一批检查，<code>knockouts</code> 是敲除，<code>run_each</code> 是交付后回放原测试，带 <code>refused</code> 的是节点拒收）：</p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>分配（作业/分配，各前 8 位）</th>
+<th>第一条请求</th>
+<th>最后一条请求</th>
+<th>接下的请求，按先后（第几分钟）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>501560e4/b2206bd9</td>
+<td>08:35:35（第 1.4 分钟）</td>
+<td>09:25:37（第 51.4 分钟）</td>
+<td><code>_run_checks</code>（1.4）、<code>knockouts</code>（4.6）、<code>_run_checks</code>（22.9）、<code>knockouts</code>（30.7）、<code>_run_checks</code>（36.7）、<code>knockouts</code>（43.9）、<code>_run_checks</code>（46.2）、<code>knockouts</code>（51.4）</td>
+</tr>
+<tr>
+<td>501560e4/cac55ded</td>
+<td>10:17:59（第 103.8 分钟）</td>
+<td>10:17:59（第 103.8 分钟）</td>
+<td><code>_run_checks</code>（103.8）</td>
+</tr>
+<tr>
+<td>501560e4/65cfb0e9</td>
+<td>10:54:00（第 139.8 分钟）</td>
+<td>10:58:40（第 144.5 分钟）</td>
+<td><code>_run_checks</code>（139.8）、<code>run_each</code>（144.0）、<code>run_each</code>（144.1）、<code>run_each</code>（144.1）、<code>run_each</code>（144.3）、<code>run_each</code>（144.3）、<code>run_each</code>（144.5）</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="s9">9. 收尾</h2>
+<ul>
+<li>
+<p>结束状态 <code>completed_with_gaps</code>：Delivered with gaps (current full behavior comparison missing or failed, original retained checks not passed, installation not passed, original coverage incomplete, behavior obligations incomplete); no full preservation claim is made.</p>
+</li>
+<li>
+<p>选定并交付的候选：<code>candidate-4</code>；行为验收 <code>not_established</code>，体积验收 <code>met</code>；主作业的作者尝试 2 次（导入的第一版算 1 次，其中修复 1 次）；结果分支上的提交 <code>026ec812a5c1bea005c1fba3c309fb60d481f4bc</code>。</p>
+</li>
+<li>
+<p>体积：原版 633,182 token（71,975 行），交付 127,649 token（19,707 行，117 个源文件），保留 20.16%。</p>
+</li>
+<li>
+<p>缺口（作业的验收报告，原样）：</p>
+<ul>
+<li>
+<p><code>current_full_behavior_comparison_missing_or_failed</code>：<code>{&quot;causes&quot;: [&quot;no_criterion&quot;, &quot;unverified&quot;], &quot;closable&quot;: true, &quot;failed&quot;: false, &quot;failed_capabilities&quot;: [], &quot;failed_checks&quot;: [], &quot;issues&quot;: [&quot;preexisting_failure&quot;], &quot;reason&quot;: &quot;unverified&quot;}</code></p>
+</li>
+<li>
+<p><code>original_retained_checks_not_passed</code>：<code>{&quot;closable&quot;: true, &quot;failed&quot;: false, &quot;not_passed&quot;: [], &quot;unverified&quot;: {&quot;mixed_scope_needs_adaptation&quot;: [&quot;check-18&quot;, &quot;check-20&quot;, &quot;check-27&quot;, &quot;check-30&quot;]}}</code></p>
+</li>
+<li>
+<p><code>installation_not_passed</code>：<code>{&quot;closable&quot;: false, &quot;failed&quot;: false, &quot;failed_checks&quot;: [], &quot;status&quot;: &quot;not_configured&quot;}</code></p>
+</li>
+<li>
+<p><code>original_coverage_incomplete</code>：<code>{&quot;baseline&quot;: &quot;unverified&quot;, &quot;baseline_checks&quot;: {&quot;failed_on_original&quot;: [&quot;check-7&quot;]}, &quot;baseline_problems&quot;: [&quot;Strict execution has no frozen usable behavior contract&quot;], &quot;closable&quot;: false, &quot;coverage&quot;: &quot;incomplete&quot;, &quot;failed&quot;: false, &quot;issues&quot;: [&quot;mixed_check_needs_adaptation&quot;]}</code></p>
+</li>
+<li>
+<p><code>behavior_obligations_incomplete</code>：<code>{&quot;capabilities&quot;: {&quot;failed&quot;: 0, &quot;partial&quot;: 10, &quot;retained&quot;: 25, &quot;unknown&quot;: 0, &quot;verified&quot;: 15}, &quot;causes&quot;: [&quot;no_criterion&quot;, &quot;unverified&quot;], &quot;closable&quot;: true, &quot;failed&quot;: false}</code></p>
+</li>
+</ul>
+</li>
+<li>
+<p>不算验收标准的检查：<code>{&quot;by_reason&quot;: {&quot;failed_on_original&quot;: [&quot;check-7&quot;]}, &quot;checks&quot;: 1}</code></p>
+</li>
+<li>
+<p>controller 记下的未知项 <code>unknown-1</code>（open）：Do backbones-resnet-fpn, roi-heads, region-proposal-network, data-structures, model-zoo and testing-utils behave as the original checks check-18, check-20, check-27 and check-30 require? Every full comparison leaves these four unverified as mixed_scope_needs_adaptation, and both the draft import and 卡在：The readiness audit flagged mixed_check_needs_adaptation before any candidate existed and the seal made it a cap. No tool adapts a check after the seal, and nobody attends the job to authorize a revision.</p>
+</li>
+<li>
+<p>交付后回放原测试：保留的 13 个测试里回放 3 个，原版通过 3 个、交付版本通过 3 个，退步 0 个；和内部名字绑在一起的 12 个里回放 12 个，原版通过 12 个、交付版本通过 10 个，退步 2 个。</p>
+<p>回放了 3 个测试文件，另有 4 个文件没有回放。</p>
+</li>
+<li>
+<p>草稿作业：结束状态 <code>draft_ready</code>，102.1 分钟；一个并行组写 5 个范围，再一次集成。</p>
+</li>
+<li>
+<p>原仓库里主持会话提交的恢复测试：<code>8b1c43f Add the test files nanolize recovered</code>。</p>
+</li>
+<li>
+<p>作业自己写的限制（原文）：Passing checks is not proof of semantic equivalence.</p>
+</li>
+<li>
+<p>作业自己写的限制（原文）：The report lists gaps; it does not choose the next action.</p>
+</li>
+</ul>
+<details><summary>主持会话的最后一条消息（原文）</summary>
+<pre><code>运行已结束：主作业以 `completed_with_gaps` 交付，核心范围的重写通过了所有实际运行的检查，但有 5 类缺口，不能视为完整的行为保持。
+
+## 标识
+
+- **run_id**：`9eba41d2e24548c3a42f6a03f5090c18`
+- **review_id**：`78a49ae493e84bd3be739480c075608d`
+- **主作业**：`501560e483b44d338c1a60c4ba15cd1b`（`completed_with_gaps`）
+- **草稿作业**：`e68af35c55bf4af1bb0007f444c2deed`（`draft_ready`，首版实现已被主作业导入）
+- **工作根目录**：`&lt;工作根&gt;`
+- **恢复测试的提交**：`8b1c43f61db11d17d733521fcf34103b9e0cf9f6`，在 `main` 分支，作者和提交者都是仓库所有者 &lt;仓库所有者&gt;，只含 6 个 `test_nanolize_recovered_*.py` 文件
+- **结果分支**：`claude/nanolize-501560e483b44d338c1a60c4ba15cd1b`（头 `026ec81`，未推送、未合并）
+- **运行页面**：`http://127.0.0.1:&lt;端口&gt;/?key=&lt;已隐去&gt;`
+- **报告站点**：主作业目录下 `report-site-d9d5c854a09ae6effe1858a2/index.html`
+
+## 结果
+
+- **范围**：核心预设，25 个能力、117 个源文件，即标准 R-CNN 检测库（配置、数据结构、层、建模、数据、求解器、训练引擎、模型库）。
+- **行为验证**：
+  - 首版实现（95 个文件）在 68 个检查中失败 9 个。
+  - 一次行为修复（2 个并行作者会话）后，完整对比没有失败的检查。
+  - 4 个混合检查始终未运行，状态为&quot;未验证&quot;。
+  - 25 个能力中 15 个已验证，10 个部分验证。
+- **代码规模**：交付 127,649 token，为原始 633,182 的 20.2%，低于 50% 的参考目标。
+- **与原始代码的重合**：交付函数体与原始代码的重合度为 57%，高于 40% 的报告标记线；按默认设置只测量、不拒绝。
+- **安装**：未配置安装检查，因此列为缺口。安装需要另装 CPU 版 PyTorch，并为每个候选编译几分钟 C++。
+- **原始测试回放**（只是度量，不改变状态）：回放了 12 个被留在验收之外的测试，其中 2 个在原始代码上通过、在交付代码上不通过；有 4 个测试文件未回放。
+- **检查运行位置**：Slurm 计算节点，账户 `&lt;账户&gt;`、分区 `&lt;队列&gt;`、QOS `normal`，三项均为你给定，我没有另找。准备配方在本机运行。
+
+## 缺口
+
+1. **4 个混合检查未验证**：`modeling-backbone`、`modeling-fast-rcnn`、`modeling-rpn`、`structures-instances`。这些测试文件在模块级导入了核心之外的导出或旋转框模块，核心候选无法运行它们。我没有把它们改映射成&quot;已退役&quot;来掩盖这个缺口。
+2. **`data-detection-utils` 不是验收准则（我的清单错误）**：其中 2 个测试要联网下载图片，在检查沙箱里对原始代码失败。我在阶段 01 的试跑没有断网，所以没把它们剔除。结果是该文件另外 12 个能通过的测试也没有作为准则。运行中的作业不能改检查，我没有取消重启。
+3. **就绪审计为 blocked**：由第 1 项导致，交付上限因此是 `completed_with_gaps`。
+4. **安装未验证**：见上。
+5. **一个恢复出的测试没有被任何检查运行**：`test_rroi_heads` 用到核心之外的旋转框头，而同一个恢复文件不允许挂第二个检查。
+
+## 我自行做的决定
+
+- **准备配方多做了一步**：除了拷贝预编译的 `_C.so`，还建了 `detectron2/model_zoo/configs` 到 `configs/` 的链接（`setup.py` 安装时会做的事）。没有它，33 个测试会因找不到模型库配置而失败。两者都被 `.gitignore` 忽略。
+- **按原样携带 113 个文件**：92 个 YAML 配置、17 个 C++/CUDA 源文件、3 个 LVIS 类别表和 COCO 元数据表。这些文件不计入规模对比的任何一侧。
+- **转换做了两次**：第一次转换因为若干未列入 `__all__` 的公开函数而多留出了 8 个检查。我用它报告的 discard 命令撤回了未提交的文件，补上 7 个公开名称后重新转换，最终只提交了第二次的 6 个文件。
+- **没有向仓库添加任何特征化检查**。
+
+完整记录在工作根目录的 `issues.md`（9 条）。
+
+运行页面和评审服务仍在运行。用完后可以用 `$nanolize stop` 停掉；它会停掉这台机器上你名下所有 nanolize 留下的进程，包括其他运行仍在跑的作业，不只是这一次的。
+</code></pre>
+</details>
+
+<footer>这一页由脚本从同目录的 Markdown 文件生成，内容相同。本机的路径、账户名、队列名、节点名、调度器作业编号等已换成占位符。</footer>
+</main>
+<a class="top" href="#top">回到顶部</a>
+</body>
+</html>
