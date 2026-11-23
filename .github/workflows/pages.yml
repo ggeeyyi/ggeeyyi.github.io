@@ -29,7 +29,7 @@ jobs:
         run: |
           set -euo pipefail
           # The complete project ZIP exceeds GitHub's 100 MB limit for one file. It is stored in parts on this tag.
-          tag=rawagent-20261122-multimodel
+          tag=rawagent-20261122-layout
           mkdir -p _site/rawagent "$RUNNER_TEMP/rawagent-zip"
           git archive HEAD | tar -x -C _site
           rm -rf _site/.github
@@ -38,7 +38,7 @@ jobs:
           cat "$RUNNER_TEMP"/rawagent-zip/RawAgent-main.zip.part-* > _site/rawagent/RawAgent-main.zip
           rm -rf "$RUNNER_TEMP/rawagent-zip"
           printf '%s  %s\n' \
-            a4fa1ae014e697ac9dd284062b2793a7122397ed3cf94c24fc17886bef4ee17c \
+            fcab64a07cee243fb11bf33b90c833c411285c7ccb9cedc4284e2abe2c6e19a3 \
             RawAgent-main.zip > _site/rawagent/SHA256SUMS
           (cd _site/rawagent && sha256sum --check SHA256SUMS)
           python3 - <<'PY'
@@ -48,7 +48,7 @@ jobs:
 
           root = Path('_site/rawagent')
           archive = root / 'RawAgent-main.zip'
-          assert archive.stat().st_size == 296217307, 'Unexpected archive size'
+          assert archive.stat().st_size == 296222652, 'Unexpected archive size'
           with ZipFile(archive) as project:
               assert project.testzip() is None, 'Invalid archive CRC'
               website = project.read('RawAgent-main/sites/RawAgent-答辩展示-静态网站.zip')
