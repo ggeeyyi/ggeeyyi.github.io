@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<meta name="description" content="nanolize 在 detectron2 core 上开了性能验收的一次运行为什么比不开时慢得多：把两次运行画在同一把时间尺上，拆出作废的时间、性能验收专有的时间、清单变大带来的时间，以及流程上发现的问题。">
+<title>开了性能验收，detectron2 为什么慢了这么多</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%231c5cab'/%3E%3Cpath d='M4 11V5l8 6V5' fill='none' stroke='white' stroke-width='1.6'/%3E%3C/svg%3E">
+<style>
+  :root { color-scheme: light; }
+  html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+  body { margin: 0; }
+  [hidden] { display: none !important; }
+</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500;700&family=Space+Grotesk:wght@500;700&display=swap">
+<style>
+  :root {
+    --bg: #f3f5f7; --surface: #ffffff; --sunken: #e8ecf0; --ink: #15202b; --muted: #566573; --line: #d5dce3;
+    --accent: #0f5ea8; --par-line: #8fb4dc; --par-bg: #f4f8fd;
+    --s-test: #2a78d6; --s-ko: #eb6834; --s-code: #1baf7a; --s-fix: #eda100; --on-series: #0d141b;
+    --font-display: "Space Grotesk", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    --font-body: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, "Noto Sans SC", "PingFang SC", "Microsoft YaHei", monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f151b; --surface: #172029; --sunken: #1f2a35; --ink: #e4eaf0; --muted: #97a5b2; --line: #2b3743;
+      --accent: #6fb1f2; --par-line: #3f6893; --par-bg: #131c26;
+      --s-test: #3987e5; --s-ko: #d95926; --s-code: #199e70; --s-fix: #c98500;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f151b; --surface: #172029; --sunken: #1f2a35; --ink: #e4eaf0; --muted: #97a5b2; --line: #2b3743;
+    --accent: #6fb1f2; --par-line: #3f6893; --par-bg: #131c26;
+    --s-test: #3987e5; --s-ko: #d95926; --s-code: #199e70; --s-fix: #c98500;
+    color-scheme: dark;
+  }
+  body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 1rem; line-height: 1.7; }
+  .wrap {
+    max-width: 70rem; margin-inline: auto;
+    padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 2.5rem 4rem; display: grid; gap: 2.75rem;
+  }
+  section, header.page { display: grid; gap: 1.1rem; min-width: 0; }
+  h1, h2, h3, p, ul, ol, dl, dd, figure { margin: 0; }
+  h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; line-height: 1.25; }
+  h1 { font-size: clamp(1.7rem, 4.2vw, 2.35rem); font-weight: 700; letter-spacing: -0.01em; }
+  h2 { font-size: 1.3rem; font-weight: 700; }
+  h3 { font-size: 1rem; font-weight: 700; }
+  p, li, dd { overflow-wrap: anywhere; }
+  code { font-family: var(--font-mono); font-size: 0.84em; background: var(--sunken); padding: 0.08em 0.36em; border-radius: 4px; }
+  .eyebrow { font-family: var(--font-mono); font-size: 0.8125rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: 0.25rem 1.1rem; }
+  .lead { font-size: 1.0625rem; max-width: 44em; }
+  .sub { color: var(--muted); max-width: 48em; font-size: 0.9375rem; }
+  ul.plain { padding-left: 1.2em; display: grid; gap: 0.45rem; max-width: 50em; }
+
+  .layers { display: grid; gap: 0.9rem; grid-template-columns: repeat(auto-fit, minmax(15.5rem, 1fr)); }
+  .layer { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 1rem 1.1rem; display: grid; gap: 0.4rem; align-content: start; }
+  .layer .n { font-family: var(--font-mono); font-size: 0.8125rem; color: var(--muted); }
+  .layer p { font-size: 0.9375rem; }
+
+  dl.terms { display: grid; grid-template-columns: max-content 1fr; gap: 0.35rem 1rem; font-size: 0.9375rem; max-width: 52em; }
+  dl.terms dt { font-family: var(--font-mono); font-size: 0.875rem; color: var(--accent); }
+  @media (max-width: 34rem) { dl.terms { grid-template-columns: 1fr; gap: 0.1rem; } dl.terms dd { margin-bottom: 0.5rem; } }
+
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 1rem 1.1rem 1.1rem; display: grid; gap: 0.8rem; min-width: 0; }
+  .legend { display: flex; flex-wrap: wrap; gap: 0.4rem 0.5rem; align-items: center; }
+  .legend .hint { font-size: 0.8125rem; color: var(--muted); margin-right: 0.25rem; }
+  .lg { font: inherit; font-size: 0.8438rem; color: var(--ink); display: inline-flex; align-items: center; gap: 0.45rem;
+        padding: 0.25rem 0.7rem; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); }
+  button.lg { cursor: pointer; }
+  button.lg:hover { border-color: var(--accent); }
+  button.lg[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+  button.lg:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .sw { width: 0.8rem; height: 0.8rem; border-radius: 3px; flex: none; }
+  .sw.k-test { background: var(--s-test); } .sw.k-ko { background: var(--s-ko); } .sw.k-code { background: var(--s-code); }
+  .sw.k-fix { background: var(--s-fix); } .sw.k-step { background: var(--sunken); border: 1px solid var(--line); }
+
+  .scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .tl-svg { display: block; width: 100%; min-width: 900px; height: auto; color: var(--ink); font-family: var(--font-body); }
+  .swipe { display: none; font-size: 0.8125rem; color: var(--muted); }
+  @media (max-width: 60rem) { .swipe { display: block; } }
+  .tl-svg text { fill: var(--ink); }
+  .tl-svg .t-row { font-size: 13.5px; font-weight: 700; font-family: var(--font-display); }
+  .tl-svg .t-note, .tl-svg .t-lane, .tl-svg .t-phase { font-size: 11px; fill: var(--muted); }
+  .tl-svg .t-axis { font-size: 10.5px; fill: var(--muted); font-family: var(--font-mono); }
+  .tl-svg .t-total { font-size: 12.5px; font-weight: 700; font-family: var(--font-display); }
+  .tl-svg .grid { stroke: var(--line); stroke-width: 1; stroke-dasharray: 2 4; }
+  .tl-svg .bracket { fill: none; stroke: var(--muted); stroke-width: 1; opacity: 0.7; }
+  .tl-svg .link { fill: none; stroke: currentColor; stroke-width: 1.3; stroke-dasharray: 4 3; }
+  .blk rect { stroke: var(--surface); stroke-width: 0; }
+  .blk text { font-size: 11px; font-weight: 500; fill: var(--on-series); pointer-events: none; }
+  .blk.k-test rect { fill: var(--s-test); } .blk.k-ko rect { fill: var(--s-ko); }
+  .blk.k-code rect { fill: var(--s-code); } .blk.k-fix rect { fill: var(--s-fix); }
+  .blk.k-step rect { fill: var(--sunken); stroke: var(--line); stroke-width: 1; }
+  .blk.k-step text { fill: var(--ink); }
+  .blk { transition: opacity 0.15s; }
+  .blk:hover rect { stroke: var(--ink); stroke-width: 1.5; }
+  .tl[data-focus] .blk { opacity: 0.16; }
+  .tl[data-focus="test"] .blk.k-test, .tl[data-focus="ko"] .blk.k-ko,
+  .tl[data-focus="code"] .blk.k-code, .tl[data-focus="fix"] .blk.k-fix { opacity: 1; }
+  figcaption { font-size: 0.875rem; color: var(--muted); max-width: 54em; }
+  #tip { position: fixed; z-index: 20; max-width: 19rem; padding: 0.45rem 0.65rem; border-radius: 8px; font-size: 0.8438rem; line-height: 1.5;
+         background: var(--ink); color: var(--bg); pointer-events: none; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25); }
+
+  table { border-collapse: collapse; width: 100%; font-size: 0.9063rem; }
+  th, td { text-align: left; vertical-align: top; padding: 0.55rem 0.7rem; border-bottom: 1px solid var(--line); }
+  thead th { font-size: 0.8125rem; font-weight: 500; color: var(--muted); white-space: nowrap; }
+  tbody th[scope="row"] { font-weight: 700; white-space: nowrap; }
+  table.inv { min-width: 56rem; }
+  table.inv .grp th { font-family: var(--font-display); font-size: 0.875rem; color: var(--accent); background: var(--sunken); border-bottom: none; padding-block: 0.35rem; }
+  table.num { min-width: 34rem; }
+  table.num td, table.num thead th:not(:first-child) { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  table.num td.t { font-weight: 700; }
+  .chip { display: inline-block; font-size: 0.78rem; padding: 0.05rem 0.5rem; border-radius: 999px; border: 1px solid var(--line); white-space: nowrap; }
+  .chip.c-dflt { background: var(--sunken); }
+  .chip.c-mode { border-color: var(--par-line); background: var(--par-bg); }
+  .chip.c-cond { border-style: dashed; }
+  details > summary { cursor: pointer; font-size: 0.9063rem; color: var(--accent); }
+
+  .pair { display: grid; gap: 0.9rem; grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr)); }
+  .mech { display: block; width: 100%; height: auto; color: var(--ink); font-family: var(--font-body); }
+  .mech text { fill: var(--ink); }
+  .mech .m-main { font-size: 12.5px; font-weight: 500; }
+  .mech .m-sub { font-size: 11px; fill: var(--muted); }
+  .mech .m-edge { font-size: 11px; fill: var(--muted); }
+  .mech .edge { stroke: currentColor; stroke-width: 1.2; }
+  .mech .b-cand { fill: var(--surface); stroke: currentColor; stroke-width: 1.2; }
+  .mech .b-auth { fill: var(--par-bg); stroke: var(--par-line); stroke-width: 1.2; }
+  .mech .b-new { fill: var(--surface); stroke: var(--s-code); stroke-width: 2; }
+  footer { font-size: 0.8438rem; color: var(--muted); border-top: 1px solid var(--line); padding-top: 1rem; }
+
+  .views { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+  button.vw { font: inherit; font-size: 0.875rem; padding: 0.3rem 0.9rem; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; }
+  button.vw:hover { border-color: var(--accent); }
+  button.vw[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  button.vw:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .sw.k-waste { background: repeating-linear-gradient(45deg, var(--muted) 0 2px, var(--surface) 2px 5px); border: 1px solid var(--line); }
+  .blk.k-test rect.hatch, .blk.k-ko rect.hatch, .blk.k-step rect.hatch { fill: url(#hatch); stroke: none; pointer-events: none; }
+  .hatch-line { stroke: var(--surface); stroke-width: 1.6; opacity: 0.55; }
+  .blk.k-step.waste .hatch { display: none; }
+  .tl[data-focus="idle"] .blk.k-step, .tl[data-focus="waste"] .blk.waste { opacity: 1; }
+  .tl-svg .t-mark { font-size: 11.5px; font-weight: 500; }
+  .tl-svg .t-row { font-size: 13px; }
+  table.num td.l, table.num thead th.l { text-align: left; white-space: normal; font-variant-numeric: normal; }
+  table.inv td.w { min-width: 9.5rem; font-weight: 500; }
+  table.num tr.sum th, table.num tr.sum td { font-weight: 700; border-top: 2px solid var(--line); }
+  table.inv td { font-size: 0.875rem; }
+  table.inv td.n, table.inv th.n { white-space: nowrap; }
+  .tag { display: inline-block; font-size: 0.78rem; padding: 0.05rem 0.55rem; border-radius: 999px; border: 1px solid var(--ink); white-space: nowrap; }
+  .tag.weak { border-style: dashed; border-color: var(--muted); }
+  .no { font-family: var(--font-mono); font-weight: 700; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <pattern id="hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+    <line class="hatch-line" x1="0" y1="0" x2="0" y2="7"/></pattern></defs></svg>
+<div class="wrap">
+
+<header class="page">
+  <div class="eyebrow"><span>对象：detectron2 core，nanolize main a003430d</span><span>r1 不开性能验收，r2 开</span><span>生成于 2026-11-22 22:41（PST），r2 还在进行</span><span>依据：两次运行的记录和 nanolize 源码</span></div>
+  <h1>开了性能验收，detectron2 为什么慢了这么多</h1>
+  <p class="lead">同一个 nanolize 提交、同样的选项（pair on、parallel on、Fable 5.2 effort high），第二次只多开了性能验收（<code>performance=on</code>）。上一次（r1）整次 2.9 小时跑完；这一次（r2）到生成这一页时已经 17.7 小时，还在做第 2 次性能测量。下面把时间拆开，看多出来的每一块是什么。</p>
+  <div class="layers">
+    <div class="layer"><span class="n">结论 1</span><h3>将近一半是重来，不是性能验收的工作量</h3>
+      <p>到第一次性能测量结束是 1013 分钟，其中 450 分钟后来作废或空着：第一对作业被取消，测试设计整步重做，批处理作业到时。</p></div>
+    <div class="layer"><span class="n">结论 2</span><h3>性能验收本身，一次干净的运行多约 4 小时</h3>
+      <p>冻结阶段逐个试跑基准文件 160 分钟，候选的一次性能测量 89 分钟。性能标准没过就要修复再测，每修一次再加一次测量。</p></div>
+    <div class="layer"><span class="n">结论 3</span><h3>流程上确认了两个问题</h3>
+      <p>一次调度器命令超时，让做到最后一步的测试设计整步重做（268 分钟）；候选环境没有重新准备，两次完整对比各多出十几条假失败。</p></div>
+  </div>
+  <p class="sub">两次运行各自独立做阶段 01，这一次主持会话把 core 拆得更细（选中 64 项能力，上一次 25 项），所以变慢不全是性能验收带来的。这一点单独放在“两次运行不是同一份清单”一节。</p>
+</header>
+
+<section>
+  <h2>时间花在哪</h2>
+  <p class="sub">横轴是批处理作业启动后的时间，按比例画。蓝色是上一次也有的工作，橙色是开了性能验收才有的工作，带斜线的是后来作废的，灰色是没有作业在工作的空档。</p>
+  <figure class="card tl tips">
+    <div class="views" role="group" aria-label="选择看哪一张图">
+      <button type="button" class="vw" data-show="whole" aria-pressed="true">整次运行</button>
+      <button type="button" class="vw" data-show="design" aria-pressed="false">只看测试设计这一步</button>
+    </div>
+    <div class="legend"><span class="hint">点一下只看一种：</span>
+      <button type="button" class="lg" data-kind="test" aria-pressed="false"><span class="sw k-test"></span>上一次也有的工作</button>
+      <button type="button" class="lg" data-kind="ko" aria-pressed="false"><span class="sw k-ko"></span>性能验收才有：基准试跑、候选性能测量</button>
+      <button type="button" class="lg" data-kind="waste" aria-pressed="false"><span class="sw k-waste"></span>后来作废</button>
+      <button type="button" class="lg" data-kind="idle" aria-pressed="false"><span class="sw k-step"></span>空档</button>
+    </div>
+    <p class="swipe">图比较宽，可以左右滑动。</p>
+    <div class="scroll" data-view="whole"><svg class="tl-svg" viewBox="0 0 1194 222" role="img" aria-label="三行时间条：r2 实际、r2 去掉作废和空档、r1，同一把时间尺"><line class="grid" x1="176.0" y1="38" x2="176.0" y2="198"/><text class="t-axis" x="176.0" y="212" text-anchor="middle">0</text><line class="grid" x1="231.6" y1="38" x2="231.6" y2="198"/><text class="t-axis" x="231.6" y="212" text-anchor="middle">1</text><line class="grid" x1="287.1" y1="38" x2="287.1" y2="198"/><text class="t-axis" x="287.1" y="212" text-anchor="middle">2</text><line class="grid" x1="342.7" y1="38" x2="342.7" y2="198"/><text class="t-axis" x="342.7" y="212" text-anchor="middle">3</text><line class="grid" x1="398.2" y1="38" x2="398.2" y2="198"/><text class="t-axis" x="398.2" y="212" text-anchor="middle">4</text><line class="grid" x1="453.8" y1="38" x2="453.8" y2="198"/><text class="t-axis" x="453.8" y="212" text-anchor="middle">5</text><line class="grid" x1="509.3" y1="38" x2="509.3" y2="198"/><text class="t-axis" x="509.3" y="212" text-anchor="middle">6</text><line class="grid" x1="564.9" y1="38" x2="564.9" y2="198"/><text class="t-axis" x="564.9" y="212" text-anchor="middle">7</text><line class="grid" x1="620.4" y1="38" x2="620.4" y2="198"/><text class="t-axis" x="620.4" y="212" text-anchor="middle">8</text><line class="grid" x1="676.0" y1="38" x2="676.0" y2="198"/><text class="t-axis" x="676.0" y="212" text-anchor="middle">9</text><line class="grid" x1="731.6" y1="38" x2="731.6" y2="198"/><text class="t-axis" x="731.6" y="212" text-anchor="middle">10</text><line class="grid" x1="787.1" y1="38" x2="787.1" y2="198"/><text class="t-axis" x="787.1" y="212" text-anchor="middle">11</text><line class="grid" x1="842.7" y1="38" x2="842.7" y2="198"/><text class="t-axis" x="842.7" y="212" text-anchor="middle">12</text><line class="grid" x1="898.2" y1="38" x2="898.2" y2="198"/><text class="t-axis" x="898.2" y="212" text-anchor="middle">13</text><line class="grid" x1="953.8" y1="38" x2="953.8" y2="198"/><text class="t-axis" x="953.8" y="212" text-anchor="middle">14</text><line class="grid" x1="1009.3" y1="38" x2="1009.3" y2="198"/><text class="t-axis" x="1009.3" y="212" text-anchor="middle">15</text><line class="grid" x1="1064.9" y1="38" x2="1064.9" y2="198"/><text class="t-axis" x="1064.9" y="212" text-anchor="middle">16</text><line class="grid" x1="1120.4" y1="38" x2="1120.4" y2="198"/><text class="t-axis" x="1120.4" y="212" text-anchor="middle">17</text><line class="grid" x1="1176.0" y1="38" x2="1176.0" y2="198"/><text class="t-axis" x="1176.0" y="212" text-anchor="middle">18</text><text class="t-axis" x="164" y="212" text-anchor="end">启动后的小时</text><path class="bracket" d="M211.9 39 v-6 H363.8 v6"/><text class="t-mark" x="288.3" y="28" text-anchor="middle">① 第一对作业取消 · 167 分钟</text><path class="bracket" d="M375.7 39 v-6 H621.5 v6"/><text class="t-mark" x="499.1" y="28" text-anchor="middle">② 测试设计第一遍作废 · 269 分钟</text><path class="bracket" d="M955.0 39 v-6 H964.9 v6"/><text class="t-mark" x="960.4" y="28" text-anchor="middle">③ 批处理作业到时 · 14 分钟</text><text class="t-row" x="164" y="59.0" text-anchor="end">r2 实际</text><text class="t-lane" x="164" y="74.0" text-anchor="end">17.7 小时，还在进行</text><g class="blk k-test" data-tip="阶段 01 和提交｜04:57 开始，用时 37.7 分钟｜主持会话读仓库、做功能图和清单、恢复测试、启动评审并提交"><rect x="176.0" y="44" width="32.9" height="34" rx="3"/><text x="192.4" y="65.0" text-anchor="middle">01</text></g><g class="blk k-test waste" data-tip="第一对作业 · 基线、设计会话、测试试跑｜05:35 开始，用时 83.7 分钟｜主持会话自己写的两条输出对比检查把 stderr 也算进去，里面有带工作树绝对路径的警告，任何候选都过不了；它取消这对作业、改清单后重新提交"><rect x="210.9" y="44" width="75.5" height="34" rx="3"/><rect class="hatch" x="210.9" y="44" width="75.5" height="34" rx="3"/><text x="248.6" y="65.0" text-anchor="middle">第一对作业</text></g><g class="blk k-ko waste" data-tip="第一对作业 · 基准文件试跑（被取消打断）｜06:58 开始，用时 81.1 分钟｜主持会话自己写的两条输出对比检查把 stderr 也算进去，里面有带工作树绝对路径的警告，任何候选都过不了；它取消这对作业、改清单后重新提交"><rect x="288.4" y="44" width="73.1" height="34" rx="3"/><rect class="hatch" x="288.4" y="44" width="73.1" height="34" rx="3"/><text x="324.9" y="65.0" text-anchor="middle">基准试跑</text></g><g class="blk k-test waste" data-tip="重新提交｜08:20 开始，用时 2.5 分钟｜改清单、重新转换和规划、提交第二对作业；没有第一次重来就不会有这一段"><rect x="363.4" y="44" width="1.0" height="34" rx="3"/><rect class="hatch" x="363.4" y="44" width="1.0" height="34" rx="3"/></g><g class="blk k-test" data-tip="第一次基线｜08:22 开始，用时 9.6 分钟｜试调 runner、建工作树、在原版上跑一遍保留的检查"><rect x="365.8" y="44" width="6.9" height="34" rx="3"/></g><g class="blk k-test waste" data-tip="设计第一遍 · 第 1 轮设计会话（54 个，同时进行）｜08:32 开始，用时 16.0 分钟｜这一遍在最后一步提交检查批次时遇到调度器命令超时，作业暂停；恢复后整步重做，这一遍的结果没有用上"><rect x="374.7" y="44" width="12.8" height="34" rx="3"/><rect class="hatch" x="374.7" y="44" width="12.8" height="34" rx="3"/></g><g class="blk k-test waste" data-tip="设计第一遍 · 设计出的测试试跑（运行和敲除）｜08:48 开始，用时 51.0 分钟｜这一遍在最后一步提交检查批次时遇到调度器命令超时，作业暂停；恢复后整步重做，这一遍的结果没有用上"><rect x="389.5" y="44" width="45.2" height="34" rx="3"/><rect class="hatch" x="389.5" y="44" width="45.2" height="34" rx="3"/><text x="412.1" y="65.0" text-anchor="middle">试跑</text></g><g class="blk k-ko waste" data-tip="设计第一遍 · 基准文件试跑（逐个文件，三棵树各跑多轮）｜09:39 开始，用时 149.6 分钟｜这一遍在最后一步提交检查批次时遇到调度器命令超时，作业暂停；恢复后整步重做，这一遍的结果没有用上"><rect x="436.7" y="44" width="136.5" height="34" rx="3"/><rect class="hatch" x="436.7" y="44" width="136.5" height="34" rx="3"/><text x="505.0" y="65.0" text-anchor="middle">基准文件试跑</text></g><g class="blk k-test waste" data-tip="设计第一遍 · 第 2、3 轮设计和两次评审（38 个会话），各自的试跑｜12:08 开始，用时 50.4 分钟｜这一遍在最后一步提交检查批次时遇到调度器命令超时，作业暂停；恢复后整步重做，这一遍的结果没有用上"><rect x="575.3" y="44" width="44.6" height="34" rx="3"/><rect class="hatch" x="575.3" y="44" width="44.6" height="34" rx="3"/></g><g class="blk k-test waste" data-tip="设计第一遍 · 最后合跑：提交批次时调度器命令超时，作业暂停｜12:59 开始，用时 1.1 分钟｜这一遍在最后一步提交检查批次时遇到调度器命令超时，作业暂停；恢复后整步重做，这一遍的结果没有用上"><rect x="621.9" y="44" width="1.0" height="34" rx="3"/><rect class="hatch" x="621.9" y="44" width="1.0" height="34" rx="3"/></g><g class="blk k-step" data-tip="暂停到恢复｜13:00 开始，用时 35 秒｜主持会话 18 秒后恢复了作业"><rect x="622.9" y="44" width="1.0" height="34" rx="3"/></g><g class="blk k-test" data-tip="设计第二遍 · 第 1 轮设计会话（54 个，同时进行）｜13:00 开始，用时 17.6 分钟｜用上的是这一遍"><rect x="623.5" y="44" width="14.3" height="34" rx="3"/></g><g class="blk k-test" data-tip="设计第二遍 · 设计出的测试试跑（运行和敲除）｜13:18 开始，用时 41.5 分钟｜用上的是这一遍"><rect x="639.8" y="44" width="36.4" height="34" rx="3"/><text x="658.0" y="65.0" text-anchor="middle">试跑</text></g><g class="blk k-ko" data-tip="设计第二遍 · 基准文件试跑（逐个文件，三棵树各跑多轮）｜13:59 开始，用时 160.3 分钟｜用上的是这一遍"><rect x="678.2" y="44" width="146.5" height="34" rx="3"/><text x="751.5" y="65.0" text-anchor="middle">基准文件试跑</text></g><g class="blk k-test" data-tip="设计第二遍 · 第 2、3 轮设计和两次评审（37 个会话），各自的试跑｜16:40 开始，用时 33.1 分钟｜用上的是这一遍"><rect x="826.7" y="44" width="28.7" height="34" rx="3"/></g><g class="blk k-test" data-tip="设计第二遍 · 全部测试最后合跑一遍｜17:13 开始，用时 52.6 分钟｜用上的是这一遍"><rect x="857.4" y="44" width="46.7" height="34" rx="3"/><text x="880.7" y="65.0" text-anchor="middle">合跑</text></g><g class="blk k-test" data-tip="封存前的基线｜18:06 开始，用时 34.1 分钟｜带着设计出的测试重新在原版上跑：158 条检查，含 37 个计数基准文件"><rect x="906.1" y="44" width="29.6" height="34" rx="3"/></g><g class="blk k-test" data-tip="封存契约｜18:40 开始，用时 43 秒"><rect x="937.7" y="44" width="1.0" height="34" rx="3"/></g><g class="blk k-test" data-tip="导入草稿，对比和修复｜18:40 开始，用时 16.9 分钟｜草稿早已写完，封存后 19 秒导入；第一次完整对比 27 条检查没过"><rect x="938.4" y="44" width="13.7" height="34" rx="3"/></g><g class="blk k-step" data-tip="批处理作业到时，换一个批处理作业恢复｜18:57 开始，用时 13.8 分钟｜整次运行所在的批处理作业有 14 小时时限；这是实验安排的问题，不是 nanolize 的"><rect x="954.0" y="44" width="10.8" height="34" rx="3"/></g><g class="blk k-test" data-tip="恢复后的对比和修复｜19:11 开始，用时 67.4 分钟｜两轮修复后 195 条行为检查全部通过"><rect x="966.9" y="44" width="60.4" height="34" rx="3"/><text x="997.1" y="65.0" text-anchor="middle">修复</text></g><g class="blk k-test" data-tip="安装检查｜20:19 开始，用时 1.6 分钟"><rect x="1029.3" y="44" width="1.0" height="34" rx="3"/></g><g class="blk k-ko" data-tip="候选的性能测量｜20:20 开始，用时 89.4 分钟｜582 条标准，通过 577 条，慢于允许值 5 条"><rect x="1030.8" y="44" width="80.7" height="34" rx="3"/><text x="1071.1" y="65.0" text-anchor="middle">候选性能测量</text></g><g class="blk k-test" data-tip="性能修复和重新对比｜21:50 开始，用时 37.0 分钟｜作者按没过的性能标准修改，保存后重新做行为对比"><rect x="1113.5" y="44" width="32.2" height="34" rx="3"/><text x="1129.6" y="65.0" text-anchor="middle">修复</text></g><g class="blk k-test" data-tip="完整行为对比｜22:27 开始，用时 3.7 分钟"><rect x="1147.7" y="44" width="1.5" height="34" rx="3"/></g><g class="blk k-test" data-tip="安装检查｜22:30 开始，用时 1.5 分钟"><rect x="1151.2" y="44" width="1.0" height="34" rx="3"/></g><g class="blk k-ko" data-tip="进行中：第 2 次性能测量｜22:32 开始，用时 8.9 分钟｜生成这一页时还在进行"><rect x="1152.6" y="44" width="6.3" height="34" rx="3"/></g><text class="t-row" x="164" y="115.0" text-anchor="end">r2 去掉重来</text><text class="t-lane" x="164" y="130.0" text-anchor="end">推算，10.2 小时</text><g class="blk k-test" data-tip="阶段 01 和提交｜用时 37.7 分钟｜主持会话读仓库、做功能图和清单、恢复测试、启动评审并提交"><rect x="176.0" y="100" width="32.9" height="34" rx="3"/><text x="192.4" y="121.0" text-anchor="middle">01</text></g><g class="blk k-test" data-tip="第一次基线｜用时 9.6 分钟｜试调 runner、建工作树、在原版上跑一遍保留的检查"><rect x="210.9" y="100" width="6.9" height="34" rx="3"/></g><g class="blk k-test" data-tip="设计第二遍 · 第 1 轮设计会话（54 个，同时进行）｜用时 17.6 分钟｜用上的是这一遍"><rect x="219.8" y="100" width="14.3" height="34" rx="3"/></g><g class="blk k-test" data-tip="设计第二遍 · 设计出的测试试跑（运行和敲除）｜用时 41.5 分钟｜用上的是这一遍"><rect x="236.1" y="100" width="36.4" height="34" rx="3"/><text x="254.3" y="121.0" text-anchor="middle">试跑</text></g><g class="blk k-ko" data-tip="设计第二遍 · 基准文件试跑（逐个文件，三棵树各跑多轮）｜用时 160.3 分钟｜用上的是这一遍"><rect x="274.6" y="100" width="146.5" height="34" rx="3"/><text x="347.8" y="121.0" text-anchor="middle">基准文件试跑</text></g><g class="blk k-test" data-tip="设计第二遍 · 第 2、3 轮设计和两次评审（37 个会话），各自的试跑｜用时 33.1 分钟｜用上的是这一遍"><rect x="423.0" y="100" width="28.7" height="34" rx="3"/></g><g class="blk k-test" data-tip="设计第二遍 · 全部测试最后合跑一遍｜用时 52.6 分钟｜用上的是这一遍"><rect x="453.7" y="100" width="46.7" height="34" rx="3"/><text x="477.1" y="121.0" text-anchor="middle">合跑</text></g><g class="blk k-test" data-tip="封存前的基线｜用时 34.1 分钟｜带着设计出的测试重新在原版上跑：158 条检查，含 37 个计数基准文件"><rect x="502.4" y="100" width="29.6" height="34" rx="3"/></g><g class="blk k-test" data-tip="封存契约｜用时 43 秒"><rect x="534.0" y="100" width="1.0" height="34" rx="3"/></g><g class="blk k-test" data-tip="导入草稿，对比和修复｜用时 16.9 分钟｜草稿早已写完，封存后 19 秒导入；第一次完整对比 27 条检查没过"><rect x="534.7" y="100" width="13.7" height="34" rx="3"/></g><g class="blk k-test" data-tip="恢复后的对比和修复｜用时 67.4 分钟｜两轮修复后 195 条行为检查全部通过"><rect x="550.4" y="100" width="60.4" height="34" rx="3"/><text x="580.6" y="121.0" text-anchor="middle">修复</text></g><g class="blk k-test" data-tip="安装检查｜用时 1.6 分钟"><rect x="612.8" y="100" width="1.0" height="34" rx="3"/></g><g class="blk k-ko" data-tip="候选的性能测量｜用时 89.4 分钟｜582 条标准，通过 577 条，慢于允许值 5 条"><rect x="614.2" y="100" width="80.7" height="34" rx="3"/><text x="654.6" y="121.0" text-anchor="middle">候选性能测量</text></g><g class="blk k-test" data-tip="性能修复和重新对比｜用时 37.0 分钟｜作者按没过的性能标准修改，保存后重新做行为对比"><rect x="697.0" y="100" width="32.2" height="34" rx="3"/><text x="713.1" y="121.0" text-anchor="middle">修复</text></g><g class="blk k-test" data-tip="完整行为对比｜用时 3.7 分钟"><rect x="731.2" y="100" width="1.5" height="34" rx="3"/></g><g class="blk k-test" data-tip="安装检查｜用时 1.5 分钟"><rect x="734.7" y="100" width="1.0" height="34" rx="3"/></g><g class="blk k-ko" data-tip="进行中：第 2 次性能测量｜用时 8.9 分钟｜生成这一页时还在进行"><rect x="736.1" y="100" width="6.3" height="34" rx="3"/></g><text class="t-row" x="164" y="171.0" text-anchor="end">r1（不开性能验收）</text><text class="t-lane" x="164" y="186.0" text-anchor="end">2.9 小时</text><g class="blk k-test" data-tip="阶段 01 和提交｜用时 29.6 分钟"><rect x="176.0" y="156" width="25.4" height="34" rx="3"/><text x="188.7" y="177.0" text-anchor="middle">01</text></g><g class="blk k-test" data-tip="第一次基线｜用时 9.8 分钟"><rect x="203.4" y="156" width="7.0" height="34" rx="3"/></g><g class="blk k-test" data-tip="测试设计｜用时 36.1 分钟｜只给没有有效测试的叶子设计测试，没有基准文件"><rect x="212.5" y="156" width="31.4" height="34" rx="3"/><text x="228.2" y="177.0" text-anchor="middle">设计</text></g><g class="blk k-test" data-tip="封存前的基线｜用时 9.8 分钟"><rect x="245.9" y="156" width="7.1" height="34" rx="3"/></g><g class="blk k-test" data-tip="封存契约｜用时 37 秒"><rect x="255.0" y="156" width="1.0" height="34" rx="3"/></g><g class="blk k-step" data-tip="等草稿作业写完｜用时 46.3 分钟｜主作业封存后，草稿作业还没写完第一版"><rect x="255.6" y="156" width="40.8" height="34" rx="3"/><text x="276.0" y="177.0" text-anchor="middle">等</text></g><g class="blk k-test" data-tip="导入、对比和修复、交付｜用时 42.2 分钟"><rect x="298.4" y="156" width="37.0" height="34" rx="3"/><text x="316.9" y="177.0" text-anchor="middle">修复</text></g></svg></div>
+    <div class="scroll" data-view="design" hidden><svg class="tl-svg" viewBox="0 0 1194 192" role="img" aria-label="测试设计这一步的三行时间条：r2 第二遍、r2 第一遍、r1"><line class="grid" x1="176.0" y1="8" x2="176.0" y2="168"/><text class="t-axis" x="176.0" y="182" text-anchor="middle">0</text><line class="grid" x1="266.9" y1="8" x2="266.9" y2="168"/><text class="t-axis" x="266.9" y="182" text-anchor="middle">30</text><line class="grid" x1="357.8" y1="8" x2="357.8" y2="168"/><text class="t-axis" x="357.8" y="182" text-anchor="middle">60</text><line class="grid" x1="448.7" y1="8" x2="448.7" y2="168"/><text class="t-axis" x="448.7" y="182" text-anchor="middle">90</text><line class="grid" x1="539.6" y1="8" x2="539.6" y2="168"/><text class="t-axis" x="539.6" y="182" text-anchor="middle">120</text><line class="grid" x1="630.5" y1="8" x2="630.5" y2="168"/><text class="t-axis" x="630.5" y="182" text-anchor="middle">150</text><line class="grid" x1="721.5" y1="8" x2="721.5" y2="168"/><text class="t-axis" x="721.5" y="182" text-anchor="middle">180</text><line class="grid" x1="812.4" y1="8" x2="812.4" y2="168"/><text class="t-axis" x="812.4" y="182" text-anchor="middle">210</text><line class="grid" x1="903.3" y1="8" x2="903.3" y2="168"/><text class="t-axis" x="903.3" y="182" text-anchor="middle">240</text><line class="grid" x1="994.2" y1="8" x2="994.2" y2="168"/><text class="t-axis" x="994.2" y="182" text-anchor="middle">270</text><line class="grid" x1="1085.1" y1="8" x2="1085.1" y2="168"/><text class="t-axis" x="1085.1" y="182" text-anchor="middle">300</text><line class="grid" x1="1176.0" y1="8" x2="1176.0" y2="168"/><text class="t-axis" x="1176.0" y="182" text-anchor="middle">330</text><text class="t-axis" x="164" y="182" text-anchor="end">这一步开始后的分钟</text><text class="t-row" x="164" y="29.0" text-anchor="end">r2 第二遍</text><text class="t-lane" x="164" y="44.0" text-anchor="end">用上的，305 分钟</text><g class="blk k-test" data-tip="第 1 轮设计会话（54 个，同时进行）｜用时 17.6 分钟"><rect x="176.0" y="14" width="51.4" height="34" rx="3"/><text x="201.7" y="35.0" text-anchor="middle">会话</text></g><g class="blk k-test" data-tip="设计出的测试试跑（运行和敲除）｜用时 41.5 分钟"><rect x="229.4" y="14" width="123.8" height="34" rx="3"/><text x="291.3" y="35.0" text-anchor="middle">测试试跑</text></g><g class="blk k-ko" data-tip="基准文件试跑（逐个文件，三棵树各跑多轮）｜用时 160.3 分钟"><rect x="355.2" y="14" width="483.9" height="34" rx="3"/><text x="597.2" y="35.0" text-anchor="middle">基准文件试跑</text></g><g class="blk k-test" data-tip="第 2、3 轮设计和两次评审（37 个会话），各自的试跑｜用时 33.1 分钟"><rect x="841.2" y="14" width="98.4" height="34" rx="3"/><text x="890.3" y="35.0" text-anchor="middle">2、3 轮</text></g><g class="blk k-test" data-tip="全部测试最后合跑一遍｜用时 52.6 分钟"><rect x="941.5" y="14" width="157.4" height="34" rx="3"/><text x="1020.2" y="35.0" text-anchor="middle">最后合跑</text></g><text class="t-row" x="164" y="85.0" text-anchor="end">r2 第一遍</text><text class="t-lane" x="164" y="100.0" text-anchor="end">作废，268 分钟</text><g class="blk k-test waste" data-tip="第 1 轮设计会话（54 个，同时进行）｜用时 16.0 分钟"><rect x="176.0" y="70" width="46.5" height="34" rx="3"/><rect class="hatch" x="176.0" y="70" width="46.5" height="34" rx="3"/><text x="199.3" y="91.0" text-anchor="middle">会话</text></g><g class="blk k-test waste" data-tip="设计出的测试试跑（运行和敲除）｜用时 51.0 分钟"><rect x="224.5" y="70" width="152.6" height="34" rx="3"/><rect class="hatch" x="224.5" y="70" width="152.6" height="34" rx="3"/><text x="300.8" y="91.0" text-anchor="middle">测试试跑</text></g><g class="blk k-ko waste" data-tip="基准文件试跑（逐个文件，三棵树各跑多轮）｜用时 149.6 分钟"><rect x="379.1" y="70" width="451.4" height="34" rx="3"/><rect class="hatch" x="379.1" y="70" width="451.4" height="34" rx="3"/><text x="604.8" y="91.0" text-anchor="middle">基准文件试跑</text></g><g class="blk k-test waste" data-tip="第 2、3 轮设计和两次评审（38 个会话），各自的试跑｜用时 50.4 分钟"><rect x="832.5" y="70" width="150.6" height="34" rx="3"/><rect class="hatch" x="832.5" y="70" width="150.6" height="34" rx="3"/><text x="907.8" y="91.0" text-anchor="middle">第 2、3 轮和评审</text></g><g class="blk k-test waste" data-tip="最后合跑：提交批次时调度器命令超时，作业暂停｜用时 1.1 分钟"><rect x="985.1" y="70" width="1.4" height="34" rx="3"/><rect class="hatch" x="985.1" y="70" width="1.4" height="34" rx="3"/></g><text class="t-row" x="164" y="141.0" text-anchor="end">r1（不开性能验收）</text><text class="t-lane" x="164" y="156.0" text-anchor="end">36 分钟</text><g class="blk k-test" data-tip="第 1 轮设计会话（7 个，同时进行）｜用时 12.7 分钟"><rect x="176.0" y="126" width="36.5" height="34" rx="3"/><text x="194.3" y="147.0" text-anchor="middle">会话</text></g><g class="blk k-test" data-tip="设计出的测试试跑（运行和敲除）｜用时 10.1 分钟"><rect x="214.5" y="126" width="28.5" height="34" rx="3"/></g><g class="blk k-test" data-tip="评审（5 个会话）｜用时 3.6 分钟"><rect x="245.0" y="126" width="9.0" height="34" rx="3"/></g><g class="blk k-test" data-tip="全部测试最后合跑一遍｜用时 9.7 分钟"><rect x="256.0" y="126" width="27.4" height="34" rx="3"/></g></svg></div>
+    <figcaption>把鼠标移到色块上（或点一下）看它是什么、用了多久。“r2 去掉重来”一行是把第一行里作废和空档的部分拿掉后排在一起，是推算，不是另一次实测。切到“只看测试设计这一步”可以看这一步内部的拆分。每一段的数字在下面的表里。</figcaption>
+  </figure>
+  <ul class="plain">
+    <li><strong>三次重来共 450 分钟。</strong>① 主持会话取消第一对作业并重新提交，167 分钟；② 测试设计第一遍作废，269 分钟；③ 批处理作业到时、换一个接着跑，14 分钟。</li>
+    <li><strong>去掉重来，到第一次性能测量结束是 563 分钟。</strong>还是 r1 整次（174 分钟）的 3.2 倍。</li>
+    <li><strong>橙色是性能验收才有的工作。</strong>一遍基准文件试跑 160 分钟；它在这次运行里做了三回（第一对作业里做到 81 分钟被取消，第二对作业里两遍各 150 和 160 分钟）。候选的性能测量是同样的基准再跑一次。</li>
+    <li><strong>r1 的灰色不是故障。</strong>那是主作业封存后等草稿作业写完的 46 分钟。r2 冻结得久，草稿早就写完了，没有这一段。</li>
+  </ul>
+</section>
+
+<section>
+  <h2>逐段对照</h2>
+  <p class="sub">r2 的每一段和 r1 的同一段，单位是分钟。标了“作废”的三行在 r1 里没有对应。</p>
+  <div class="card"><div class="scroll"><table class="num"><thead><tr><th>阶段</th><th>r2（开性能验收）</th><th>r1（不开）</th><th class="l">说明</th></tr></thead><tbody>
+    <tr><th scope="row">阶段 01 和提交</th><td>37.7</td><td>29.6</td><td class="l"></td></tr><tr><th scope="row">第一对作业和重新提交</th><td>167.3</td><td>–</td><td class="l">作废：主持会话取消后重新提交</td></tr><tr><th scope="row">第一次基线</th><td>9.6</td><td>9.8</td><td class="l">检查数 45 对 34</td></tr><tr><th scope="row">测试设计第一遍（含暂停的不到 1 分钟）</th><td>268.7</td><td>–</td><td class="l">作废：做到最后一步时暂停，整步重做</td></tr><tr><th scope="row">测试设计（用上的那一遍）</th><td>305.2</td><td>36.1</td><td class="l">其中基准文件试跑 160.3 分钟</td></tr><tr><th scope="row">封存前的基线</th><td>34.1</td><td>9.8</td><td class="l">检查数 158 对 68</td></tr><tr><th scope="row">封存契约</th><td>0.7</td><td>0.6</td><td class="l"></td></tr><tr><th scope="row">封存后等草稿作业</th><td>0.3</td><td>46.3</td><td class="l">r2 冻结得久，草稿早已写完</td></tr><tr><th scope="row">导入后到行为检查全部通过</th><td>84.0</td><td>42.2</td><td class="l">r1 的数字含交付；第一次完整对比没过的检查 27 条对 9 条</td></tr><tr><th scope="row">批处理作业到时的空档</th><td>13.8</td><td>–</td><td class="l">实验安排的问题</td></tr><tr><th scope="row">第一次性能测量</th><td>89.4</td><td>–</td><td class="l">582 条标准，通过 577 条</td></tr><tr><th scope="row">之后（性能修复、再对比、再测量）</th><td>51.2</td><td>–</td><td class="l">生成这一页时还在进行</td></tr><tr class="sum"><th scope="row">合计</th><td>1063.7</td><td>174.4</td><td class="l">r2 是到生成这一页时</td></tr>
+  </tbody></table></div></div>
+</section>
+
+<section>
+  <h2>三次重来</h2>
+  <div class="card"><div class="scroll"><table class="inv"><thead><tr><th></th><th>什么时候（PST）</th><th>发生了什么</th><th>丢掉的时间</th><th>丢掉的模型花费</th><th>出在哪</th></tr></thead><tbody>
+    <tr><th scope="row"><span class="no">①</span></th><td class="n">05:35 – 08:22</td><td>第一对作业跑了 165 分钟后被主持会话取消。它在清单里写的两条输出对比检查把 stderr 也算进去，而 stderr 里有一条带工作树绝对路径的警告；原版和候选在不同路径下运行，所以任何候选都过不了。它改成只比较 stdout 后重新提交。</td><td class="n">167 分钟</td><td class="n">$287</td><td>主持会话写的清单。nanolize 的基线没有拦住这种检查（下一节第 4 条）。和性能验收无关。</td></tr>
+    <tr><th scope="row"><span class="no">②</span></th><td class="n">08:32 – 13:00</td><td>测试设计做到最后一步（全部测试合跑）时，提交检查批次的调度器命令超过 30 秒没有返回，作业暂停。主持会话 18 秒后恢复了它，但这一步没有存档，从头重做。</td><td class="n">269 分钟</td><td class="n">$251</td><td>nanolize 的流程（下一节第 1 条）。开了性能验收后这一步长达 5 小时，遇到一次抖动的机会和代价都大得多。</td></tr>
+    <tr><th scope="row"><span class="no">③</span></th><td class="n">18:57 – 19:11</td><td>整次运行所在的批处理作业设了 14 小时上限，到时后所有进程被结束。之后换一个批处理作业，从封存后的存档恢复，没有重做任何一步。</td><td class="n">14 分钟</td><td class="n">一轮进行到一半的 controller 调用</td><td>实验安排：上限给短了。不是 nanolize 的问题。</td></tr>
+  </tbody></table></div></div>
+</section>
+
+<section>
+  <h2>测试设计这一步：36 分钟变成 305 分钟</h2>
+  <p class="sub">这一步在冻结阶段，给叶子设计测试和基准文件。上面图里点“只看测试设计这一步”可以看到三行的对比。下表是 r2 用上的那一遍和 r1 的拆分，单位是分钟。</p>
+  <div class="card"><div class="scroll"><table class="num"><thead><tr><th>这一步里的小步</th><th>r2</th><th>r1</th><th class="l">多出来的原因</th></tr></thead><tbody>
+    <tr><th scope="row">第 1 轮设计会话</th><td>17.6</td><td>12.7</td><td class="l">会话同时进行，墙钟由最慢的一个决定；会话数从 7 个变成 54 个（开了性能验收后，54 个选中的叶子都要写基准文件）</td></tr><tr><th scope="row">设计出的测试试跑</th><td>41.5</td><td>10.1</td><td class="l">主要因为清单更大：没有有效测试的叶子 22 个对 4 个</td></tr><tr><th scope="row">基准文件试跑</th><td>160.3</td><td>–</td><td class="l">性能验收才有：74 个计时基准文件逐个试跑</td></tr><tr><th scope="row">后续轮次和评审</th><td>33.1</td><td>3.6</td><td class="l">没过试跑或评审的回到下一轮；r1 只有一轮评审</td></tr><tr><th scope="row">全部测试最后合跑</th><td>52.6</td><td>9.7</td><td class="l">清单更大，外加 37 个计数基准文件</td></tr><tr class="sum"><th scope="row">合计</th><td>305.2</td><td>36.1</td><td class="l"></td></tr>
+  </tbody></table></div></div>
+  <ul class="plain">
+    <li><strong>基准文件试跑占了一半多。</strong>74 个计时基准文件一个接一个地跑；每个文件在三棵树上测（原版、原版再一次、把这个叶子故意减慢一倍的原版），一次校准加 5 轮，约 16 次运行，每次约 8 秒，合起来每个文件约 2 分钟。</li>
+    <li><strong>其余四小步也都变长了，</strong>合计 145 分钟对 36 分钟。这部分主要来自清单更大，分不出多少是性能验收带来的。</li>
+  </ul>
+</section>
+
+<section>
+  <h2>两次运行不是同一份清单</h2>
+  <p class="sub">按要求，每次运行都由一个全新的主持会话独立做阶段 01，不复用上一次的功能图。结果这一次的清单大得多，冻结阶段的每一步都跟着变大。所以 r1 和 r2 的差不能全算在性能验收头上。</p>
+  <div class="card"><div class="scroll"><table class="num"><thead><tr><th>项目</th><th>r1（不开）</th><th>r2（开性能验收）</th></tr></thead><tbody>
+    <tr><th scope="row">功能图里的能力</th><td>76</td><td>111</td></tr><tr><th scope="row">core 范围选中的能力</th><td>25</td><td>64</td></tr><tr><th scope="row">第一次基线的检查</th><td>34</td><td>45</td></tr><tr><th scope="row">没有有效测试、要设计测试的叶子</th><td>4</td><td>22</td></tr><tr><th scope="row">测试设计的会话（设计者和评审，用上的那一遍）</th><td>12</td><td>91</td></tr><tr><th scope="row">提交到原版上的设计文件</th><td>24 测试 + 10 场景</td><td>85 测试 + 28 场景 + 111 性能</td></tr><tr><th scope="row">封存前基线的检查</th><td>68</td><td>158</td></tr><tr><th scope="row">封存时校验方持有的文件</th><td>237</td><td>427</td></tr><tr><th scope="row">导入后第一次完整对比没过的检查</th><td>9</td><td>27（其中 17 条是缺编译扩展的假失败）</td></tr><tr><th scope="row">作业里的模型会话</th><td>23</td><td>274（到生成时）</td></tr><tr><th scope="row">作业里的模型花费</th><td>$160</td><td>$955（到生成时；第一对作业 $287）</td></tr>
+  </tbody></table></div></div>
+</section>
+
+<section>
+  <h2>流程上的问题</h2>
+  <p class="sub">前两条是读了源码并和这次运行的记录对上的；后两条是设计上的弱点，不算缺陷。</p>
+  <div class="card"><div class="scroll"><table class="inv"><thead><tr><th></th><th>问题</th><th>性质</th><th>证据</th><th>这次的代价</th><th>可以怎么改</th></tr></thead><tbody>
+    <tr><th scope="row"><span class="no">1</span></th><td class="w">调度器命令超时一次，整步测试设计重做</td><td><span class="tag">已确认</span></td>
+      <td>调度器命令的超时固定为 30 秒（<code>check_executor.py:213</code>），提交失败后不重试（<code>:1613</code>）。主作业在冻结阶段暂停后，没做完的那一步什么都不保留、重新做（<code>execution.py:5710</code>）。调度器的记账显示那个批次其实被接受了：13:00:30 启动，空转 15 分钟后结束。第一遍的结果还在作业目录里，恢复后没有复用。</td>
+      <td class="n">269 分钟，$251</td><td>超时后先按批次名查一下调度器，再决定算不算失败；测试设计按轮保存进度，恢复时接着做。</td></tr>
+    <tr><th scope="row"><span class="no">2</span></th><td class="w">候选环境没有重新准备，完整对比里出现假失败</td><td><span class="tag">已确认</span></td>
+      <td>导入草稿、保存候选或合并并行结果之后，候选目录里的编译扩展没有了，流程却先做对比。导入后第一次完整对比 27 条检查没过；只重新执行准备步骤、没改代码，就剩 10 条。19:52 那次的 17 条里也有 15 条是这样。草稿作业每次保存候选后都遇到（主持会话 issues.md 第 10 条）。</td>
+      <td>两次完整对比白跑（6 分钟和 12 分钟），各多一轮 controller；主作业里约 25 分钟</td><td>导入、保存、合并之后先自动重新准备，再对比。fix-parallel-main 分支上有这个修复，main 里没有。</td></tr>
+    <tr><th scope="row"><span class="no">3</span></th><td class="w">基准文件试跑完全串行</td><td><span class="tag weak">设计上的弱点</span></td>
+      <td>74 个文件逐个跑，8 核的节点上同一时间只有一个进程。按每个文件约 2 分钟推算，几乎每个文件都跑满了 5 轮。这是为了计时稳定有意这样做的。</td>
+      <td class="n">每遍 150–160 分钟</td><td>把文件分到几个节点上测：每个文件的三棵树只在文件内部互相比较。这一点没有验证过。</td></tr>
+    <tr><th scope="row"><span class="no">4</span></th><td class="w">输出里带路径的检查，基线阶段拦不住</td><td><span class="tag weak">设计上的弱点</span></td>
+      <td>基线只在同一棵树上重复运行来判断输出是否稳定。原版和候选在不同路径的工作树里跑，输出里只要带路径就永远不相等，要等草稿第一次对比（约 2 小时后）才暴露。</td>
+      <td class="n">167 分钟，$287</td><td>基线阶段本来就会在一份路径不同的纯净导出里跑一遍检查，可以顺便比较一次输出。</td></tr>
+  </tbody></table></div></div>
+</section>
+
+<section>
+  <h2>性能测量到现在的结果</h2>
+  <p class="sub">性能契约有 111 个基准文件、582 条标准，覆盖 55 个保留叶子里的 51 个。默认允许候选比原版慢 20%，原版自身噪声大的基准允许更宽。</p>
+  <p>第一次测量（candidate-5，89.4 分钟）：582 条标准里 577 条通过，5 条比原版慢得超过允许值，没有出错或超时的基准。之后进入性能修复（上限 2 次）。生成这一页时第 2 次测量正在进行。</p><div class="card"><div class="scroll"><table class="num"><thead><tr><th>叶子</th><th class="l">基准测的内容（原文）</th><th>比原版慢</th><th>允许</th><th>原版噪声</th></tr></thead><tbody><tr><th scope="row">engine-distributed</th><td class="l">Calls the barrier helper 200000 times in a single process, where there is nobody to wait for.</td><td>24%</td><td>20%</td><td>1.0%</td></tr><tr><th scope="row">layers-mask-ops</th><td class="l">Scaling three million boxes about their centres by a factor of 1.1.</td><td>42%</td><td>31%</td><td>24.6%</td></tr><tr><th scope="row">data-detection-utils</th><td class="l">Checking a 640x480 picture against 200000 dataset records, half of which state the size and half of which have it filled in.</td><td>27%</td><td>20%</td><td>11.5%</td></tr><tr><th scope="row">datasets-coco</th><td class="l">Load a COCO person-keypoints file of 2000 images with 10 annotations of 17 keypoints each (340000 keypoints), with two extra annotation keys kept.</td><td>57%</td><td>55%</td><td>43.6%</td></tr><tr><th scope="row">layers-deform-conv</th><td class="l">Building the parameter summary text of one plain and one modulated deformable convolution layer, 5000 times each.</td><td>115%</td><td>20%</td><td>4.0%</td></tr></tbody></table></div></div>
+</section>
+
+<section>
+  <h2>口径</h2>
+  <ul class="plain">
+    <li>r1 和 r2 各只跑了一遍。两次的清单不同，下游每一步的差别都同时受清单大小和性能验收两件事影响，这里只把能明确归到性能验收的部分（基准试跑、候选性能测量）单独标了出来。</li>
+    <li>r2 还没有结束，这一页的数字到 2026-11-22 22:41（PST）为止。之后的性能修复、再次测量和交付不在里面。</li>
+    <li>“r2 去掉重来”是把作废和空档的时间直接减掉得到的推算，没有另外实测。</li>
+    <li>设计这一步里各小步的边界，是从会话的起止时间和试跑记录的写入时间定的，精确到几十秒。</li>
+    <li>“几乎每个文件都跑满 5 轮”“可以分到几个节点上测”是我的推断，没有改代码验证。</li>
+    <li>时间都是 PST。本机的路径、账户、队列、节点名和调度器作业编号没有写进这一页。</li>
+    <li>逐步的记录见这次运行到 22:18 为止的<a href="../d2-main-perf-trajectory-cc6bb922/detectron2-main-a003430-perf-trajectory-partial.html">完整轨迹</a>。</li>
+  </ul>
+</section>
+
+<footer>detectron2 开性能验收的时间分析 · nanolize main a003430d · 生成于 2026-11-22 22:41（PST）</footer>
+</div>
+<div id="tip" role="status" hidden></div>
+<script>
+(function () {
+  var tip = document.getElementById('tip');
+  var fig = document.querySelector('.tl');
+  var kinds = Array.prototype.slice.call(document.querySelectorAll('button.lg'));
+  kinds.forEach(function (button) {
+    button.addEventListener('click', function () {
+      var on = button.getAttribute('aria-pressed') === 'true';
+      kinds.forEach(function (other) { other.setAttribute('aria-pressed', 'false'); });
+      if (on) { fig.removeAttribute('data-focus'); return; }
+      button.setAttribute('aria-pressed', 'true');
+      fig.setAttribute('data-focus', button.getAttribute('data-kind'));
+    });
+  });
+  var views = Array.prototype.slice.call(document.querySelectorAll('button.vw'));
+  views.forEach(function (button) {
+    button.addEventListener('click', function () {
+      views.forEach(function (other) { other.setAttribute('aria-pressed', other === button ? 'true' : 'false'); });
+      Array.prototype.forEach.call(document.querySelectorAll('[data-view]'), function (panel) {
+        panel.hidden = panel.getAttribute('data-view') !== button.getAttribute('data-show');
+      });
+    });
+  });
+  function hide() { tip.hidden = true; }
+  function show(event) {
+    var block = event.target.closest ? event.target.closest('[data-tip]') : null;
+    if (!block) { hide(); return; }
+    tip.textContent = block.getAttribute('data-tip').split('｜').join(' · ');
+    tip.hidden = false;
+    var box = tip.getBoundingClientRect();
+    var left = Math.min(event.clientX + 12, window.innerWidth - box.width - 8);
+    var top = event.clientY + 16;
+    if (top + box.height > window.innerHeight - 8) { top = event.clientY - box.height - 10; }
+    tip.style.left = Math.max(8, left) + 'px';
+    tip.style.top = Math.max(8, top) + 'px';
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('.tips'), function (box) {
+    box.addEventListener('pointermove', show);
+    box.addEventListener('pointerdown', show);
+    box.addEventListener('pointerleave', hide);
+  });
+  window.addEventListener('scroll', hide, { passive: true });
+})();
+</script>
+</body>
+</html>
