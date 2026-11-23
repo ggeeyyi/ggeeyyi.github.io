@@ -647,7 +647,7 @@ h3.sub { margin: 18px 0 6px; font-size: 12px; letter-spacing: .07em; text-transf
 </style>
 </head>
 <body>
-<div class="demo-bar" id="demo-bar" role="region" aria-label="Recorded run">
+<div class="demo-bar" id="demo-bar" role="region" aria-label="Replayed run">
   <div class="demo-row">
     <b class="demo-title">nanolize run page · pair and parallel, on and off</b>
     <label class="demo-l" for="demo-scenario">Scenario</label>
@@ -742,12 +742,12 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"single","title":"pair off \u00b7 par
   const chosen = known.includes(params.get("scenario")) ? params.get("scenario") : known[0];
   const scenario = DEMO.scenarios.find(item => item.id === chosen);
   const ZH = {"Play": "播放", "Pause": "暂停", "Scenario": "场景", "Speed": "速度", "frame {n} of {total} · {at} s": "第 {n} / {total} 帧 · {at} 秒",
-    "This is a recorded run: nothing is running, so the action does nothing.": "这是录制的运行：没有任何东西在运行，这个操作不会生效。",
+    "This page replays a run: nothing is running, so the action does nothing.": "这是回放：没有任何东西在运行，这个操作不会生效。",
     "The capability selection page is embedded here in a live run.": "真实运行时，这里嵌入的是能力选择页面。"};
   // What a reader of the proposal should look at, part by part.
   const ABOUT = [
-    ["This is the run page itself, not a mock-up: its own scripts and styles, fed what a real run page served during real jobs (offline runners, no model). Choose a scenario and press Play, or drag the slider.",
-     "这就是 run 页面本身，不是示意图：用的是它自己的脚本和样式，喂给它的是真实任务运行期间真实页面服务返回的数据（离线 runner，不调用模型）。选一个场景后点播放，或拖动滑块。"],
+    ["This is the run page itself, not a mock-up: its own scripts and styles, fed the frames this file holds. Choose a run and press Play, or drag the slider.",
+     "这就是 run 页面本身，不是示意图：用的是它自己的脚本和样式，喂给它的是这个文件里保存的每一帧数据。选一次运行后点播放，或拖动滑块。"],
     ["Now: what the run is doing, who is doing it, who chose it and what comes next. A job that waits says what it needs from its owner (the question itself, or what stopped it); a run that delivered says what it delivered. Under it, the milestones reached.",
      "顶部一栏：运行现在在做什么、谁在做、谁选的、接下来是什么。job 在等 owner 时，这里写明它需要什么（问题原文，或是什么让它停下）；已交付的运行在这里写明交付了什么。下面是已达到的里程碑。"],
     ["Flow: the path the run actually took. One column a stage, one row a lap: a new row starts whenever the run goes back to an earlier stage. A step is called by what it does; its tooltip holds the tool's id. Rn marks the calls the controller chose in round n (R1–5: five rounds of one call each); dashed calls wait their turn; a call that had nothing to do because the job has that part switched off is only counted. Rn · mainline marks the steps of the mainline that round n delegated to it, and a crossed-out ring a call whose condition was not met.",
@@ -769,7 +769,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"single","title":"pair off \u00b7 par
   }
   const ready = inflate(scenario.data).then(value => { frames = value.frames; graphs = value.graphs; });
   const answer = (status, value) => ({ok: status < 400, status, json: async () => value, headers: {get: () => null}});
-  // The page asks what it asks a live server; the answers are the recorded ones of the frame shown.
+  // The page asks what it asks a live server; the answers are those of the frame shown.
   window.NANOLIZE_CLOCK = () => frames.length ? Date.parse(frames[index].view.updated_at) : Date.now();
   window.fetch = async url => {
     await ready;
@@ -780,7 +780,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"single","title":"pair off \u00b7 par
       const usable = graphs.filter(item => item.frame <= index + 1).pop();
       return usable ? answer(200, usable.graph) : answer(404, {});
     }
-    return answer(400, {error: T("This is a recorded run: nothing is running, so the action does nothing.")});
+    return answer(400, {error: T("This page replays a run: nothing is running, so the action does nothing.")});
   };
   // A link to a route of the page's own server (the delivery's report, a draft job's record) leads nowhere here:
   // a click on one says what a button's request is told.
@@ -788,7 +788,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"single","title":"pair off \u00b7 par
     const link = event.target && event.target.closest ? event.target.closest("a[href]") : null;
     if (!link || !/^\/(?!\/)/.test(link.getAttribute("href") || "")) return;
     event.preventDefault();
-    window.alert(T("This is a recorded run: nothing is running, so the action does nothing."));
+    window.alert(T("This page replays a run: nothing is running, so the action does nothing."));
   }, true);
   const $ = id => document.getElementById(id);
   function show(next) {
@@ -820,7 +820,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"single","title":"pair off \u00b7 par
     $("demo-lang").textContent = lang === "zh-CN" ? "English" : "中文";
     for (const label of document.querySelectorAll(".demo-l")) label.textContent = T(label.textContent);
     $("demo-about-s").textContent = T("What this page shows");
-    // A page that is no page of recorded runs says of itself what it shows (DEMO.about, in both languages).
+    // A page says of itself what it shows (DEMO.about, in both languages); without that, what its parts are.
     for (const [english, chinese] of DEMO.about || ABOUT) { const item = document.createElement("li"); item.textContent = lang === "zh-CN" ? chinese : english; $("demo-about").append(item); }
     await ready;
     $("demo-seek").max = String(frames.length);

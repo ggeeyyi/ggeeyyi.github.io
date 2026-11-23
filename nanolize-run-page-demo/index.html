@@ -34,9 +34,17 @@
     <a href="cases.html?lang=zh-CN&scenario=pair-par">都开</a>
   </div>
   <a class="card" href="runs.html?lang=zh-CN">
-    <b>7 次录制的运行</b>
-    <span>用离线 runner 在示例项目 tiny-config 上跑的真实作业，run 页面当时实际返回的每一帧：controller、分批、提问并等待回答、固定流程、runner 试调失败、并行模式（两个 designer 同时设计测试，两个 author 同时写）等。阶段 01 建了结构索引，冻结阶段有 knockout 和测试设计。</span>
+    <b>两次真实运行的回放（detectron2）</b>
+    <span>run 页面逐个时刻回放两次真实运行。页面数据由这两次运行的轨迹文档重建，不是从当时的页面录下来的；轨迹里没有的内容（完整的能力树、每个能力的检查）不显示。</span>
   </a>
+  <div class="row">直接打开：
+    <a href="runs.html?lang=zh-CN&scenario=run-1">2026-11-22 · pair 开 · parallel 开 · 性能验收开（导出时还在运行）</a>
+    <a href="runs.html?lang=zh-CN&scenario=run-2">2026-11-21 · pair 开 · parallel 关（已交付）</a>
+  </div>
+  <div class="row">轨迹原文：
+    <a href="../d2-main-perf-trajectory-cc6bb922/detectron2-main-a003430-perf-trajectory-partial.html">第一次运行</a>
+    <a href="../d2-pr45-trajectory-c23bae97/detectron2-pr45-21d8a28-trajectory.html">第二次运行</a>
+  </div>
   <p class="note">页面是回放，不连接任何服务：上面的按钮（取消、回答、上传等）不会执行任何操作。</p>
 </main>
 </body>
