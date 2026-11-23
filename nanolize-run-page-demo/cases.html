@@ -450,7 +450,6 @@ h3.sub { margin: 18px 0 6px; font-size: 12px; letter-spacing: .07em; text-transf
 /* The draft job of a pair: one more row under the run's first lap, which it works beside. */
 .frow.fdraft { margin-top: 4px; }
 .frow.fdraft .fvisit { background: color-mix(in srgb, var(--green) 6%, var(--surface)); border-color: color-mix(in srgb, var(--green) 40%, var(--line)); }
-.fbeside { color: var(--green); font-weight: 600; overflow-wrap: anywhere; }
 /* A pair's two jobs work at the same time: their rows are one band, joined by a rail at the left. */
 .frow.fpair .fgutter { position: relative; padding-left: 10px; }
 .frow.fpair .fgutter::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; border-radius: 2px;
@@ -962,7 +961,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"single","title":"pair off \u00b7 par
     "would be {status}": "交付的话会是 {status}", "best reachable": "尽力可达", "no failures": "没有失败", "succeeded": "成功",
     "mainline": "主线", "Round {n} · mainline": "第 {n} 轮 · 主线", "Mainline": "主线", "the mainline's step": "主线给出的步骤",
     // a pair's draft job, drawn beside its main job, and a parallel group's authors, drawn one under the other
-    "Draft job": "草稿作业", "at the same time": "同时进行", "Writes the first implementation while the main job freezes the contract": "主作业冻结契约的同时，由它写第一版实现",
+    "Draft job": "草稿作业", "Writes the first implementation while the main job freezes the contract": "主作业冻结契约的同时，由它写第一版实现",
     "The draft job is writing the first implementation: {step}": "草稿作业正在写第一版实现：{step}",
     "The draft job is writing the first implementation": "草稿作业正在写第一版实现", "The draft job is queued": "草稿作业正在排队",
     "The draft job's first implementation is ready": "草稿作业的第一版实现已写完",
@@ -1883,7 +1882,8 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"single","title":"pair off \u00b7 par
         // What the step that runs reports of itself (job.step_progress): a comparison's checks, under its step.
         rows.push(lapRow(row, grid, steps, name, gutter, {strategy: flow.strategy, pair: paired, progress: (view.job || {}).step_progress || null}));
         if (row.lap === 0 && beside) for (const [index, other] of beside.rows.entries()) {
-          const label = h("div", "fgutter", h("b", "", T("Draft job")), index === 0 ? h("span", "fbeside", "∥ " + T("at the same time"))
+          // Its first row needs no word for it: the rail that joins the two rows says that they work at the same time.
+          const label = h("div", "fgutter", h("b", "", T("Draft job")), index === 0 ? null
             : h("span", "fback", "↩ " + (other.reason ? T(other.reason) : T("back to {stage}", {stage: stageTitle(name.stage(other.first).title)}))));
           label.title = draftCompared(draft)
             ? T("Writes the first implementation while the main job freezes the contract, then compares and repairs it until the main job seals (parallel mode); the main job compares what it imports itself")
@@ -1963,13 +1963,12 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"single","title":"pair off \u00b7 par
         h("div", "now-text", h("p", "now-line", line.text, " ", timer), line.sub ? h("p", "now-sub", line.sub) : null, noted, asked, acts, result, way));
       // A pair's draft job works at the same time as the run's own job: what it does stands under the run's line.
       const other = draftSentence(view, catalog, hooks.stepProgress);
-      const together = other && other.state === "active" ? "∥ " + T("at the same time") : "";
       // How long its step has run, as the run's own line says of its step.
       const also = h("span", "since"); also.id = "since-draft"; also.dataset.since = (other && other.since) || "";
       since = [timer, ...(other && other.since ? [also] : [])];
       const beside = other ? h("div", "now-beside s-" + other.state, h("span", "who a-author", T("Draft job")),
         h("div", "now-text", h("p", "now-line2", other.text, ...(other.since ? [" ", also] : [])),
-          together || other.sub ? h("p", "now-sub", [together, other.sub].filter(Boolean).join(" · ")) : null)) : null;
+          other.sub ? h("p", "now-sub", other.sub) : null)) : null;
       const track = h("ol", "miles");
       for (const milestone of flow.milestones || []) {
         const state = milestone.reached ? (milestone.state || "done") : "pending";
@@ -4728,7 +4727,11 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"single","title":"pair off \u00b7 par
     " · round {n} ({mode}) is running": " · 第 {n} 轮（{mode}）进行中",
     "Next round": "下一轮",
     "#{n} {mode} · running": "#{n} {mode} · 进行中",
-    "No direct tests": "没有直接测试", "{n} check": "{n} 项检查", "{n} checks": "{n} 项检查",
+    "No direct tests": "没有直接测试", "Its checks are not listed here": "这里没有列出它的检查",
+    " · {n} whose checks are not listed here": " · {n} 个的检查没有列在这里",
+    "Capabilities {nodes} · in scope {scope} · checks listed here {checks} over {tests} tests": "能力 {nodes} 个 · 在范围内 {scope} 个 · 这里列出的检查 {checks} 项（共 {tests} 个测试）",
+    "This graph shows a part of the plan: the checks of this capability are not listed in it": "这张图只显示规划的一部分：这个能力的检查没有列在里面",
+    "{n} check": "{n} 项检查", "{n} checks": "{n} 项检查",
     "{n} test": "{n} 个测试", "{n} tests": "{n} 个测试", "{checks} · {tests}": "{checks} · {tests}",
     "{checks} · waiting": "{checks} · 等待中", "{passed}/{total} checks passed": "{passed}/{total} 项检查通过",
     " · {n} failed": " · {n} 项未通过", "{label}: {state}": "{label}：{state}", "Round {n}: {state}": "第 {n} 轮：{state}",
@@ -5140,15 +5143,20 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"single","title":"pair off \u00b7 par
         const live = index.checks.filter(assessed);
         const scope = index.nodes.filter(node => node.in_scope !== false);
         // Like the readiness audit, a gap is an in-scope leaf; a group is covered through its children.
-        summary = T("Capabilities {nodes} · in scope {scope} · assigned checks {checks} over {tests} tests · in-scope leaves without a usable test {gaps}", {
-          nodes: index.nodes.length, scope: scope.length, checks: live.length, tests: new Set(live.flatMap(check => check.tests)).size,
+        const counts = {nodes: index.nodes.length, scope: scope.length, checks: live.length, tests: new Set(live.flatMap(check => check.tests)).size,
           // With leaf test validity, a leaf without a valid test is a gap too, exempted or not.
           gaps: scope.filter(node => !index.children.get(node.id).length
-            && (states.get(node.id).status === "untested" || Boolean(node.leaf_test))).length})
+            && (states.get(node.id).status === "untested" || Boolean(node.leaf_test))).length};
+        // Of a part of a plan the checks listed are counted, and no leaf is said to lack a test: its checks may be among those not listed.
+        summary = (graph.truncated ? T("Capabilities {nodes} · in scope {scope} · checks listed here {checks} over {tests} tests", counts)
+          : T("Capabilities {nodes} · in scope {scope} · assigned checks {checks} over {tests} tests · in-scope leaves without a usable test {gaps}", counts))
           + (tally("partial") ? T(" · partly usable {n}", {n: tally("partial")}) : "")
           + (tally("failed") ? T(" · failing original baseline {n}", {n: tally("failed")}) : "");
       } else {
         const named = round && {n: round.n, mode: T(MODES[round.mode] || "Round")};
+        // In a graph that shows a part of its plan, a capability without a listed check is not one that was not
+        // tested: it is counted apart.
+        const unlisted = graph.truncated ? nodes.filter(node => states.get(node.id).status === "untested" && !states.get(node.id).live.length).length : 0;
         // Every test of every live check once, whatever capabilities share the check.
         const testTally = {passed: 0, total: 0};
         for (const check of round ? index.checks.filter(assessed) : []) {
@@ -5161,7 +5169,8 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"single","title":"pair off \u00b7 par
         summary = (!round ? T("No finished round yet: ") : round.complete === false ? T("Round {n} · {mode} (screen only): ", named)
           : T("Round {n} · {mode}: ", named))
           + T("{passed} passed · {partial} partly tested · {failed} failed · {untested} not tested", {
-            passed: tally("passed"), partial: tally("partial"), failed: tally("failed"), untested: tally("untested")})
+            passed: tally("passed"), partial: tally("partial"), failed: tally("failed"), untested: tally("untested") - unlisted})
+          + (unlisted ? T(" · {n} whose checks are not listed here", {n: unlisted}) : "")
           + (testTally.total ? " · " + T("{passed}/{total} tests passed", testTally) : "")
           + (running ? T(" · round {n} ({mode}) is running", {n: running.n, mode: T(MODES[running.mode] || "Next round")}) : "");
       }
@@ -5211,7 +5220,9 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"single","title":"pair off \u00b7 par
       const select = key => () => { pick = pick === key ? null : key; draw(); };
       function meta(info) {
         if (info.status === "retired") return T("Out of scope");
-        if (!info.live.length) return T("No direct tests");
+        // A graph that shows a part of its plan (graph.truncated) does not know of a capability whose checks it
+        // does not list that it has none: it said "No direct tests" of capabilities that had dozens.
+        if (!info.live.length) return graph.truncated ? T("Its checks are not listed here") : T("No direct tests");
         const checks = counted(info.live.length, "{n} check", "{n} checks");
         if (source === "assign") return T("{checks} · {tests}", {checks, tests: counted(info.tests, "{n} test", "{n} tests")});
         if (info.counts.pending === info.live.length) return T("{checks} · waiting", {checks});
@@ -5300,8 +5311,9 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"single","title":"pair off \u00b7 par
           parent ? T("part of {label}", {label: label(parent)}) : null].filter(Boolean).join(" · ")),
           h("h4", "", label(node), " ", h("code", "", node.id)), node.description ? h("p", "", node.description) : null]
           .filter(Boolean));
-        const facts = h("div", "fg-facts", h("span", "", counted(node.files.length, "{n} source file", "{n} source files")));
-        if (node.depends_on.length) facts.append(h("span", "", T("Depends on {names}", {names: node.depends_on
+        // A graph that does not say a capability's files (a part of a plan may not) counts none: it does not say "0".
+        const facts = h("div", "fg-facts", ...(Array.isArray(node.files) ? [h("span", "", counted(node.files.length, "{n} source file", "{n} source files"))] : []));
+        if ((node.depends_on || []).length) facts.append(h("span", "", T("Depends on {names}", {names: node.depends_on
           .map(other => index.byId.has(other) ? label(index.byId.get(other)) : other).join(", ")})));
         if (index.children.get(node.id).length) {
           const below = rollup(index, node.id, statusOf);
@@ -5321,7 +5333,9 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"single","title":"pair off \u00b7 par
       const checks = (index.assigned.get(node.id) || []).filter(check => view === "before" || check.group !== "retired")
         .sort((a, b) => order.indexOf(a.group) - order.indexOf(b.group));
       panel.append(h("h5", "", checks.length ? counted(checks.length, "{n} assigned check", "{n} assigned checks")
-        + (source === "results" && round ? T(" · round {n}", {n: round.n}) : "") : T("No checks are assigned directly to this capability")));
+        + (source === "results" && round ? T(" · round {n}", {n: round.n}) : "")
+        : graph.truncated ? T("This graph shows a part of the plan: the checks of this capability are not listed in it")
+        : T("No checks are assigned directly to this capability")));
       const words = TEST_STATE[source];
       for (const check of checks) {
         const state = check.replaced_by ? "untested" : source === "assign" ? baselineState(check) : checkState(check, round);
@@ -5381,7 +5395,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"single","title":"pair off \u00b7 par
         if (checks.length <= 6 || failing) fold.open = true;
         panel.append(fold);
       }
-      if (feature === undefined && node.files.length) {
+      if (feature === undefined && (node.files || []).length) {
         const files = h("details", "fg-files", h("summary", "", T("Source files ({n})", {n: node.files.length})),
           h("ul", "", ...node.files.map(file => h("li", "", h("code", "", file)))));
         files.dataset.key = node.id + ":files";
