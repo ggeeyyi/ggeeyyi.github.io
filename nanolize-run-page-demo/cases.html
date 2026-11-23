@@ -1033,7 +1033,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"single","title":"pair off \u00b7 par
     "not started yet": "还没开始", "completed": "已完成", "did not return": "没有返回", "not completed": "未完成",
     "{active} of {total} designers are writing tests at once, one a leaf": "正在设计测试：{total} 个会话中 {active} 个进行中，一个叶节点一个会话",
     "Your answer": "你的回答", "Send the answer": "提交回答", "More counts and settings": "更多计数与设置",
-    "1 step done": "1 步完成", "{n} steps done": "{n} 步完成", "Show fewer": "收起",
+    "1 step done": "1 步完成", "{n} steps done": "{n} 步完成", "{n} skipped": "{n} 步跳过", "Show fewer": "收起",
     // how far the checks of a comparison are (checksProgress)
     "{done} / {total} checks": "{done} / {total} 项检查", "{total} checks": "{total} 项检查", "up to {n} at once": "最多同时 {n} 项",
     "one at a time": "一次一项", "on a compute node": "在计算节点上",
@@ -1800,13 +1800,16 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"single","title":"pair off \u00b7 par
           + (column.id !== row.last ? " goes-on" : ""));
         const key = (options.draft ? "draft:" : "") + row.lap + ":" + column.id;
         let budget = open.has(key) ? Infinity : 12;
-        // The host agent's steps of a stage it is through, each done: one line that opens at a click. They were the
+        // The host agent's steps of a stage it is through, each done or skipped (a run without behavior knowledge
+        // skips that step) and none failed, blocked or warned: one line that opens at a click. They were the
         // tallest cell of the flow for the rest of the run, hours after the last of them ended.
         const listed = cell.batches.flatMap(batch => batch.steps);
+        const looks = listed.map(position => stepLook(steps[position]));
         const settled = cell.state === "done" && listed.length >= HOST_FOLD && cell.batches.every(batch => batch.by === "host")
-          && listed.every(position => steps[position].state === "done" && steps[position].tone !== "bad" && steps[position].tone !== "warn");
+          && looks.every(look => look === "good" || look === "neutral" || look === "skipped");
         if (settled && !open.has(key)) {
-          const done = count(listed.length, "1 step done", "{n} steps done");
+          const left = looks.filter(look => look === "skipped").length;
+          const done = count(listed.length - left, "1 step done", "{n} steps done") + (left ? " · " + T("{n} skipped", {n: left}) : "");
           const all = button("chip2 fsum", done, () => { open.add(key); render(last); });
           all.append(dot("done", "good"), h("span", "chip2-t", done));
           all.title = listed.map(position => stepLabel(steps[position], name)).join(", ");
