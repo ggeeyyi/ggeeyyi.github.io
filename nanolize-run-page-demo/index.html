@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>nanolize run 页面 demo</title>
+<style>
+  body { margin: 0; background: #f6f6f4; color: #1b1b1b; font: 15px/1.6 system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 40px 20px; }
+  h1 { font-size: 22px; margin: 0 0 6px; }
+  p.lead { color: #5f6368; margin: 0 0 22px; }
+  a.card { display: block; padding: 14px 16px; margin: 0 0 12px; border: 1px solid #e3e3df; border-radius: 12px; background: #fff; color: inherit; text-decoration: none; }
+  a.card:hover { border-color: #1570e8; }
+  a.card b { display: block; color: #1570e8; }
+  a.card span { color: #5f6368; font-size: 13.5px; }
+  .row { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13.5px; margin: -4px 0 18px 2px; }
+  .row a { color: #1570e8; }
+  p.note { color: #5f6368; font-size: 13px; margin-top: 22px; }
+  @media (prefers-color-scheme: dark) { body { background: #131313; color: #ececec; } a.card { background: #1d1d1d; border-color: #313131; } a.card b, .row a { color: #5aa2ff; } a.card span, p.lead, p.note { color: #a8a8a8; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>nanolize run 页面 demo</h1>
+  <p class="lead">两个页面都是 run 页面本身，上面带一个播放条，可以逐帧看一次运行。右上角可切换中英文。</p>
+  <a class="card" href="cases.html?lang=zh-CN&scenario=pair-par">
+    <b>pair / parallel 开和关的四种组合</b>
+    <span>四条手写的时间线（项目 confkit 是虚构的），页面上画出来的内容由 run 页面自己的模型代码生成。</span>
+  </a>
+  <div class="row">直接打开某个场景：
+    <a href="cases.html?lang=zh-CN&scenario=single">都关</a>
+    <a href="cases.html?lang=zh-CN&scenario=parallel">只开 parallel</a>
+    <a href="cases.html?lang=zh-CN&scenario=pair">只开 pair</a>
+    <a href="cases.html?lang=zh-CN&scenario=pair-par">都开</a>
+  </div>
+  <a class="card" href="runs.html?lang=zh-CN">
+    <b>7 次录制的运行</b>
+    <span>用离线 runner 在示例项目 tiny-config 上跑的真实作业，run 页面当时实际返回的每一帧：controller、分批、提问并等待回答、固定流程、runner 试调失败、并行模式等。</span>
+  </a>
+  <p class="note">页面是回放，不连接任何服务：上面的按钮（取消、回答、上传等）不会执行任何操作。</p>
+</main>
+</body>
+</html>
