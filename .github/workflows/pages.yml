@@ -28,13 +28,17 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p _site/rawagent
+          # The complete project ZIP exceeds GitHub's 100 MB limit for one file. It is stored in parts on this tag.
+          tag=rawagent-20261122-multimodel
+          mkdir -p _site/rawagent "$RUNNER_TEMP/rawagent-zip"
           git archive HEAD | tar -x -C _site
           rm -rf _site/.github
-          curl --fail --location --retry 3 --output _site/rawagent/RawAgent-main.zip \
-            https://github.com/ggeeyyi/ggeeyyi.github.io/releases/download/rawagent-20261122/RawAgent-main.zip
+          git fetch --no-tags --depth=1 origin "+refs/tags/$tag:refs/rawagent-zip"
+          git archive refs/rawagent-zip | tar -x -C "$RUNNER_TEMP/rawagent-zip"
+          cat "$RUNNER_TEMP"/rawagent-zip/RawAgent-main.zip.part-* > _site/rawagent/RawAgent-main.zip
+          rm -rf "$RUNNER_TEMP/rawagent-zip"
           printf '%s  %s\n' \
-            d988632bfbabc204762e7269551743ac10f77257775e3206e0349f244e94b542 \
+            a4fa1ae014e697ac9dd284062b2793a7122397ed3cf94c24fc17886bef4ee17c \
             RawAgent-main.zip > _site/rawagent/SHA256SUMS
           (cd _site/rawagent && sha256sum --check SHA256SUMS)
           python3 - <<'PY'
@@ -44,7 +48,7 @@ jobs:
 
           root = Path('_site/rawagent')
           archive = root / 'RawAgent-main.zip'
-          assert archive.stat().st_size == 179301110, 'Unexpected archive size'
+          assert archive.stat().st_size == 296217307, 'Unexpected archive size'
           with ZipFile(archive) as project:
               assert project.testzip() is None, 'Invalid archive CRC'
               website = project.read('RawAgent-main/sites/RawAgent-答辩展示-静态网站.zip')
@@ -60,10 +64,10 @@ jobs:
                   target.write_bytes(site.read(entry))
           index = root / 'index.html'
           html = index.read_text(encoding='utf-8')
-          links = '<p><a href="RawAgent-main.zip" download>下载完整项目 ZIP（179 MB）</a> · <a href="SHA256SUMS">SHA-256 校验值</a></p>'
+          links = '<p><a href="RawAgent-main.zip" download>下载完整项目 ZIP（296 MB）</a> · <a href="SHA256SUMS">SHA-256 校验值</a></p>'
           assert '</footer>' in html
           index.write_text(html.replace('</footer>', links + '</footer>', 1), encoding='utf-8')
-          print('Complete original ZIP verified; full static website extracted.')
+          print('Complete project ZIP verified; full static website extracted.')
           PY
       - name: Upload complete Pages site
         uses: actions/upload-pages-artifact@v5.0.0
