@@ -66,7 +66,6 @@ footer { margin-top: 48px; color: var(--soft); font-size: 13px; border-top: 1px 
 <p class="lead">内容全部取自这次运行自己的记录（主持会话保存的会话、作业的事件和操作记录、各次模型调用的记录、启动记录、运行期间对节点请求的抽样），外加调度器的记账（只用于第 10 节的批次表），由脚本生成；事件、工具返回和 controller 写的理由与指示是英文原文，照原样保留。时间都是 PST（UTC−8），“第几分钟”从批处理作业启动算起。本机的路径、账户名、队列名、节点名、调度器作业编号、页面密钥和仓库所有者的姓名已经换成占位符。</p>
 <p class="lead">和上一次（r1，不开性能验收）不同的地方：这次有两对作业（主持会话取消了第一对、重新提交了第二对，记作 ①、②），第二个主作业的测试设计做了两遍（冻结阶段暂停过一次），批处理作业到了时限、之后在新的批处理作业里恢复，以及性能验收本身（第 8 节）。</p>
 
-<div class="bar"><a href="detectron2-main-a003430-perf-trajectory.md" download>下载 Markdown 原文件</a><a href="detectron2-main-perf-trajectory-20261123.zip" download>下载 zip（轨迹和生成脚本）</a></div>
 <nav class="toc"><b>章节</b><ol><li><a href="#s1">1. 配置和结束状态</a></li><li><a href="#s2">2. 时间账</a></li><li><a href="#s3">3. 三次重来和中断</a></li><li><a href="#s4">4. 主持会话的轨迹</a></li><li><a href="#s5">5. 四个作业的事件和操作（按时间）</a></li><li><a href="#s6">6. 模型会话（每次调用）</a></li><li><a href="#s7">7. 测试设计和评审</a></li><li><a href="#s8">8. 性能验收</a></li><li><a href="#s9">9. 候选、对比和修复</a></li><li><a href="#s10">10. 节点申请</a></li><li><a href="#s11">11. 收尾</a></li></ol></nav>
 <h2 id="s1">1. 配置和结束状态</h2>
 <div class="tw"><table>

@@ -232,7 +232,7 @@
 <header class="page">
   <div class="eyebrow"><span>对象：tqdm 同一个实验的第 2 次和第 3 次</span><span>nanolize main af5b2c7 → 21d8a28</span><span>2026-11-20</span><span>依据：两次运行的轨迹 + 两个提交之间的代码差异</span></div>
   <h1>tqdm 第 3 次比第 2 次慢在哪</h1>
-  <p class="lead">同一个 tqdm 实验在 main 上跑了三次。第 2 次用 main af5b2c7（PR #43 合并之后），107.5 分钟；第 3 次用 main 21d8a28（又合并了 PR #44 和 PR #45，并行修改就在 PR #45 里），202.9 分钟。这一页把两次运行画在同一把时间尺上，回答两件事：多出的 95.4 分钟花在哪里；<a href="../nanolize-main-parallel-plan/">并行计划</a>和<a href="../nanolize-parallel-progress/">并行进度</a>两页里的设计，在第 3 次里处在什么状态。</p>
+  <p class="lead">同一个 tqdm 实验在 main 上跑了三次。第 2 次用 main af5b2c7（PR #43 合并之后），107.5 分钟；第 3 次用 main 21d8a28（又合并了 PR #44 和 PR #45，并行修改就在 PR #45 里），202.9 分钟。这一页把两次运行画在同一把时间尺上，回答两件事：多出的 95.4 分钟花在哪里；并行计划和并行进度里的设计，在第 3 次里处在什么状态。</p>
   <div class="layers">
     <div class="layer"><span class="n">结论 1</span><h3>并行设计没有失效：这次运行里它没有打开</h3>
       <p>提交的选项是 <code>pair=on</code>（两个作业），没有打开 parallel 模式，也没有设 <code>workers</code>。PR #45 带来的 10 个并行子项，这次只走到 1 个，而且看不出效果。</p></div>
