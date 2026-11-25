@@ -28,8 +28,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # The site is the repository's files as they are (no Jekyll). The RawAgent website lies in rawagent/;
-          # the 296 MB project archive that used to be put together here from a tag is no longer published.
+          # The site is the repository's files as they are (no Jekyll).
           mkdir -p _site
           git archive HEAD | tar -x -C _site
           rm -rf _site/.github
