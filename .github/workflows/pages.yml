@@ -1,4 +1,4 @@
-name: Deploy Pages with complete RawAgent archive
+name: Deploy Pages
 
 on:
   push:
@@ -21,58 +21,42 @@ jobs:
       id-token: write
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      url: ${{ steps.deployment.outputs.page_url || steps.second.outputs.page_url || steps.third.outputs.page_url }}
     steps:
       - uses: actions/checkout@v7.0.1
-      - name: Prepare existing site and complete RawAgent ZIP
+      - name: Prepare the site
         shell: bash
         run: |
           set -euo pipefail
-          # The complete project ZIP exceeds GitHub's 100 MB limit for one file. It is stored in parts on this tag.
-          tag=rawagent-20261122-layout
-          mkdir -p _site/rawagent "$RUNNER_TEMP/rawagent-zip"
+          # The site is the repository's files as they are (no Jekyll). The RawAgent website lies in rawagent/;
+          # the 296 MB project archive that used to be put together here from a tag is no longer published.
+          mkdir -p _site
           git archive HEAD | tar -x -C _site
           rm -rf _site/.github
-          git fetch --no-tags --depth=1 origin "+refs/tags/$tag:refs/rawagent-zip"
-          git archive refs/rawagent-zip | tar -x -C "$RUNNER_TEMP/rawagent-zip"
-          cat "$RUNNER_TEMP"/rawagent-zip/RawAgent-main.zip.part-* > _site/rawagent/RawAgent-main.zip
-          rm -rf "$RUNNER_TEMP/rawagent-zip"
-          printf '%s  %s\n' \
-            fcab64a07cee243fb11bf33b90c833c411285c7ccb9cedc4284e2abe2c6e19a3 \
-            RawAgent-main.zip > _site/rawagent/SHA256SUMS
-          (cd _site/rawagent && sha256sum --check SHA256SUMS)
-          python3 - <<'PY'
-          from io import BytesIO
-          from pathlib import Path, PurePosixPath
-          from zipfile import ZipFile
-
-          root = Path('_site/rawagent')
-          archive = root / 'RawAgent-main.zip'
-          assert archive.stat().st_size == 296222652, 'Unexpected archive size'
-          with ZipFile(archive) as project:
-              assert project.testzip() is None, 'Invalid archive CRC'
-              website = project.read('RawAgent-main/sites/RawAgent-答辩展示-静态网站.zip')
-          with ZipFile(BytesIO(website)) as site:
-              for entry in site.infolist():
-                  name = PurePosixPath(entry.filename)
-                  if name.is_absolute() or '..' in name.parts:
-                      raise ValueError('Unsafe archive path')
-                  if entry.is_dir():
-                      continue
-                  target = root / name
-                  target.parent.mkdir(parents=True, exist_ok=True)
-                  target.write_bytes(site.read(entry))
-          index = root / 'index.html'
-          html = index.read_text(encoding='utf-8')
-          links = '<p><a href="RawAgent-main.zip" download>下载完整项目 ZIP（296 MB）</a> · <a href="SHA256SUMS">SHA-256 校验值</a></p>'
-          assert '</footer>' in html
-          index.write_text(html.replace('</footer>', links + '</footer>', 1), encoding='utf-8')
-          print('Complete project ZIP verified; full static website extracted.')
-          PY
-      - name: Upload complete Pages site
+          echo "files: $(find _site -type f | wc -l), size: $(du -sh _site | cut -f1)"
+      - name: Upload the Pages site
         uses: actions/upload-pages-artifact@v5.0.0
         with:
           path: _site
+      # The deploy action lists this run's artifacts once, in the second the upload ended, and does not ask again:
+      # when the artifact is not listed yet, or the Pages service answers with an error, the step fails although
+      # the site is uploaded. So a failed try is followed by a wait and another try, three in all.
       - name: Deploy to GitHub Pages
         id: deployment
+        continue-on-error: true
+        uses: actions/deploy-pages@v5.0.1
+      - name: Wait before the second try
+        if: steps.deployment.outcome == 'failure'
+        run: sleep 30
+      - name: Deploy to GitHub Pages (second try)
+        id: second
+        if: steps.deployment.outcome == 'failure'
+        continue-on-error: true
+        uses: actions/deploy-pages@v5.0.1
+      - name: Wait before the third try
+        if: steps.deployment.outcome == 'failure' && steps.second.outcome == 'failure'
+        run: sleep 90
+      - name: Deploy to GitHub Pages (third try)
+        id: third
+        if: steps.deployment.outcome == 'failure' && steps.second.outcome == 'failure'
         uses: actions/deploy-pages@v5.0.1
