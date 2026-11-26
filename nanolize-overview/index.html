@@ -143,7 +143,7 @@ body.ov { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-ro
 /* ----- the stage: what stands over the sky between the bars. The pointer goes through it to the sky except
    where something of the page lies. ----- */
 .ov-stage { grid-column: 1; grid-row: stage; position: relative; z-index: 1; min-height: 0; pointer-events: none; }
-.listing .ov-sky, .listing .ov-tree, .listing .ov-more, .listing .ov-line { visibility: hidden; }
+.listing .ov-sky, .listing .ov-tree, .listing .ov-more, .listing .ov-line, .listing .ov-card { visibility: hidden; }
 
 /* The scene's one line: in the middle while the repository is mapped, at the foot of the sky otherwise. */
 .ov-line { position: absolute; left: 50%; bottom: 20px; z-index: 2; transform: translateX(-50%); margin: 0; width: max-content; max-width: min(92%, 780px);
@@ -188,11 +188,14 @@ body[data-scene="select"] .ov-foot { background: linear-gradient(to top, var(--b
 .button.ov-submit { background: var(--gray-12); color: var(--gray-1); border-color: var(--gray-12); }
 .button.ov-submit:hover { background: var(--gray-11); border-color: var(--gray-11); }
 .ov-said { min-height: 1.4em; margin: 5px 0 0; font-size: var(--text-2); color: var(--ink-3); }
-/* What follows a Submit (execution.js writes it) hangs under the bar at the right, over the tree and not in its
-   way; what holds a Submit back before it is pressed is a short strip under the bar, and the tree starts below it. */
-.ov-panel { position: absolute; right: 28px; top: calc(100% - 10px); z-index: 2; width: min(calc(100% - 56px), 460px); max-height: 56vh; padding: 14px 16px; overflow: auto; box-sizing: border-box;
-  border-radius: var(--radius); background: var(--panel); border: 1px solid var(--line-strong); box-shadow: var(--shadow); font-size: var(--text-3); color: var(--ink-2); }
-.ov-panel.gate { position: static; display: flex; flex-wrap: wrap; gap: 2px 16px; width: auto; max-height: none; margin: 2px 0 0; padding: 7px 12px; box-shadow: none;
+/* What follows a Submit (execution.js writes it) has a place of its own and never hangs over the tree. On a wide
+   stage (body.sided: the page says so) it stands at the head of the column the tree keeps free at its right, the
+   card under it. On a narrower one it stands under the selection's controls and the tree starts below it. What
+   holds a Submit back before it is pressed is a short strip under the controls, on every stage. */
+.ov-panel { max-height: 38vh; margin: 8px 0 2px; padding: 14px 16px; overflow: auto; box-sizing: border-box;
+  border-radius: var(--radius); background: var(--panel); border: 1px solid var(--line-strong); font-size: var(--text-3); color: var(--ink-2); }
+.sided .ov-panel:not(.gate) { position: absolute; right: 28px; top: calc(100% + 8px); z-index: 2; width: 300px; max-height: 56vh; margin: 0; box-shadow: var(--shadow); }
+.ov-panel.gate { display: flex; flex-wrap: wrap; gap: 2px 16px; max-height: none; margin: 2px 0 0; padding: 7px 12px;
   background: var(--warn-soft); border-color: var(--warn-line); color: var(--warn-text); font-size: var(--text-2); }
 .ov-panel.gate p { margin: 0; }
 .ov-panel h2 { margin: 0 0 8px; font-family: var(--serif); font-weight: var(--serif-display-weight); font-size: var(--text-6); color: var(--ink); }
@@ -239,9 +242,8 @@ body[data-scene="select"] .ov-foot { background: linear-gradient(to top, var(--b
 /* A group's count stands right after its name; it is brighter while the group is shut, when it says how much is hidden. */
 .ov-count { order: 1; flex: none; margin-left: 8px; font-family: var(--mono); font-size: calc(var(--type, 12px) - 1.5px); color: var(--ink-3); }
 .ov-row.shut .ov-count { color: var(--ink); }
-/* A small lock: what cannot be left out. In a row too narrow for both it gives way before the name is cut (the
-   card says why the box takes no click). */
-.ov-lock { position: relative; order: 2; display: none; flex: 0 1000 auto; width: 9px; height: 12px; margin-left: 7px; overflow: hidden; }
+/* A small lock: what cannot be left out. It always shows: in a row too narrow for both, the name is what is cut. */
+.ov-lock { position: relative; order: 2; display: none; flex: none; width: 9px; height: 12px; margin-left: 7px; }
 .ov-lock::before { content: ""; position: absolute; left: 1.5px; top: 0; width: 3px; height: 5px; border: 1.5px solid var(--ink-3); border-bottom: 0; border-radius: 3px 3px 0 0; }
 .ov-lock::after { content: ""; position: absolute; left: 0; bottom: 0; width: 9px; height: 7px; border-radius: 2px; background: var(--ink-3); }
 .ov-row.locked .ov-lock, .ov-card-lock .ov-lock { display: inline-block; }
@@ -264,6 +266,7 @@ body[data-scene="select"] .ov-foot { background: linear-gradient(to top, var(--b
   font-family: var(--mono); font-size: var(--text-1); letter-spacing: var(--tracking-small); white-space: nowrap;
   background: var(--panel-2); color: var(--ink-2); border: 1px solid var(--line-strong); }
 .ov-more::before { content: "↓ "; }
+.sided .ov-more { left: calc(50% - 164px); }      /* the middle of the tree, which leaves the column at its side free */
 .ov-more:hover { color: var(--ink); border-color: var(--gray-10); }
 .ov-more[hidden] { display: none; }
 
@@ -294,15 +297,26 @@ body[data-scene="select"] .ov-foot { background: linear-gradient(to top, var(--b
 .ov-card-now { margin: 10px 0 0; font-size: var(--text-2); color: var(--info-text); }
 .ov-card-now span { margin-right: 8px; font-family: var(--mono); color: var(--ink-3); }
 .ov-card-lock { display: flex; align-items: baseline; gap: 8px; margin: 10px 0 0; font-size: var(--text-2); color: var(--ink-2); }
-/* On a phone the card is a sheet across the stage, at its foot or at its head. */
-.ov-card.sheet { right: 8px; width: auto; max-width: none; }
+/* On a phone the card is a sheet across the stage, at its foot or at its head; on a stage between a phone's and a
+   wide one's it is as wide as a card, at the right. */
+.ov-card.sheet { right: 8px; width: auto; max-width: none; padding: 11px 14px 12px; }
+.ov-card.sheet .ov-card-text { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
+@media (min-width: 641px) { .ov-card.sheet { left: auto !important; width: 340px; } }
+/* Beside the flat tree the card has a column of its own: it stands there for every row, and with nothing in hand
+   it says what the column is for. */
+.ov-card.docked { overflow: hidden; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; background: var(--panel); border-color: var(--line); }
+.ov-card.idle { background: transparent; border-style: dashed; }
+.ov-card-hint { margin: 0; font-size: var(--text-2); line-height: 1.5; color: var(--ink-3); }
 
 /* ----- the list of capabilities ----- */
 .ov-list { position: absolute; inset: 0; z-index: 5; overflow: auto; padding: 16px 28px 28px; }
+.sided .ov-list { right: 328px; }                 /* beside what follows a Submit, not under it */
 .ov-table { width: 100%; max-width: 1040px; margin: 0 auto; border-collapse: collapse; font-size: var(--text-3); }
 .ov-table th, .ov-table td { padding: 6px 12px; text-align: left; vertical-align: top; font-weight: 400; border-bottom: 1px solid var(--line-2); color: var(--ink-2); }
 .ov-table thead th { font-family: var(--mono); font-size: var(--text-1); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--ink-3); border-bottom-color: var(--line); }
-.ov-table tbody th { color: var(--ink); }
+/* A capability's name is indented by how deep it stands in the tree (--depth: the page sets it on the row). */
+.ov-table tbody th { padding-left: calc(14px + 16px * var(--depth, 0)); color: var(--ink); overflow-wrap: anywhere; }
+.ov-list-state, .ov-list-tests { white-space: nowrap; }
 .ov-table tr.group th { font-weight: 600; }
 .ov-table td .ov-dot { margin-right: 8px; }
 
@@ -354,10 +368,20 @@ body[data-scene="select"] .ov-foot { background: linear-gradient(to top, var(--b
   .ov-kept { order: 5; flex-basis: 100%; }
   .ov-kept span:nth-child(2):not(:last-child) { display: none; }      /* the tokens are in the tooltip: the count and the preset keep one line */
   .ov-said { display: none; }
-  .ov-panel { left: 12px; right: 12px; width: auto; }
-  .ov-list { padding: 10px 8px 20px; }
-  .ov-table th, .ov-table td { padding: 6px 6px; }
-  .ov-notice { flex-direction: column; align-items: flex-start; gap: 9px; width: auto; }
+  .ov-panel { max-height: 32vh; padding: 10px 12px; }
+  /* The list is stacked rows: the name on a line of its own, under it the state and, at the right, the tests;
+     who works on it now has a third line where there is somebody. A cell with nothing to say is left out. */
+  .ov-list { padding: 6px 12px 20px; }
+  .ov-table, .ov-table tbody { display: block; }
+  .ov-table thead { display: none; }
+  .ov-table tbody tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; padding: 8px 2px 9px calc(2px + 10px * var(--depth, 0)); border-bottom: 1px solid var(--line-2); }
+  .ov-table tbody th, .ov-table tbody td { display: block; padding: 0; border: 0; }
+  .ov-table tbody th { grid-column: 1 / -1; font-size: var(--text-4); }
+  .ov-list-state { grid-column: 1; font-size: var(--text-2); }
+  .ov-list-tests { grid-column: 2; font-family: var(--mono); font-size: var(--text-2); text-align: right; color: var(--ink-3); }
+  .ov-list-now { grid-column: 1 / -1; font-size: var(--text-2); color: var(--info-text); }
+  .ov-list-tests.none, .ov-list-now.none { display: none; }
+  .ov-notice { left: 12px; right: 12px; transform: none; flex-direction: column; align-items: flex-start; gap: 9px; width: auto; max-width: none; }
   .ov-line.s-mapping { font-size: var(--text-6); }
   .ov-line.s-done { font-size: var(--text-3); }
   .ov-link { display: inline-block; }
@@ -6603,6 +6627,24 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
 
   /* ---- Each capability's state ---- */
 
+  /* Whether a leaf's tests are ready, as far as the records go. A leaf the job's records exempt from a leaf test
+     has nothing more to prepare: it is ready. A leaf marked as lacking a valid test or a usable check
+     (leaf_test "missing", uncovered) is not. Any other is ready when every check of it that has a result on the
+     original passed and at least one has: tests a designer added, which wait for their first run on the
+     original, do not take back what was ready. */
+  function readyLeaf(ix, id) {
+    const node = ix.nodes.get(id);
+    if (!node) return false;
+    if (node.leaf_test === "exempted") return !ix.provisional;      // a graph made of the submitted plan alone holds no record of the job yet
+    if (node.leaf_test || node.uncovered === true) return false;
+    const seen = nodeAssignment(ix, id).live.map(baselineState).filter(state => state !== "pending");
+    return seen.length > 0 && combine(seen) === "passed";
+  }
+  /* Whether what a leaf lacks is settled: the contract is sealed (or the job is past that: it holds a candidate
+     or a first implementation). Until then the tests are still being designed, and a leaf without a valid one
+     is not ready yet, which is no gap. */
+  const frozen = (view, ix) => reached(view, "sealed") || reached(view, "candidate") || implemented(view, ix);
+
   /* How many tests a capability's live checks hold and how many of them passed in a round: a check without
      test ids is one; of a check that failed, the tests it named failed and the others passed, and one that
      named none passed none; a pass in a round that is not verified is no pass. Each check once, by name. */
@@ -6627,8 +6669,10 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
      A leaf (in scope, no child in scope):
        "out"    not in scope (the selection removed it);
        "dim"    selected, nothing more;
-       "ready"  its tests are ready and nobody has written it: every check assigned to it passes on the
-                original (nodeAssignment: passed) and it carries no mark of a missing test (leaf_test, uncovered);
+       "ready"  its tests are ready and nobody has written it (readyLeaf): every check of it that has a result
+                on the original passed, at least one has, and it carries no mark of a missing test (leaf_test
+                "missing", uncovered); or the job's records exempt it from a leaf test, so that nothing more
+                is to be prepared for it;
        "wrote"  the main job's author has written it (written) and no full comparison says more;
        "pass"   written, and in the newest full comparison with results all its checks passed (nodeRound:
                 passed), and it carries no mark of a missing test;
@@ -6638,10 +6682,18 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
      `gap`: the leaf cannot be verified, or only in part: it has no valid leaf test or is exempted
      (leaf_test), no usable check (uncovered), no check at all, a check without a usable result on the
      original, or a newest comparison that left a part of its checks untested or unverified. Such a leaf is
-     never "pass": written, it stays "wrote" with `gap`. A leaf of a graph that shows a part of its plan
-     (truncated) and lists no check of it is `unlisted` instead: its checks are not known here, which is
-     neither a gap nor a pass.
-     `ready`, `wrote`: the two facts by themselves (tests ready; written), whatever the state. `result`: the
+     never "pass": written, it stays "wrote" with `gap`. A gap is said only once it is settled: after the
+     contract is sealed (frozen), or of a leaf the job's records already exempt. While the tests are still
+     designed, a leaf without a valid one is simply not ready ("dim", no gap). A leaf of a graph that shows a
+     part of its plan (truncated) and lists no check of it is `unlisted` instead: its checks are not known
+     here, which is neither a gap nor a pass.
+     Where the comparison names its own conclusion of each capability (`round.capabilities`: passed, unverified,
+     regressed), that conclusion decides, not this page's reading of the checks: a comparison is unverified as a
+     whole as soon as one capability has no criterion, and then says of every other one that it passed. Such a
+     leaf is "pass" (also one exempted from a leaf test, if the comparison passed it); one the comparison could
+     not verify stays "wrote" with `gap`; one it found regressed is "fail". `verdict` holds the conclusion.
+     `ready`, `wrote`: the two facts by themselves (tests ready; written), whatever the state; a leaf that
+     passes is ready, so the counts never say fewer ready than passing. `result`: the
      leaf's status in the newest full comparison, or null. `tests`: the tests of its live checks and how many
      passed in that comparison (none before one).
 
@@ -6656,7 +6708,11 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
   function states(graph, view, live) {
     const ix = indexOf(graph), out = new Map();
     if (!ix.nodes.size) return out;
-    const wrote = written(view, graph), round = ix.full, leaves = new Set(ix.leaves);
+    const wrote = written(view, graph), round = ix.full, leaves = new Set(ix.leaves), settledNow = frozen(view, ix);
+    // The comparison's own conclusions, where its record names them; its tests are then counted as they ran.
+    const verdicts = round && round.capabilities && typeof round.capabilities === "object" && !Array.isArray(round.capabilities)
+      && Object.keys(round.capabilities).length ? round.capabilities : null;
+    const counted = verdicts ? Object.assign({}, round, {status: "checks_passed"}) : round;
     const marks = id => { const found = live instanceof Map ? live.get(id) : null; return Array.isArray(found) && found.length ? found : null; };
     for (const [id, node] of ix.nodes) {
       if (node.in_scope === false) { out.set(id, {state: "out", gap: false, live: marks(id), tests: {total: 0, passed: 0}, leaf: false}); continue; }
@@ -6664,11 +6720,16 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
       const assignment = nodeAssignment(ix, id), result = round ? nodeRound(ix, id, round).status : null;
       const unlisted = ix.truncated && !assignment.live.length;
       const marked = Boolean(node.leaf_test) || node.uncovered === true;
-      const ready = assignment.status === "passed" && !marked, has = wrote.has(id);
-      const state = !has ? (ready ? "ready" : "dim") : result === "failed" ? "fail" : result === "passed" && !marked ? "pass" : "wrote";
-      const gap = !unlisted && state !== "pass" && (marked || ["failed", "partial", "untested"].includes(assignment.status)
-        || (has && (result === "partial" || result === "untested")));
-      out.set(id, {state, gap, live: marks(id), tests: tally(assignment.live, round), leaf: true, ready, wrote: has, result, unlisted});
+      const ready = readyLeaf(ix, id), has = wrote.has(id);
+      const verdict = verdicts ? (typeof verdicts[id] === "string" ? verdicts[id] : null) : null;
+      const state = !has ? (ready ? "ready" : "dim")
+        : verdict ? (verdict === "passed" ? "pass" : ["regressed", "failed"].includes(verdict) ? "fail" : "wrote")
+        : result === "failed" ? "fail" : result === "passed" && !marked ? "pass" : "wrote";
+      const gap = !unlisted && state !== "pass" && (settledNow || node.leaf_test === "exempted")
+        && (marked || ["failed", "partial", "untested"].includes(assignment.status)
+          || (has && (verdict ? state === "wrote" : result === "partial" || result === "untested")));
+      // (A leaf that passes had its tests ready: the counts under the bar never say fewer ready than passing.)
+      out.set(id, {state, gap, live: marks(id), tests: tally(assignment.live, counted), leaf: true, ready: ready || state === "pass", wrote: has, result, verdict, unlisted});
     }
     // The groups: every capability that is left has a child in scope, and so a leaf in scope under it (the
     // index holds a forest). What stands under a child the selection removed is not the group's.
@@ -6683,7 +6744,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
       }
       const state = below.some(item => item.state === "fail") ? "fail"
         : ORDER[Math.min(ORDER.length - 1, ...below.map(item => ORDER.indexOf(item.state)))] || "dim";
-      out.set(id, {state, gap: below.some(item => item.gap), live: marks(id), tests: tally(checks, round), leaf: false,
+      out.set(id, {state, gap: below.some(item => item.gap), live: marks(id), tests: tally(checks, counted), leaf: false,
         ready: below.length > 0 && below.every(item => item.ready), wrote: below.length > 0 && below.every(item => item.wrote),
         result: null, unlisted: false});
     }
@@ -6751,15 +6812,57 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
 
   /* ---- The bar ---- */
 
-  /* A leaf whose tests are ready as far as the original has run them: every check of it that has a result on
-     the original passes, and it carries no mark of a missing test. The bar counts these, so that a designer's
-     new tests that wait for their first run on the original do not take the bar back; the count under the
-     bar is of the leaves whose tests are all ready (states: ready). */
-  function settled(ix, id) {
-    const node = ix.nodes.get(id);
-    if (!node || node.leaf_test || node.uncovered === true) return false;
-    const seen = nodeAssignment(ix, id).live.map(baselineState).filter(state => state !== "pending");
-    return seen.length > 0 && combine(seen) === "passed";
+  const frac = (done, total) => typeof done === "number" && typeof total === "number" && total > 0 ? Math.max(0, Math.min(1, done / total)) : 0;
+  /* How far a step that reports of itself has come, 0..1 (job.step_progress, said while the step runs): of a
+     comparison the checks that have their result; of a baseline its checks (the first half), then its knockouts
+     by the leaves done, then its scope baseline. 0 for a step that reports nothing, or another step. */
+  function stepShare(job, tool) {
+    const far = record(record(job).step_progress), checks = record(far.checks), knocked = record(far.knockouts);
+    if (far.tool !== tool) return 0;
+    if (tool === "compare_behavior") return frac(checks.done, checks.total);
+    if (tool === "capture_baseline") return far.stage === "scope_baseline" ? .9 : far.stage === "knockouts" ? .5 + .4 * frac(knocked.leaves_done, knocked.leaves)
+      : .5 * frac(checks.done, checks.total);
+    return 0;
+  }
+  /* How far the freeze is before the contract is sealed, 0..0.95, from what its records say while it runs
+     (progress.freeze, job.step_progress), so that the bar moves through the stage's long steps and does not jump
+     at the first baseline and then wait. Its steps and their parts of the stage: the first baseline (a quarter;
+     nine tenths in a freeze that designs no tests), the test design (a half: the designer sessions that ended of
+     those that started, round by round, and the knockouts of each round's trial), the baseline captured again
+     for the designed tests (a fifth). How many rounds a design takes is not known while it runs, so each round
+     has half the room the one before it had (a half, a quarter, ...), by its own number: the records list the
+     sessions of the newest design call alone, and the rounds before the first one listed are done. In a round
+     the designers are seven tenths and the trial's knockouts three. Between a round's trial and the next
+     round's first session the records name no trial, and a design that starts again after a pause starts its
+     rounds again, so the share by itself may step back there: the page holds the bar (`previous` of progress). A view without the freeze's own account is read as before: the share of the kept leaves whose
+     tests are ready. */
+  function freezeShare(view, ix, share) {
+    const job = jobOf(view), freeze = record(record(view.progress).freeze);
+    // (An exempted leaf is ready without a test: it is no part of what the freeze prepares.)
+    if (!["baseline", "design_sessions", "design_calls", "designed_tests", "workspace"].some(key => freeze[key] != null))
+      return share(ix.leaves.filter(id => readyLeaf(ix, id) && ix.nodes.get(id).leaf_test !== "exempted").length);
+    const steps = list(record(freeze.workspace).freeze_steps), sessions = list(record(freeze.design_sessions).sessions).filter(item => item && typeof item === "object");
+    const calls = list(freeze.design_calls).filter(item => item && typeof item === "object"), far = record(record(job).step_progress);
+    // Whether this freeze designs tests: its own list of steps says, or its policy; records that say neither are
+    // read as a freeze that may, so the first baseline is not taken for most of the stage.
+    const designs = steps.length ? steps.includes("design_leaf_tests") : record(record(freeze.workspace).leaf_test_policy).design !== false || sessions.length > 0 || calls.length > 0
+      || far.tool === "design_leaf_tests";
+    const captured = record(freeze.baseline).status === "ready" || sessions.length > 0 || calls.length > 0 || far.tool === "design_leaf_tests";
+    const first = captured ? 1 : stepShare(job, "capture_baseline");
+    if (!designs) return .9 * first;
+    const designed = record(freeze.designed_tests).recorded === true || calls.some(call => call.outcome === "done");
+    const roundOf = item => Number.isFinite(item.round) ? item.round : 1, knocked = record(far.knockouts);
+    const rounds = [...new Set(sessions.map(roundOf))].sort((a, b) => a - b), newest = rounds.length ? rounds[rounds.length - 1] : null;
+    const current = far.tool === "design_leaf_tests" && Number.isFinite(far.round) ? far.round : null;
+    const ended = rounds.reduce((sum, round) => {
+      const mine = sessions.filter(item => roundOf(item) === round);
+      const trial = current !== round ? 0 : far.stage === "review" ? 1 : far.stage === "trial" ? frac(knocked.leaves_done, knocked.leaves) : 0;
+      const part = round < newest || (current !== null && round < current) ? 1 : .7 * frac(mine.filter(item => item.state === "ended").length, mine.length) + .3 * trial;
+      return sum + part / Math.pow(2, Math.max(1, round));
+    }, rounds.length ? 1 - Math.pow(2, 1 - Math.max(1, rounds[0])) : current !== null ? 1 - Math.pow(2, 1 - Math.max(1, current)) : 0);
+    const design = designed ? 1 : Math.min(.95, ended);
+    const again = !designed ? 0 : calls.some(call => call.recapture_owed === true) ? stepShare(job, "capture_baseline") : 1;
+    return .25 * first + .5 * design + .2 * again;
   }
 
   /* How far the run is. `percent`: an integer 0..100, the stages' shares (WEIGHTS) added up, each by how far
@@ -6767,13 +6870,16 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
        discover  the share of the host agent's steps that are done or skipped; all of it once the repository
                  is mapped;
        scope     all of it once a job exists;
-       freeze    the share of the kept leaves whose tests are ready (settled); all of it once the contract is
-                 sealed;
+       freeze    how far its steps are, by what they report while they run (freezeShare: the first baseline,
+                 the designer sessions that ended, the knockouts, the baseline captured again); all of it once
+                 the contract is sealed;
        rewrite   the share of the kept leaves that are written; all of it once the job holds a first
                  implementation (implemented);
        verify    the share of the kept leaves that pass, in the best full comparison so far, not the newest:
-                 a repair that regresses does not take the bar back; all of it once a candidate's behavior
-                 was accepted;
+                 a repair that regresses does not take the bar back. A comparison that names its own conclusion
+                 of each capability is counted by those, as the states are. While the first comparison runs,
+                 the checks that have their result move the share (up to three tenths of it). All of it once a
+                 candidate's behavior was accepted;
        deliver   all of it once the job delivered.
      A stage is also full once the run reached a later milestone, so a lap back to an earlier stage keeps the
      bar. 100 is said only of a job that succeeded or completed with gaps, and of those always; a run that
@@ -6806,16 +6912,19 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
       const wrote = written(view, graph);
       for (const round of ix.rounds) {
         if (!hasResults(round) || round.complete === false) continue;
-        best = Math.max(best, leaves.filter(id => wrote.has(id) && !ix.nodes.get(id).leaf_test && ix.nodes.get(id).uncovered !== true
-          && nodeRound(ix, id, round).status === "passed").length);
+        // The comparison's own conclusions, where its record names them (as in states); else this page's reading of its checks.
+        const verdicts = round.capabilities && typeof round.capabilities === "object" && !Array.isArray(round.capabilities) && Object.keys(round.capabilities).length
+          ? round.capabilities : null;
+        best = Math.max(best, leaves.filter(id => wrote.has(id) && (verdicts ? verdicts[id] === "passed"
+          : !ix.nodes.get(id).leaf_test && ix.nodes.get(id).uncovered !== true && nodeRound(ix, id, round).status === "passed")).length);
       }
     }
     const parts = {
       discover: mapped ? 1 : steps.length ? steps.filter(step => step.status === "done" || step.status === "skipped").length / steps.length : 0,
       scope: job ? 1 : 0,
-      freeze: !job ? 0 : sealed || accepted || done ? 1 : share(leaves.filter(id => settled(ix, id)).length),
+      freeze: !job ? 0 : sealed || accepted || done ? 1 : Math.min(.95, freezeShare(view, ix, share)),
       rewrite: !job ? 0 : has ? 1 : share(counts.wrote),
-      verify: !job ? 0 : accepted || outcome === "ok" || outcome === "gaps" ? 1 : share(best),
+      verify: !job ? 0 : accepted || outcome === "ok" || outcome === "gaps" ? 1 : Math.max(share(best), .3 * stepShare(job, "compare_behavior")),
       deliver: done ? 1 : 0,
     };
     let percent = Math.round(STAGE_IDS.reduce((sum, id) => sum + WEIGHTS[id] * parts[id], 0));
@@ -7029,6 +7138,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
      are in the unit of a capability's level: the root's is 1 and each level's is a little smaller. */
   const CONE = {
     squash: .4,             // the scene's half height against its radius seen from above, on a wide stage
+    spindle: .8,            // the same on a tall stage, times the stage's height over its width: a phone's sky is filled downward too
     flat: [.55, .7],        // the least and the most the heights are scaled by to get it
     round: 1.6,             // the most a scene that is long seen from above is widened across, toward a disc
     deep: .5,               // the unit at the deepest level against the root's (each level shrinks alike, by .88 to .97)
@@ -7054,7 +7164,9 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
     close: .35,             // how much less a subtree that is all of its parent's claims: the trunk stays close
     few: 3,                 // up to this many leaves among groups stand between the groups, each in its own direction
     climb: .12, unwind: .09,   // a chain: how much each link climbs, and how much less each turns than the one before
-    light: 3                // a group of up to this many leaves and nothing else sits on its parent's shell of leaves
+    apart: [16, 6, .3, .013, 120],   // a scene of more capabilities than the last is cleared on the screen: from this many sides, this many times, by this part of what is missing, to this share of the scene's radius between two leaves
+    light: 3,               // a group of up to this many leaves and nothing else sits on its parent's shell of leaves
+    ring: [6, .16, 20]      // up to this many leaves round the root stand evenly on one level ring, this much above it, in a tree of up to the last of these
   };
   const HUB = "\u0000hub";                      // what several tops hang from; it has no place
   const far3 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
@@ -7107,6 +7219,32 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
     }
   }
 
+  /* No capability in front of another as the sky turns. A crowded scene is looked at from every side in turn (as
+     the camera sees it: turned round the vertical axis, tilted, without perspective), and two capabilities that
+     stand within `need` of each other on the screen are moved apart across it, each by a part of what is missing,
+     so the picture changes little and a dense middle opens up. `still` (an index) stays where it is. */
+  function clearOnScreen(P, need, still, tilt) {
+    const n = P.length, ct = Math.cos(tilt), st = Math.sin(tilt), sx = new Float64Array(n), sy = new Float64Array(n), K = CONE.apart;
+    for (let round = 0; round < K[1]; round++) {
+      for (let turn = 0; turn < K[0]; turn++) {
+        const a = (turn + (round % 2) / 2) * TAU / K[0], c = Math.cos(a), s = Math.sin(a);
+        for (let i = 0; i < n; i++) { const p = P[i]; sx[i] = p[0] * c + p[2] * s; sy[i] = p[0] * s * st + p[1] * ct - p[2] * c * st; }
+        for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+          const least = (need[i] + need[j]) / 2, dx = sx[i] - sx[j];
+          if (dx >= least || -dx >= least) continue;
+          const dy = sy[i] - sy[j], far = Math.hypot(dx, dy);
+          if (far >= least) continue;
+          const ux = far > 1e-9 ? dx / far : Math.cos((i * 7 + j) * GOLD), uy = far > 1e-9 ? dy / far : Math.sin((i * 7 + j) * GOLD);
+          const push = (least - far) * K[2], wi = i === still ? 0 : j === still ? 2 : 1, wj = 2 - wi;
+          // across the screen: its x axis is (c, 0, s) in space and its y axis (s st, ct, -c st)
+          const mx = (ux * c + uy * s * st) * push, my = uy * ct * push, mz = (ux * s - uy * c * st) * push, p = P[i], q = P[j];
+          p[0] += mx * wi; p[1] += my * wi; p[2] += mz * wi; q[0] -= mx * wj; q[1] -= my * wj; q[2] -= mz * wj;
+          sx[i] += (ux * push) * wi; sy[i] += (uy * push) * wi; sx[j] -= (ux * push) * wj; sy[j] -= (uy * push) * wj;
+        }
+      }
+    }
+  }
+
   /* Where a scene turns: seen from above, the middle of the smallest circle that holds every capability, at mid
      height (`free` = 1); a small tree (`free` = 0) turns near its root (`heart`, an index, or -1 when there is no
      one root), which is the heart of the picture: most of the way from it to that middle, and no more than a part
@@ -7131,7 +7269,8 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
      out inside a cone round its heading, each given a share of that cone in proportion to the angle its balloon
      fills, far enough to clear the leaves and each other, but a light group no farther than its own size asks.
      Places are then handed out from the root down, the scene is rounded and pressed to the stage's shape (a disc
-     for a wide stage, a spindle for a tall one), and pairs that stand too close are eased apart. An only child
+     for a wide stage, a spindle for a tall one), pairs that stand too close are eased apart, and in a crowded scene
+     so are pairs that stand in front of each other as the sky turns (clearOnScreen). An only child
      turns from its parent's heading, a little less with every link, so a chain is a spiral that opens.
      Returns the places (not yet scaled), each capability's unit, and the family. */
   function grow(tree, seed, aspect) {
@@ -7185,11 +7324,17 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
           const start = radii.length > 1 ? cuts[radii.length - 2] : 0;
           leaves = leaves.slice();
           light.forEach((kid, i) => leaves.splice(Math.min(leaves.length, start + Math.round((i + .5) * (seats - start) / light.length)), 0, kid));
+          // A handful of leaves round the root stand evenly on one level ring a little above it. The camera looks
+          // down on a level ring from the same height at every turn, so a tiny tree is the same small figure, its
+          // root in the middle, whichever way the sky is turned, and its leaves are never in one line (a ring that
+          // leans is seen edge-on twice a turn). Two leaves make a V, not a bar through the root.
+          const ring = first && n <= K.ring[2] && radii.length === 1 && seats <= K.ring[0];
           for (let s = 0; s < radii.length; s++) {
             const upTo = cuts[s], count = upTo - done;
             for (let j = 0; j < count; j++) {
               // a few leaves round the root keep near its equator, where a wide stage has room
-              const c = (1 - span * (j + .5) / count) * (first ? Math.min(1, (.35 + .08 * count) * tall) : 1), r = Math.sqrt(Math.max(0, 1 - c * c)), a = j * GOLD + turn + s * 2.1;
+              const a = ring ? turn + (count === 2 ? j * 2.3 : j * TAU / count) : j * GOLD + turn + s * 2.1;
+              const c = ring ? K.ring[1] : (1 - span * (j + .5) / count) * (first ? Math.min(1, (.35 + .08 * count) * tall) : 1), r = Math.sqrt(Math.max(0, 1 - c * c));
               const kid = leaves[done + j], dir = [r * Math.cos(a), r * Math.sin(a), c];
               if (kids[kid].length) seat(kid, dir, radii[s] + K.gap * u); else plan.seats.push({id: kid, dir, far: radii[s]});
             }
@@ -7285,11 +7430,17 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
     }
     let radius = 0, low = Infinity, high = -Infinity;
     for (const p of P) { radius = Math.max(radius, Math.hypot(p[0] - mx, p[2] - mz)); low = Math.min(low, p[1]); high = Math.max(high, p[1]); }
-    const want = clamp(.62 / aspect, K.squash, 1.6), least = lerp(K.flat[0], K.flat[1], big);
+    const want = clamp(lerp(K.spindle, .62, clamp((aspect - .8) / .4, 0, 1)) / aspect, K.squash, 1.6), least = lerp(K.flat[0], K.flat[1], big);
     const most = lerp(K.flat[1], Math.max(K.flat[1], .95 * want / K.squash), clamp((want - K.squash) / .3, 0, 1));
     const squash = high - low > 1e-9 ? clamp(want * radius / ((high - low) / 2), least, most) : 1;
     for (const p of P) p[1] *= squash;
     easeApart(P, ids.map(id => K.near * K.pitch * unit[id]), solo ? 0 : -1);
+    if (n > K.apart[4]) {
+      // (a group's point is larger than a leaf's and the root's larger again, as they are drawn)
+      const span = Math.max(radius, (high - low) * squash / 2), eye = (17 + 21 * clamp((1 / aspect - 1) / .8, 0, 1)) * Math.PI / 180;
+      clearOnScreen(P, ids.map(id => K.apart[3] * span * (kids[id].length ? (id === top ? 2 : 1.45) : 1) * 2), solo ? 0 : -1, eye);
+      easeApart(P, ids.map(id => K.near * K.pitch * unit[id]), solo ? 0 : -1);      // and none nearer in space for it
+    }
     // A chain has no heart: it turns round its middle. So does a big tree, which must fill the stage to be read.
     const leash = solo && kids[top].length === 1 ? 1 : clamp((n - K.small[0]) / (K.small[1] - K.small[0]), 0, 1);
     const origin = originOf(P, solo ? 0 : -1, leash);
@@ -7703,6 +7854,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
   const DUR = 1.4, LOOK_DUR = .7, SPIN = .07, ROT0 = .55, TILT = 17 * Math.PI / 180, EYE = 3.1, REACH = 22, CEL = 2.6;
   const WX = 0, WY = 1, WZ = 2, FX = 3, FY = 4, IN = 5, SH = 6, LIFE = 7, CHANNELS = 8;
   const RADIUS = [2.5, 3.5, 6], DUSTS = 190;          // a leaf, a group, the root (px at the usual scale); background specks
+  const GLOW = [36, 46, 56], TINY = 20, TINY_TILT = 16;   // the widest glow of each, px (a lone star is not a floodlight); up to where a tree is tiny, and how much higher the camera stands over a handful (degrees)
   const WIDTHS = [.55, .8, 1.25, 4.5, 1.9, 2.7];      // a hairline, a twig, a limb, a band of glow, a bough, the trunk (px)
   const EMPTY = {root: null, nodes: [], byId: bare(), relations: []};
   const signed = typeof WeakMap === "function" ? new WeakMap() : null;
@@ -7738,7 +7890,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
       dust[i] = far * Math.cos(a); dust[i + 1] = y * far * .7; dust[i + 2] = far * Math.sin(a); dust[i + 3] = r() * r();
     }
     let scene = {tree: EMPTY, states: null, mode: "3d", keep: null, collapsed: null, seed: opt.seed};
-    let recs = [], order = [], rels = [], pad = padOf(opt.pad), W = 0, H = 0, dpr = 1, tilt = TILT, font = "", fontSize = 11;
+    let recs = [], order = [], rels = [], pad = padOf(opt.pad), W = 0, H = 0, dpr = 1, tilt = TILT, lean = TILT, over = 0, font = "", fontSize = 11;
     let inset = {top: 0, right: 0, bottom: 0, left: 0};      // how much of each edge of the canvas lies under a bar of the page: no name is written there
     let T = 0, step = 0, phase = 0, dragged = 0, spin = 0, scroll = 0, scrollMax = 0, flatTall = 0;
     let geo = {t0: 0, dur: 0}, m0 = 0, m1 = 0, fit0 = {s: 1, cx: 0, cy: 0, crowd: 1}, fit1 = fit0, shape = null, geoKey = "", begun = false;
@@ -7828,7 +7980,8 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
       if (w === W && h === H && ratio === dpr) return false;
       W = w; H = h; dpr = ratio;
       if (canvas) { canvas.width = Math.max(1, Math.round(W * dpr)); canvas.height = Math.max(1, Math.round(H * dpr)); }
-      tilt = TILT + (W > 0 ? 21 * Math.PI / 180 * clamp((H / W - 1) / .8, 0, 1) : 0);     // a tall stage is seen from higher up, so the sky fills more of it
+      lean = TILT + (W > 0 ? 21 * Math.PI / 180 * clamp((H / W - 1) / .8, 0, 1) : 0);     // a tall stage is seen from higher up, so the sky fills more of it
+      tilt = lean + over;
       fontSize = 11;
       let mono = "";
       try { mono = win.getComputedStyle(canvas).getPropertyValue("--mono").trim(); } catch (error) { mono = ""; }
@@ -7855,10 +8008,13 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
         }
       }
       // The middle of the scene's height stands at the middle of the stage, however it is turned; the root is off it by `lift`.
-      const lift = (low + high) / 2 * ct, s = Math.min(aw / 2 / wide, ah / 2 / Math.max(.08, up - lift), ah / 2 / Math.max(.08, down + lift), Math.min(aw, ah) * .95);
+      // A tiny tree is a small figure in the middle of the stage, not three points at its edges: its scale is held
+      // back, less with every capability more, and not at all from `TINY` capabilities on.
+      const many = Math.max(1, ids.length), side = Math.min(aw, ah);
+      const most = many >= TINY ? Infinity : many === 1 ? .42 * side : Math.max(130, (.24 + .018 * many - .02 * Math.max(0, 4 - many) + .0016 * Math.max(0, many - 6) ** 2) * side);
+      const lift = (low + high) / 2 * ct, s = Math.min(aw / 2 / wide, ah / 2 / Math.max(.08, up - lift), ah / 2 / Math.max(.08, down + lift), side * .95, most);
       // crowd: the stars of a big repository are drawn smaller, so that three hundred are still points, and those of a
       // small one larger, so that five are not lost.
-      const many = Math.max(1, ids.length);
       return {s, cx: pad.left + aw / 2, cy: pad.top + ah / 2 + lift * s, crowd: many < 48 ? Math.min(2.2, Math.pow(48 / many, .45)) : Math.max(.6, Math.pow(48 / many, .3))};
     }
     const cached = (slot, key, make) => { const have = cache[slot]; if (have && have.key === key) return have.value; const value = make(); cache[slot] = {key, value}; return value; };
@@ -7978,6 +8134,8 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
       }
       recs = next; order = next.slice();
       rels = (t.relations || []).length > 420 ? t.relations.filter((_, i) => i % Math.ceil(t.relations.length / 420) === 0) : (t.relations || []);
+      // A handful of capabilities are seen from higher up, so the ring of leaves round the root is an open figure.
+      over = TINY_TILT * Math.PI / 180 * clamp((9 - shape.ids.length) / 3, 0, 1); tilt = lean + over;
       fit1 = fitOf(shape.lay, shape.ids);
       m0 = mNow; m1 = three ? 0 : 1; cel = null;
       geo = {t0: T, dur: instant || first || calm() ? 0 : DUR};
@@ -8150,7 +8308,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
         // pass each other as the sky turns do not burn into one patch.
         let room = Infinity;
         if (few) for (const other of order) if (other !== rec && other.vis > .5) room = Math.min(room, Math.hypot(other.x - rec.x, other.y - rec.y));
-        const half = Math.min(rec.r * 6.5 * (1 - m * .25) * slim, Math.max(rec.r * 3, room));
+        const half = Math.min(rec.r * 6.5 * (1 - m * .25) * slim, Math.max(rec.r * 3, room), GLOW[rec.kind]);
         for (let side = 0; side < 2; side++) {
           const weight = side ? rec.mix : 1 - rec.mix, name = side ? rec.lookB : rec.lookA, look = LOOKS[name];
           if (weight < .01 || !look) continue;
@@ -8172,7 +8330,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
          the sky turns. */
       if (deep > .02 && opt.names !== false) {
         const stars = recs.filter(rec => rec.shown), count = stars.length, total = Math.max(1, stars.reduce((sum, rec) => sum + (rec.kind === 0 ? 1 : 0), 0));
-        const most = W < 600 ? 5 : count <= 40 ? 14 : Math.round(clamp(8 + count / 25, 8, 20)), taken = [];
+        const most = count <= 7 ? count : W < 600 ? 5 : count <= 40 ? 14 : Math.round(clamp(8 + count / 25, 8, 20)), taken = [];
         const named = stars.filter(rec => rec.node.label && (rec.kind > 0 || count <= 40));
         for (const rec of named) { rec.rank = rec.kind === 2 ? 9 : rec.near + (rec.kind ? .6 : 0) + (rec.node.depth <= 1 ? .35 : 0) + .5 * Math.sqrt(rec.node.weight / total) + (rec.name > .5 ? .25 : 0); rec.tuft = 0; }
         for (const rec of stars) { const parent = rec.kind === 0 && rec.up != null ? recOf[rec.up] : null; if (parent && parent.shown) parent.tuft = Math.max(parent.tuft || 0, Math.hypot(rec.x - parent.x, rec.y - parent.y)); }
@@ -8525,6 +8683,9 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
     "Progress of the run": "运行进度", "Stage {n} / {of} · {title}": "阶段 {n} / {of} · {title}",
     "Tests ready {n} / {of}": "测试就绪 {n} / {of}", "Written {n} / {of}": "已写 {n} / {of}", "Passing {n} / {of}": "已通过 {n} / {of}",
     "Failing {n}": "未通过 {n}", "Cannot be verified {n}": "无法验证 {n}", "{n} capabilities mapped": "已分析出 {n} 个能力",
+    "1 capability mapped": "已分析出 1 个能力", "1 public class or callable": "1 个对外的类或函数",
+    "Point at a capability to read about it here: what it is, how large it is, whether it is kept, and why a tick box takes no click.":
+      "把指针移到某个能力上，这里会显示它的说明：它是什么、有多大、是否保留，以及勾选框为什么不能点。",
     "Not selected": "未选中", "Selected, not started": "已选中，尚未开始", "Tests ready": "测试已就绪", "Written": "已写完",
     "Tests passing": "测试通过", "Tests failing": "测试未通过", "cannot be fully verified": "无法完整验证",
     "Mapped, not chosen yet": "已分析，尚未选择", "Kept": "保留", "Left out": "不保留", "A group": "分组",
@@ -8573,7 +8734,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
       "这份计划的结构信息由较早版本的 nanolize 写入，不显示。要查看能力之间的关系，请从 manifest 中去掉这一块，把 manifest 绑定到结构索引后重新生成计划。",
     "The inventory of this plan is incomplete: the sizes shown are subtotals of what was measured.": "这份计划的清单不完整：显示的规模只是已测量部分的小计。",
     "Show what is under {name}": "展开 {name}", "Hide what is under {name}": "收起 {name}",
-    "Tests": "测试", "{passed} / {total} passing": "{passed} / {total} 通过", "none yet": "还没有", "Code": "代码",
+    "Tests": "测试", "{passed} / {total} passing": "{passed} / {total} 通过", "none yet": "还没有", "exempted from a leaf test": "已豁免，没有叶子测试", "Code": "代码",
     "1 file": "1 个文件", "{n} files": "{n} 个文件", "{n} tokens": "{n} tokens", "Depends on": "依赖", "+{n} more": "另有 {n} 个",
     "Interface": "对外接口", "{n} public classes and callables": "{n} 个对外的类和函数", "Now": "现在", "Capability": "能力", "State": "状态",
     "Submit & start": "提交并开始", "Contacting service…": "正在联系服务…", "Resume status": "重新读取状态", "Run paused": "运行已暂停",
@@ -8594,6 +8755,9 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
     return values ? chosen.replace(/\{(\w+)\}/g, (slot, key) => !Object.hasOwn(values, key) ? slot : values[key] == null ? "" : String(values[key])) : chosen;
   }
   const count = value => whole(value).toLocaleString("en-US");
+  // How many of a thing, in words: one of them has its own sentence.
+  const mapped = n => whole(n) === 1 ? T("1 capability mapped") : T("{n} capabilities mapped", {n: count(n)});
+  const declared = n => whole(n) === 1 ? T("1 public class or callable") : T("{n} public classes and callables", {n: count(n)});
   // What a page may write of a value that should be text: the text, or nothing.
   const words = value => typeof value === "string" ? value : typeof value === "number" && isFinite(value) ? String(value) : "";
 
@@ -8744,15 +8908,23 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
   function barWords(progress, view, plan, given, catalog) {
     const m = modules(given), stage = record(progress.stage);
     const c = Object.fromEntries(["leaves", "ready", "wrote", "pass", "fail", "gap"].map(key => [key, whole(record(progress.counts)[key])]));
-    const mapped = record(plan).available === true, stars = starsOf(plan);
+    const known = record(plan).available === true, stars = starsOf(plan);
     const counts = c.leaves ? [T("Selected {n}", {n: c.leaves}), T("Tests ready {n} / {of}", {n: c.ready, of: c.leaves}), T("Written {n} / {of}", {n: c.wrote, of: c.leaves}),
       T("Passing {n} / {of}", {n: c.pass, of: c.leaves}), ...(c.fail ? [T("Failing {n}", {n: c.fail})] : []),
       ...(c.gap ? [T("Cannot be verified {n}", {n: c.gap})] : [])]
-      : mapped ? [T("{n} capabilities mapped", {n: list(plan.capabilities).length}), ...(stars ? [T("{n} public classes and callables", {n: count(stars)})] : [])] : [];
+      : known ? [mapped(list(plan.capabilities).length), ...(stars ? [declared(stars)] : [])] : [];
     const tones = c.leaves ? ["", "", "", "", ...(c.fail ? ["bad"] : []), ...(c.gap ? ["warn"] : [])] : counts.map(() => "");
     const dots = c.leaves ? ["dim", "ready", "wrote", "pass", ...(c.fail ? ["fail"] : []), ...(c.gap ? ["gap"] : [])] : ["cloud", "small"].slice(0, counts.length);
     return {stage: T("Stage {n} / {of} · {title}", {n: whole(stage.n) || 1, of: whole(stage.of) || 6, title: stageTitle(view, whole(stage.n) || 1, stage.id, m, catalog)}),
       percent: whole(progress.percent) + "%", counts, tones, dots};
+  }
+
+  /* What the run does now, in the run page's own sentence (run-flow.js `sentence`, which writes the head of its
+     "now" bar), or "": this page words nothing of its own here, so the two pages never say two things of one moment. */
+  function nowText(view, given, catalog) {
+    const m = modules(given), v = record(view);
+    if (!m.flow || typeof m.flow.sentence !== "function") return "";
+    return words(record(attempt(() => m.flow.sentence(v, record(v.flow), catalog, m.dashboard.pauseText, undefined, undefined, m.dashboard.endedText), null)).text);
   }
 
   /* The one line a scene says over the sky, or null: {text, tone, link: {href, text}}. */
@@ -8784,9 +8956,13 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
     if (scene.name === "mapping") {
       const known = list(m.dashboard.DISCOVER_STEPS), steps = list(record(record(v.stages).discover).steps).filter(step => step && typeof step === "object");
       const active = steps.find(step => step.status === "active"), at = active ? known.findIndex(step => step.id === active.id) : -1;
-      return {tone: "", link: null, text: at < 0 ? T("Mapping the repository")
+      // No step of the discovery runs (it is done and the review has not opened, or the host agent is away): the
+      // run page's sentence says what the run waits for.
+      return {tone: "", link: null, text: at < 0 ? (whole(stage.n) > 1 && nowText(view, given, catalog)) || T("Mapping the repository")
         : T("Mapping the repository · step {n} of {of}: {step}", {n: at + 1, of: known.length, step: m.dashboard.T(known[at].label)})};
     }
+    /* A job at work: what it does now. A job that waits for its owner says so in the notice instead. */
+    if (scene.name === "kept" && !scene.attention) { const text = nowText(view, given, catalog); return text ? {tone: "", link: null, text} : null; }
     // The cloud's counts are the bar's; the line says only what a reader would otherwise wait for.
     if (scene.name === "cloud" && scene.unattended) return {tone: "", link: null, text: T("The host agent submits the scope: nobody is asked.")};
     return null;
@@ -8843,7 +9019,8 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
       out.tone = entry.gap && entry.state !== "fail" ? "gap" : entry.state;
       const tests = record(entry.tests);
       if (entry.state !== "out" && tests.total) out.rows.push([T("Tests"), T("{passed} / {total} passing", {passed: whole(tests.passed), total: tests.total})]);
-      else if (entry.state !== "out" && entry.leaf && !entry.unlisted) out.rows.push([T("Tests"), T("none yet")]);
+      // A leaf the job's records exempt from a leaf test has none to wait for, and says so.
+      else if (entry.state !== "out" && entry.leaf && !entry.unlisted) out.rows.push([T("Tests"), node.leaf_test === "exempted" ? T("exempted from a leaf test") : T("none yet")]);
       const look = m.progress.liveLook(entry.live);
       if (look && words(look.words)) out.now = look.words;
     }
@@ -8852,7 +9029,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
       typeof cap.tokens === "number" ? T("{n} tokens", {n: count(cap.tokens)}) : ""].filter(Boolean);
     if (code.length) out.rows.push([T("Code"), code.join(" · ")]);
     const stars = whole(cap.interface_total) || list(cap.interface).length;
-    if (stars) out.rows.push([T("Interface"), T("{n} public classes and callables", {n: count(stars)})]);
+    if (stars) out.rows.push([T("Interface"), declared(stars)]);
     const needs = list(Array.isArray(cap.depends_on) ? cap.depends_on : node.depends_on).filter(other => typeof other === "string");
     if (needs.length) out.rows.push([T("Depends on"), [...needs.slice(0, 3).map(name), needs.length > 3 ? T("+{n} more", {n: needs.length - 3}) : ""].filter(Boolean).join(", ")]);
     return out;
@@ -8920,6 +9097,10 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
     const usable = attempt(() => typeof canvas.getContext === "function" && Boolean(canvas.getContext("2d")), false);
     const sky = usable && m.sky ? attempt(() => m.sky.mount(canvas, {auto: frozen === null}), still) : still;
     let listOpen = params.get("list") === "1" || sky === still;
+    // What follows a Submit is written by execution.js when it has something to say: the selection's controls and
+    // that panel grow or shrink with it, and the tree and the card are placed again.
+    const watched = typeof win.ResizeObserver === "function" ? attempt(() => new win.ResizeObserver(() => { if (view && shown === "select") draw(); }), null) : null;
+    if (watched) attempt(() => watched.observe($("select")), null);
 
     let view = null, plan = null, graph = null, catalog = null, version = null, last = null, force = false;
     let timer = 0, generation = 0, stopped = false, failures = 0, service = "";
@@ -8955,45 +9136,56 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
 
     /* ---- The hover card ---- */
     let laid = new Map();        // the flat tree's rows as they are laid out now: id -> its box, from the canvas's corner
-    /* Where the card stands (the stage's own px). It never lies over what it speaks of. In space: beside the
-       star, clear of its ring, on the side with more room. In the flat tree: beside the row's column, so that
-       neither the row nor the rows under it are covered. On a phone: a sheet across the foot of the stage, or
-       across its head when what it speaks of is at the foot. */
+    /* The side of the selection scene. On a stage at least `least` wide the flat tree keeps a column free at its
+       right (the scene's pad), and what speaks of the tree stands there, never over it: what follows a Submit
+       (execution.js's panel) and under it the card of the capability in hand. */
+    const SIDE = {least: 900, width: 300, edge: 28};
+    const gateShown = panel => /\bgate\b/.test(words(record(panel).className));
+    /* Where the card stands (the stage's own px). It never lies over what it speaks of, nor over what its reader
+       is likely to turn to next. In space: beside the star, clear of its ring, on the side with more room. In the
+       flat tree: in the column the tree keeps free at its side, the same place for every row. On a stage too
+       narrow for that column, and in space on a phone: a sheet across the half of the stage the capability is
+       not in (the foot for one in the upper half, the head for one in the lower half), so the rows after a row
+       that was ticked stay free. */
     function cardPlace(id, x, y, w, t) {
-      const g = geometry(), row = shown === "select" ? laid.get(id) || null : null, head = shown === "select" ? whole($("select").offsetHeight) : 0;
+      const g = geometry(), select = shown === "select", row = select ? laid.get(id) || null : null, head = select ? whole($("select").offsetHeight) : 0;
       const top0 = head + 8, low = Math.max(top0, g.tall - t - 8);
-      if (g.wide < 640) {
-        const from = (row ? row.y : y - 24) - g.dy, to = (row ? row.y + row.h : y + 24) - g.dy;
-        return {sheet: true, left: 8, top: to > low - 6 && from > top0 + t ? top0 : low};
+      if (select && g.wide >= SIDE.least) {
+        const panel = choice ? record(choice.head).panel : null, over = panel && !panel.hidden && !gateShown(panel) ? whole(panel.offsetHeight) + 10 : 0;
+        return {docked: true, sheet: false, left: g.wide - SIDE.edge - SIDE.width, top: top0 + over};
       }
-      if (row) {
-        const x0 = row.x - g.dx, x1 = x0 + row.w;
-        const left = x1 + 10 + w <= g.wide - 8 ? x1 + 10 : x0 - 10 - w >= 8 ? x0 - 10 - w : null;
-        if (left !== null) return {sheet: false, left: Math.round(left), top: Math.round(clamp(row.y - g.dy - 6, top0, low))};
-        // No room beside the column: over the far end of the row, below it or above it.
-        const under = row.y + row.h - g.dy + 8;
-        return {sheet: false, left: Math.round(clamp(x1 - w, 8, Math.max(8, g.wide - w - 8))), top: Math.round(under + t <= g.tall - 8 ? under : Math.max(top0, row.y - g.dy - t - 8))};
+      if (select || g.wide < 640) {
+        const middle = (row ? row.y + row.h / 2 : y) - g.dy;
+        return {docked: false, sheet: true, left: 8, top: middle > (top0 + g.tall) / 2 ? top0 : low};
       }
       const clear = (attempt(() => sky.places()[id].r, 0) || 6) + 23, sx = x - g.dx, sy = y - g.dy;
       const left = sx > g.wide / 2 ? sx - clear - w : sx + clear;
-      return {sheet: false, left: Math.round(clamp(left, 8, Math.max(8, g.wide - w - 8))), top: Math.round(clamp(sy - 20, 8, Math.max(8, g.tall - t - 8)))};
+      return {docked: false, sheet: false, left: Math.round(clamp(left, 8, Math.max(8, g.wide - w - 8))), top: Math.round(clamp(sy - 20, 8, Math.max(8, g.tall - t - 8)))};
     }
+    /* Shows the card of a capability, or of none: the card then goes, but for the column at the side of the flat
+       tree, which is never empty: it says what it is for. */
     function showCard(id, x, y) {
-      const card = $("card");
-      if (id == null || !trees.tree || !trees.tree.byId[id] || trees.tree.byId[id].synthetic) { cardId = null; card.hidden = true; return; }
-      const told = attempt(() => cardOf(id, {scene: shown, caps: trees.caps, nodes: trees.nodes, states, choice: shown === "select" ? choice : null}, m), null);
-      if (!told) { cardId = null; card.hidden = true; return; }
-      cardId = id;
-      const facts = h("dl", "ov-card-rows");
-      for (const [label, value] of told.rows) facts.append(h("dt", "", label), h("dd", "", value));
-      fillWith(card, h("b", "ov-card-title", told.title), told.description ? h("p", "ov-card-text", told.description) : null,
-        h("p", "ov-card-state t-" + (told.tone || "none"), h("i", "ov-dot"), told.state), told.rows.length ? facts : null,
-        told.now ? h("p", "ov-card-now", h("span", "", T("Now")), told.now) : null, told.lock ? h("p", "ov-card-lock", h("i", "ov-lock"), told.lock) : null);
+      const card = $("card"), known = id != null && trees.tree && trees.tree.byId[id] && !trees.tree.byId[id].synthetic;
+      const told = known ? attempt(() => cardOf(id, {scene: shown, caps: trees.caps, nodes: trees.nodes, states, choice: shown === "select" ? choice : null}, m), null) : null;
+      const idle = !told && shown === "select" && geometry().wide >= SIDE.least;
+      cardId = told ? id : null;
+      card.classList.toggle("idle", idle);
+      if (!told && !idle) { card.hidden = true; card.classList.toggle("docked", false); return; }
+      if (told) {
+        const facts = h("dl", "ov-card-rows");
+        for (const [label, value] of told.rows) facts.append(h("dt", "", label), h("dd", "", value));
+        fillWith(card, h("b", "ov-card-title", told.title), told.description ? h("p", "ov-card-text", told.description) : null,
+          h("p", "ov-card-state t-" + (told.tone || "none"), h("i", "ov-dot"), told.state), told.rows.length ? facts : null,
+          told.now ? h("p", "ov-card-now", h("span", "", T("Now")), told.now) : null, told.lock ? h("p", "ov-card-lock", h("i", "ov-lock"), told.lock) : null);
+      } else fillWith(card, h("p", "ov-card-hint", T("Point at a capability to read about it here: what it is, how large it is, whether it is kept, and why a tick box takes no click.")));
       card.hidden = false;
-      card.classList.toggle("sheet", geometry().wide < 640);
       const at = cardPlace(id, x, y, whole(card.offsetWidth) || 300, whole(card.offsetHeight) || 180);
+      card.classList.toggle("sheet", at.sheet);
+      card.classList.toggle("docked", at.docked);
       card.style.left = at.left + "px";
       card.style.top = at.top + "px";
+      // In its column the card ends where the stage ends, whatever stands over it.
+      card.style.maxHeight = at.docked ? Math.max(60, geometry().tall - at.top - 8) + "px" : "";
     }
     sky.on("hover", told => showCard(told && told.id, record(told).x || 0, record(told).y || 0));
     doc.addEventListener("keydown", event => { if (event.key === "Escape") { sky.focus(null); showCard(null); } });
@@ -9006,6 +9198,29 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
     let folds = null, touched = false, orderKey = "", captionKey = "", ordered = [];
     const opened = new Map();
     const digestOf = () => words(record(plan).manifest_sha256) || "plan";
+    /* The folds are also kept in the browser, by the plan's digest, as the run page keeps a viewer's choices
+       (localStorage): a reload shows the tree as its owner left it. The last few plans are kept, the oldest
+       dropped. A browser that refuses storage, or holds something else under the key, changes nothing: the
+       folds then last as long as the page. */
+    const FOLDS_KEY = "nanolize.overview.folds", FOLDS_PLANS = 8;
+    const shelf = () => attempt(() => win.localStorage || null, null);
+    const shelved = () => attempt(() => { const held = JSON.parse(shelf().getItem(FOLDS_KEY)); return record(held); }, {});
+    function recall(digest, tree) {
+      const had = shelved()[digest];
+      if (!Array.isArray(had)) return null;
+      // Only what is a group of this tree: an id the plan no longer has, or one that became a leaf, is nothing to shut.
+      return new Set(had.filter(id => typeof id === "string" && tree.byId[id] && !tree.byId[id].leaf));
+    }
+    function remember(digest, shut) {
+      attempt(() => {
+        const held = shelved();
+        delete held[digest];
+        held[digest] = [...shut];
+        const keys = Object.keys(held);
+        for (const key of keys.slice(0, Math.max(0, keys.length - FOLDS_PLANS))) delete held[key];
+        shelf().setItem(FOLDS_KEY, JSON.stringify(held));
+      }, null);
+    }
     function fold(id, shut) {
       if (!folds) folds = new Set(list(sky.state().collapsed));
       const now = folds.has(id), want = shut === undefined ? !now : Boolean(shut);
@@ -9013,6 +9228,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
       if (want) folds.add(id); else folds.delete(id);
       touched = true;
       opened.set(digestOf(), new Set(folds));
+      remember(digestOf(), folds);
       skyKey = "";
       draw();
       return true;
@@ -9098,10 +9314,10 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
       head.all.setAttribute("aria-pressed", String(kept.size === choice.total));
       // How much is kept, in parts that stay whole where a narrow page wraps the line.
       const parts = [T("Kept {n} of {of}", {n: kept.size, of: choice.total}),
-        tokens ? T("their own code {kept} of {all} tokens", {kept: count(tokens.kept), all: count(tokens.all)}) : "",
+        tokens && tokens.all ? T("their own code {kept} of {all} tokens", {kept: count(tokens.kept), all: count(tokens.all)}) : "",
         label === "core" ? T("Core features") : label === "all" ? T("All features") : T("Custom selection")].filter(Boolean);
       fillWith(head.count, ...parts.flatMap((part, at) => [at ? " " : null, h("span", "", part + (at < parts.length - 1 ? " ·" : ""))]));
-      head.count.title = tokens ? T("The tokens of each kept capability's own files, added up: a file that two capabilities map counts in both, and configuration is not counted. The selection page's estimate for the rewrite is on the detailed page.") : "";
+      head.count.title = tokens && tokens.all ? T("The tokens of each kept capability's own files, added up: a file that two capabilities map counts in both, and configuration is not counted. The selection page's estimate for the rewrite is on the detailed page.") : "";
       head.message.textContent = said;
       // The notes the selection page shows before Submit: how many, their first words under the pointer, and the way to them.
       const found = attempt(() => notesOf(plan, m), {notes: [], more: 0, count: 0});
@@ -9132,7 +9348,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
       const tree = treeNow(), layer = $("rows");
       choice = chooser(plan, m); choiceOf = plan; said = "";
       rows.clear(); laid = new Map(); orderKey = ""; captionKey = ""; ordered = [];
-      const had = opened.get(digestOf());
+      const had = opened.get(digestOf()) || recall(digestOf(), tree);
       folds = had ? new Set(had) : null; touched = Boolean(had);
       const chip = (text, preset, told) => {
         const button = h("button", "ov-chip", text);
@@ -9147,6 +9363,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
       head.notes.setAttribute("title", T("Notes of the selection page: open the detailed page to read them"));
       head.message.setAttribute("aria-live", "polite");
       head.submit.type = "button"; head.submit.id = "submit-button"; head.panel.id = "execution-panel"; head.panel.hidden = true;
+      if (watched) attempt(() => watched.observe(head.panel), null);
       choice.head = head;
       $("select").replaceChildren(h("div", "ov-select-bar", h("div", "ov-presets", head.core, head.all), head.count, head.notes,
         h("span", "ov-grow"), head.submit), head.message, head.panel);
@@ -9229,6 +9446,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
     }
     function dropSelect() {
       if (controller) controller.destroy();
+      if (watched && choice && record(choice.head).panel) attempt(() => watched.unobserve(choice.head.panel), null);
       controller = null; choice = null; choiceOf = null; rows.clear(); laid = new Map(); folds = null; touched = false; orderKey = ""; captionKey = ""; ordered = [];
       $("rows").replaceChildren(); $("captions").replaceChildren(); $("tree").classList.toggle("on", false);
       $("more").hidden = true;
@@ -9249,6 +9467,8 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
     function renderList() {
       const panel = $("list"), toggle = $("list-toggle");
       panel.hidden = !listOpen;
+      // While a scope is chosen the list starts under the selection's controls: the presets and Submit stay in reach.
+      panel.style.top = (shown === "select" ? whole($("select").offsetHeight) : 0) + "px";
       toggle.setAttribute("aria-pressed", String(listOpen));
       doc.body.classList.toggle("listing", listOpen);
       const key = listOpen ? [skyKey, locale, states ? [...states.values()].reduce((sum, entry) => sum + whole(record(entry.tests).passed), 0) : ""].join("|") : "";
@@ -9260,10 +9480,14 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
         const told = cardOf(node.id, {scene: shown, caps: trees.caps, nodes: trees.nodes, states, choice: shown === "select" ? choice : null}, m);
         const name = h("th", "ov-list-name", words(node.label) || String(node.id));
         name.setAttribute("scope", "row");
-        name.style.paddingLeft = 14 + 16 * Math.min(8, Math.max(0, node.depth - (tree.byId[tree.root] && tree.byId[tree.root].synthetic ? 1 : 0))) + "px";
-        const tests = told.rows.find(row => row[0] === T("Tests"));
-        body.append(h("tr", node.leaf ? "" : "group", name, h("td", "t-" + (told.tone || "none"), h("i", "ov-dot"), told.state),
-          h("td", "", tests ? tests[1] : node.leaf ? "—" : T("A group")), h("td", "", told.now || "—")));
+        const tests = told.rows.find(row => row[0] === T("Tests")), said = tests ? tests[1] : node.leaf ? "" : T("A group");
+        /* One row: the name, the state, the tests, who works on it. On a phone the sheet stacks them (the name on a
+           line of its own, the state and the tests under it), so a cell that has nothing to say is marked. */
+        const line = h("tr", node.leaf ? "" : "group", name, h("td", "ov-list-state t-" + (told.tone || "none"), h("i", "ov-dot"), told.state),
+          h("td", "ov-list-tests" + (said ? "" : " none"), said || "—"), h("td", "ov-list-now" + (told.now ? "" : " none"), told.now || "—"));
+        // How deep it stands in the tree (the sheet indents by it, less on a phone).
+        setVar(line, "--depth", String(Math.min(8, Math.max(0, node.depth - (tree.byId[tree.root] && tree.byId[tree.root].synthetic ? 1 : 0)))));
+        body.append(line);
       }
       const head = h("tr", "", ...[T("Capability"), T("State"), T("Tests"), T("Now")].map(text => { const cell = h("th", "", text); cell.setAttribute("scope", "col"); return cell; }));
       panel.replaceChildren(h("table", "ov-table", h("thead", "", head), body));
@@ -9313,6 +9537,18 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
         name.className = "ov-stage-name" + (i + 1 < at ? " done" : i + 1 === at ? " now" : "");
       });
 
+      /* The scene's one line, at the foot of the sky. It is written before the scene is fitted: the sky leaves it
+         its room, however many lines a narrow window makes of it, and writes no name under it. */
+      const line = sceneLine(scene, view, plan, progress, m, catalog), caption = $("line");
+      caption.hidden = !line;
+      if (line) {
+        caption.className = "ov-line s-" + name + (line.tone ? " t-" + line.tone : "");
+        const link = line.link ? h("a", "ov-link", line.link.text) : null;
+        if (link) link.href = line.link.href;
+        fillWith(caption, h("span", "", line.text), link);
+      }
+      const lineTall = line && name !== "mapping" ? whole(caption.offsetHeight) : 0;
+
       // The sky.
       $("select").hidden = name !== "select";
       if (name === "select") syncRows();
@@ -9326,16 +9562,24 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
       /* The canvas lies under the bars. The scene is fitted to what is free between them: the flat tree starts
          under the selection's controls, the sky leaves room for the line at its foot, and a narrow stage keeps
          less at its sides. No name is written under a bar (inset). */
-      const g = geometry(), narrow = g.wide < 640, head = name === "select" ? whole($("select").offsetHeight) : 0;
-      const pad = name === "select" ? {top: g.top + Math.max(narrow ? 60 : 84, head + 10), right: narrow ? 4 : 20, bottom: g.bottom + 14, left: narrow ? 4 : 20}
-        : {top: g.top + (narrow ? 18 : 30), right: narrow ? 14 : 28, bottom: g.bottom + (narrow ? 44 : 52), left: narrow ? 14 : 28};
+      const g = geometry(), narrow = g.wide < 640, side = name === "select" && g.wide >= SIDE.least;
+      /* The column at the side of the flat tree: the tree is laid out in what is left of the stage. What follows a
+         Submit stands at its head and leaves the card its room; on a narrower stage that panel stands under the
+         selection's controls and the tree starts below it. */
+      doc.body.classList.toggle("sided", side);
+      const panel = choice ? record(choice.head).panel : null;
+      if (panel) panel.style.maxHeight = side && !gateShown(panel) ? Math.max(120, g.tall - whole($("select").offsetHeight) - 250) + "px" : "";
+      const head = name === "select" ? whole($("select").offsetHeight) : 0;
+      const pad = name === "select" ? {top: g.top + Math.max(narrow ? 60 : 84, head + 10), right: side ? SIDE.edge + SIDE.width : narrow ? 4 : 20, bottom: g.bottom + 14, left: narrow ? 4 : 20}
+        : {top: g.top + (narrow ? 18 : 30), right: narrow ? 14 : 28, bottom: g.bottom + Math.max(narrow ? 44 : 52, lineTall + 34), left: narrow ? 14 : 28};
+      const inset = {top: g.top, right: 0, bottom: g.bottom + (lineTall ? lineTall + 26 : 0), left: 0};
       const key = [name, empty ? 0 : tree.nodes.length + ":" + (tree.root || ""), record(plan).manifest_sha256 || "",
         next.keep ? [...next.keep].sort().join(",") : "", next.collapsed ? "=" + [...next.collapsed].sort().join(",") : "",
         next.states ? [...next.states].map(([id, entry]) => id + ":" + entry.state + (entry.gap ? "g" : "") + (entry.live ? "l" : "")).join(",") : "",
-        [pad.top, pad.right, pad.bottom, pad.left, g.wide, g.tall].join(",")].join("|");
+        [pad.top, pad.right, pad.bottom, pad.left, inset.bottom, g.wide, g.tall].join(",")].join("|");
       if (key !== skyKey) {
         skyKey = key;
-        sky.set({...next, pad, inset: {top: g.top, right: 0, bottom: g.bottom, left: 0}, seed: record(plan).manifest_sha256 || record(graph).job_id || view.run_id || "nanolize"});
+        sky.set({...next, pad, inset, seed: record(plan).manifest_sha256 || record(graph).job_id || view.run_id || "nanolize"});
         // What the layout folded by itself is where the owner's own choice starts from.
         if (name === "select" && !touched) folds = new Set(list(sky.state().collapsed));
       }
@@ -9350,15 +9594,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
       if (frozen !== null) sky.frame(frozen);
       if (name === "select") place();
 
-      // The scene's one line, and the notice of a run that waits for its owner.
-      const line = sceneLine(scene, view, plan, progress, m, catalog), caption = $("line");
-      caption.hidden = !line;
-      if (line) {
-        caption.className = "ov-line s-" + name + (line.tone ? " t-" + line.tone : "");
-        const link = line.link ? h("a", "ov-link", line.link.text) : null;
-        if (link) link.href = line.link.href;
-        fillWith(caption, h("span", "", line.text), link);
-      }
+      // The notice of a run that waits for its owner.
       const note = service || noticeText(scene, plan, here), box = $("notice");
       box.hidden = !note;
       if (note) {
@@ -9368,7 +9604,9 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
         fillWith(box, h("p", "", note), service ? null : go);
       }
       renderList();
-      if (cardId != null) { const at = sky.places()[cardId]; if (at && at.shown) showCard(cardId, at.x, at.y); else showCard(null); }
+      // The card follows what it speaks of; with nothing in hand it goes, or says what the column at the tree's side is for.
+      const spot = cardId != null ? sky.places()[cardId] : null;
+      if (spot && spot.shown) showCard(cardId, spot.x, spot.y); else showCard(null);
     }
 
     /* ---- Asking the service ---- */
@@ -9450,6 +9688,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
     }
     // A window that changes its size changes the bars and the room between them: the scene is fitted again.
     if (typeof win.addEventListener === "function") win.addEventListener("resize", () => { if (view) { skyKey = ""; draw(); } });
+
     // The names of stages and tools (run_flow.catalog) do not change while the page is open.
     answer("/api/catalog").then(found => {
       catalog = found.value;
@@ -9457,14 +9696,14 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
       if (view) draw();
     });
     poll();
-    return {stop: () => { stopped = true; generation += 1; win.clearTimeout(timer); if (controller) controller.destroy(); sky.destroy(); },
+    return {stop: () => { stopped = true; generation += 1; win.clearTimeout(timer); if (watched) attempt(() => watched.disconnect(), null); if (controller) controller.destroy(); sky.destroy(); },
       // Asks for everything again and draws it; the bar starts from what the records say (a replay may go back).
       refresh: () => { force = true; last = null; win.clearTimeout(timer); return poll(); },
       state: () => ({scene: shown, progress: last, choice, listOpen})};
   }
 
   return {ZH, STATE_WORDS, EXECUTION_WORDS, EXECUTION_PARTS, GATE_WORDS, GATE_TAIL, PLAN_NOTES, STAGE_TITLES, setLocale, T, plannerPlan, selectable, chooser, gateOf, notesOf,
-    lockWords, barWords, sceneLine, noticeText, cardOf, plannedStates, start};
+    lockWords, barWords, sceneLine, nowText, noticeText, cardOf, plannedStates, start};
 });
 
 </script>
