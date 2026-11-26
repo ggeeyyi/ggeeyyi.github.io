@@ -1,6 +1,8 @@
 <!doctype html>
 <html lang="en">
 <head>
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>nanolize run page · real runs</title>
@@ -124,6 +126,10 @@ h2 { font-size: var(--text-8); line-height: 1.2; letter-spacing: var(--tracking-
 .masthead-tag { display: inline-flex; align-items: center; gap: 8px; padding-left: 14px; border-left: 1px solid var(--line);
   font-family: var(--mono); font-size: var(--text-1); letter-spacing: var(--label-tracking); text-transform: uppercase; color: var(--ink-3); }
 .masthead-tag::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: var(--green-9); }
+/* The way back to the overview of the run: quiet, at the far end of the mark's row. */
+.masthead-back { margin-left: auto; padding: 4px 2px; font-size: var(--text-3); color: var(--ink-3);
+  text-decoration: underline; text-decoration-color: var(--gray-7); text-underline-offset: 3px; }
+.masthead-back:hover { color: var(--ink); text-decoration-color: currentColor; }
 .top { display: flex; flex-wrap: wrap; gap: 14px 32px; align-items: flex-end; justify-content: space-between; padding: 20px 0 6px; }
 h1 { margin: 0; font-size: clamp(30px, 3.4vw, 44px); line-height: 1.08; overflow-wrap: anywhere; }
 .top > .jobmeta { margin-left: auto; }
@@ -801,6 +807,7 @@ h3.sub { margin: 20px 0 8px; font-family: var(--mono); font-size: var(--text-1);
   <div class="masthead">
     <span class="nz-mark"><i class="nz-sym" aria-hidden="true"></i>Nanolize</span>
     <span class="masthead-tag" data-i18n>Live run</span>
+    <a class="masthead-back" href="/" title="Back to the overview of this run" data-i18n-attr="title" data-i18n>Overview</a>
   </div>
   <header class="top">
     <h1 id="title" data-i18n>nanolize run</h1>
@@ -2627,7 +2634,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
     "A retained check that the delivered candidate fails only as the original fails it without what the selection removes is no criterion of it: no author is asked to repair such a failure, and the delivery carries the check as a gap (original coverage or baseline incomplete), never as a passed check, so it is completed with gaps at best":
       "交付的候选版本如果只是像去掉被排除部分后的原版那样让某项保留检查失败，这项检查就不是它的验收标准：这样的失败不会让作者去修，交付把这项检查记为缺口（原版的覆盖或基线不完整），不算通过的检查，所以最多是“完成但有缺口”",
     "Excluded": "已排除", "Also removed": "随之移除", "Added beyond the core preset": "核心预设之外加选", "none": "无",
-    "Live run": "实时运行",
+    "Live run": "实时运行", "Overview": "总览", "Back to the overview of this run": "回到本次运行的总览",
 
     "Selection page · this run's owner-configured review. Choose capabilities, then press": "选择页面 · 本次运行由所有者配置的审阅。选好能力后点击",
     ".": "。", "Capability selection": "能力选择",
@@ -4826,8 +4833,31 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
   ICON_PATHS.stopped = ICON_PATHS.failed;
   ICON_PATHS.paused = [["path", {d: "M5.5 4v8m5-8v8", stroke: "currentColor", "stroke-width": "2", "stroke-linecap": "round"}]];
 
+  /* What the tab of a run's page says of the run, for whoever left it open (the run page and the overview page
+     both): `kind` picks the icon's dot, `label` is the state in words, `title` the tab's title. A run that waits
+     for its owner says so before anything else; one at work says the project alone. `state`: overall(view, model). */
+  function tabState(view, state) {
+    const v = view && typeof view === "object" ? view : {}, s = state || {label: T("Preparing"), cls: ""};
+    const needs = ((v.flow || {}).focus || {}).state === "attention";
+    const named = typeof v.project === "string" && v.project ? T("{project} · nanolize run", {project: v.project}) : T("nanolize run");
+    return {kind: needs ? "attention" : s.cls || "idle", label: needs ? T("Needs you") : s.label,
+      title: (needs ? T("Needs you") + " · " : s.cls && s.cls !== "active" && s.label ? s.label + " · " : "") + named};
+  }
+  /* The tab's icon as a data URL: the mark, and at its corner a dot in the color of the run's state. The colors
+     are the theme's solid fills (theme.css), written out: an icon reads no stylesheet. */
+  const TAB_MARKS = {active: "#248FFF", attention: "#FDD506", paused: "#FDD506", gap: "#FDD506", done: "#76B900", failed: "#E6364E", idle: "#6B6E72"};
+  const MARK_PATH = "M4.5 20V4h3.9l7.2 10.1V4h3.9v16h-3.9L8.4 9.9V20z";
+  function tabIcon(kind) {
+    const half = (side, color) => '<path d="' + MARK_PATH + '" clip-path="url(#' + side + ')" fill="' + color + '" stroke="' + color + '" stroke-width=".9" stroke-linejoin="round"/>';
+    return "data:image/svg+xml," + encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="1.5 1.5 21 21"><defs><clipPath id="l"><rect x="0" y="0" width="11.05" height="24"/></clipPath>'
+      + '<clipPath id="r"><rect x="12.95" y="0" width="11.05" height="24"/></clipPath></defs><rect x="1.5" y="1.5" width="21" height="21" rx="4.4" fill="#050607"/>'
+      + half("l", "#76B900") + half("r", "#ECEEF0")
+      + '<circle cx="17.6" cy="17.6" r="5" fill="' + (Object.hasOwn(TAB_MARKS, kind) ? TAB_MARKS[kind] : TAB_MARKS.idle) + '" stroke="#050607" stroke-width="1.6"/></svg>');
+  }
+
   // Static page text, translated in place: only text nodes change, so markup inside stays.
-  const PAGE_TEXT = ["nanolize run", "Live run", "Where the run is now", "Run flow", "Flow",
+  const PAGE_TEXT = ["nanolize run", "Live run", "Overview", "Back to the overview of this run", "Where the run is now", "Run flow", "Flow",
     "Each row is one lap: the run starts a new one whenever it goes back to an earlier stage.",
     "Stages", "Understanding / verifier", "Implementer", "Steps", "Done", "Failed or regressed",
     "Not run, with gaps, blocked or waiting", "Running", "Done, no verdict", "Skipped",
@@ -4924,10 +4954,9 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
       const state = overall(view, m);
       // The tab says what the run needs of whoever left it open: a run takes hours, and a page in the background
       // was the same tab whether it ran, waited for its owner or had ended.
-      const needs = ((view.flow || {}).focus || {}).state === "attention";
-      doc.title = (needs ? T("Needs you") + " · " : state.cls && state.cls !== "active" ? state.label + " · " : "")
-        + T("{project} · nanolize run", {project: view.project});
-      signal(needs ? "attention" : state.cls || "idle", needs ? T("Needs you") : state.label, view);
+      const tab = tabState(view, state);
+      doc.title = tab.title;
+      signal(tab.kind, tab.label, view);
       const meta = $("jobmeta");
       meta.replaceChildren(h("span", "pill " + state.cls + (state.quiet ? " quiet" : ""), state.cls === "active" ? h("span", "spin") : null, state.label));
       if (!m.terminal) meta.append(h("span", "", T("Stage") + " ", h("b", "", pad(m.current + 1)), " · " + T(m.stages[m.current].title)));
@@ -4947,21 +4976,13 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
       if (win.NanolizeRunFlow && win.NanolizeRunGraph && win.NanolizeRunGraph.live) win.NanolizeRunGraph.live(win.NanolizeRunFlow.liveLeaves(view));
     }
 
-    /* The tab's icon: the mark, and at its corner a dot in the color of the run's state; and for a viewer who asked
-       for it one notice of the desktop when the run comes to need its owner or ends (never for the state the page
-       opened in). The colors are the theme's solid fills (theme.css), written out: an icon reads no stylesheet. */
-    const MARKS = {active: "#248FFF", attention: "#FDD506", paused: "#FDD506", gap: "#FDD506", done: "#76B900", failed: "#E6364E", idle: "#6B6E72"};
-    const MARK_PATH = "M4.5 20V4h3.9l7.2 10.1V4h3.9v16h-3.9L8.4 9.9V20z";
-    const half = (side, color) => '<path d="' + MARK_PATH + '" clip-path="url(#' + side + ')" fill="' + color + '" stroke="' + color + '" stroke-width=".9" stroke-linejoin="round"/>';
+    /* The tab's icon (tabIcon); and for a viewer who asked for it one notice of the desktop when the run comes to
+       need its owner or ends (never for the state the page opened in). */
     const NOTIFY_KEY = "nanolize.run.notify";
     let signalled = null;
     function signal(kind, label, view) {
       const icon = $("favicon");
-      if (icon && typeof icon.setAttribute === "function") icon.setAttribute("href", "data:image/svg+xml," + encodeURIComponent(
-        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="1.5 1.5 21 21"><defs><clipPath id="l"><rect x="0" y="0" width="11.05" height="24"/></clipPath>'
-        + '<clipPath id="r"><rect x="12.95" y="0" width="11.05" height="24"/></clipPath></defs><rect x="1.5" y="1.5" width="21" height="21" rx="4.4" fill="#050607"/>'
-        + half("l", "#76B900") + half("r", "#ECEEF0")
-        + '<circle cx="17.6" cy="17.6" r="5" fill="' + (MARKS[kind] || MARKS.idle) + '" stroke="#050607" stroke-width="1.6"/></svg>'));
+      if (icon && typeof icon.setAttribute === "function") icon.setAttribute("href", tabIcon(kind));
       const before = signalled;
       signalled = kind;
       const wanted = (() => { try { return win.localStorage && win.localStorage.getItem(NOTIFY_KEY) === "on"; } catch { return false; } })();
@@ -5243,7 +5264,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
   return {DISCOVER_STEPS, LABEL, ROLES, MODES, DECISIONS, REASONS, STOP_RULES, JOB_STATUS, TERMINAL, ROUND_HEADERS, LOCALES, ZH, ZH_NOUNS, ENUM_WORDS,
     GAPS, REQUIRE, EVIDENCE_KINDS, CLAIM_REASONS, COMMAND_REASONS, COMMAND_OUTCOMES, commandLines, PAGE_TEXT, setLocale, T, model, stageFlow, jobActions, pauseText, pauseNeeds, resultFacts, outcomeCriteria, endNote, endedText,
     overall, runSpan, stepLimit, span, useCatalog, roundRows,
-    candidateRows, controllerRows, groupRows, conditionText, stopText, adviceName, performanceText, claimLines, overall, timeline, start};
+    candidateRows, controllerRows, groupRows, conditionText, stopText, adviceName, performanceText, claimLines, overall, timeline, tabState, tabIcon, start};
 });
 
 </script>
@@ -6020,5 +6041,6 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
 });
 
 </script>
+<script>window.addEventListener("click",function(e){var a=e.target&&e.target.closest?e.target.closest("a[href]"):null;if(a&&a.getAttribute("href")==="/"){e.preventDefault();e.stopImmediatePropagation();location.href="../nanolize-overview/";}},true);</script>
 </body>
 </html>
