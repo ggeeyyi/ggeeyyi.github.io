@@ -1705,7 +1705,8 @@ def resolve_options(base, overrides=None, env=None, *, allow_new=False, freeze=T
          another, and not for a package on the far side (the root's is only fainter there); and wherever the pointer
          is. A name stands outside its package's cluster, away from the middle of the scene; the root's stands below
          it, or above it, or below it to one side: where no other package is in the way and the least of the
-         shape's limbs runs behind it (it fades out before it changes places). Each name is written on a dark
+         shape's limbs runs behind it (it fades out before it changes places); it is never left out: with a
+         package in every one of those places it stands where the fewest are. Each name is written on a dark
          edge of its own, so that no line runs through a letter */
       if (web > 0) { ctx.font = '11px "Geist Mono",ui-monospace,monospace'; ctx.textBaseline = 'middle'; ctx.textAlign = 'center'; ctx.lineWidth = 3.5; ctx.lineJoin = 'round';
         const boxes = [], order = HUB.map((_, n) => n).sort((p, q) => p && q ? SD[HUB[q]] - SD[HUB[p]] : p - q);
@@ -1713,12 +1714,13 @@ def resolve_options(base, overrides=None, env=None, *, allow_new=False, freeze=T
           const dx = SX[i] - cx, dy = (SY[i] - cy) / lie, dd = Math.hypot(dx, dy) || 1, nx = n ? dx / dd : 0, od = S[i].rad * 1.25 * RK * SQ[i];
           let lx = 0, ly = 0, ok = false; if (still) RS = 0;
           /* the name at one of its places (the root's: 0 below, 1 above, 2 below and to the right, 3 below and to the left); returns how much of the spines would run behind the root's name there (their stars and the middles of their lines), or a great number if it cannot stand there */
-          const put = at => { lx = Math.min(W - half - 2, Math.max(half + 2, SX[i] + (n ? nx * (od + 10 + half * Math.abs(nx)) : at > 1 ? (5 - 2 * at) * half * .85 : 0))); ly = SY[i] + (n ? dy / dd : at === 1 ? -1 : 1) * (od * lie + 15); ok = want > .04 && ly > sy0 + 12;       // nor up in the row of the buttons
-            if (ok) for (const h of HUB) if (h !== i && LIT[h] > .5 && Math.abs(SX[h] - lx) < half && Math.abs(SY[h] - ly) < 10) { ok = false; break; }      // not on top of another package
+          const put = (at, any) => { let on = 0; lx = Math.min(W - half - 2, Math.max(half + 2, SX[i] + (n ? nx * (od + 10 + half * Math.abs(nx)) : at > 1 ? (5 - 2 * at) * half * .85 : 0))); ly = SY[i] + (n ? dy / dd : at === 1 ? -1 : 1) * (od * lie + 15); ok = want > .04 && ly > sy0 + 12;       // nor up in the row of the buttons
+            if (ok) for (const h of HUB) if (h !== i && LIT[h] > .5 && Math.abs(SX[h] - lx) < half && Math.abs(SY[h] - ly) < 10) { if (any) on++; else { ok = false; break; } }      // not on top of another package (any: the root's name, when it has no clear place: count them instead)
             if (ok) for (const bx of boxes) if (Math.abs(bx[0] - lx) < bx[2] + half && Math.abs(bx[1] - ly) < 15) { ok = false; break; }
-            if (!ok || n) return 1e9; let c = 0; for (const P of PATHS) for (let q = 1; q < P.ids.length; q++) for (let f = .5; f <= 1; f += .5) { const dx = Math.abs(lerp(SX[P.ids[q - 1]], SX[P.ids[q]], f) - lx); if (dx < half && Math.abs(lerp(SY[P.ids[q - 1]], SY[P.ids[q]], f) - ly) < 9) c += 2 - dx / half; } return c; };      // through the middle of the name counts double
-          /* the root's name stands where the least of the limbs runs behind it; while it shows it stays, until another place is clearer by two stars or more: then it fades out and changes places */
-          if (n) put(0); else { let best = RS, low = 1e9; for (let at = 0; at < 4; at++) { const c = put(at) - (at === RS && !still ? 3.5 : 0); if (c < low) { low = c; best = at; } } if (still || LA[0] <= .05) RS = best; put(RS); if (best !== RS) ok = false; }
+            if (!ok || n) return 1e9; let c = 60 * on; for (const P of PATHS) for (let q = 1; q < P.ids.length; q++) for (let f = .5; f <= 1; f += .5) { const dx = Math.abs(lerp(SX[P.ids[q - 1]], SX[P.ids[q]], f) - lx); if (dx < half && Math.abs(lerp(SY[P.ids[q - 1]], SY[P.ids[q]], f) - ly) < 9) c += 2 - dx / half; } return c; };      // through the middle of the name counts double
+          /* the root's name stands where the least of the limbs runs behind it; while it shows it stays, until another place is clearer by two stars or more: then it fades out and changes places.
+             It is the repository's name and is never left out: if a package stands in every one of its four places, it takes the place with the fewest of them (any) */
+          if (n) put(0); else { let best = RS, low = 1e9, any = false; for (let pass = 0; pass < 2 && low > 1e8; pass++) { any = pass > 0; for (let at = 0; at < 4; at++) { const c = put(at, any) - (at === RS && !still ? 3.5 : 0); if (c < low) { low = c; best = at; } } } if (still || LA[0] <= .05) RS = best; put(RS, any); if (best !== RS) ok = false; }
           if (ok) boxes.push([lx, ly, half]);
           LA[n] = still ? (ok ? want : 0) : LA[n] + ((ok ? want : 0) - LA[n]) * .14;
           if (LA[n] > .03) { const al = Math.min(1, LA[n]); ctx.strokeStyle = `rgba(5,6,7,${al * .8})`; ctx.strokeText(NAMES[n], lx, ly);
