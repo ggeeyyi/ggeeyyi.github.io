@@ -78,7 +78,7 @@ footer{margin-top:56px;padding-top:16px;border-top:1px solid var(--line-2);color
   <h2>看效果</h2>
   <p class="sub">先选页面，再用右边的开关在改动前后之间切换。两边是同一份数据、同一个位置的截图。</p>
   <section class="panel" aria-label="前后对比">
-    <div class="bar"><div class="tabs" role="group" aria-label="页面"><button type="button" class="tab" data-key="run" data-w="1440" aria-pressed="true">run 页面</button><button type="button" class="tab" data-key="run-zh" data-w="1440" aria-pressed="false">run 页面 · 中文</button><button type="button" class="tab" data-key="scope" data-w="1440" aria-pressed="false">选择页</button><button type="button" class="tab" data-key="report" data-w="1440" aria-pressed="false">报告页</button><button type="button" class="tab" data-key="traj" data-w="1440" aria-pressed="false">轨迹页</button><button type="button" class="tab" data-key="phone" data-w="420" aria-pressed="false">手机 · run 页面</button><button type="button" class="tab" data-key="scope-phone" data-w="420" aria-pressed="false">手机 · 选择页</button></div>
+    <div class="bar"><div class="tabs" role="group" aria-label="页面"><button type="button" class="tab" data-key="run" data-w="1440" aria-pressed="true">run 页面</button><button type="button" class="tab" data-key="nodes" data-w="1440" aria-pressed="false">run 页面 · 图例和节点</button><button type="button" class="tab" data-key="run-zh" data-w="1440" aria-pressed="false">run 页面 · 中文</button><button type="button" class="tab" data-key="scope" data-w="1440" aria-pressed="false">选择页</button><button type="button" class="tab" data-key="report" data-w="1440" aria-pressed="false">报告页</button><button type="button" class="tab" data-key="traj" data-w="1440" aria-pressed="false">轨迹页</button><button type="button" class="tab" data-key="phone" data-w="420" aria-pressed="false">手机 · run 页面</button><button type="button" class="tab" data-key="scope-phone" data-w="420" aria-pressed="false">手机 · 选择页</button></div>
       <div class="seg" role="group" aria-label="版本"><button type="button" data-side="b" aria-pressed="false">改动前</button><button type="button" data-side="a" aria-pressed="true">改动后</button></div></div>
     <p class="note" id="note"></p>
     <div class="stage" id="stage"><img id="shot" alt=""></div>
@@ -88,7 +88,7 @@ footer{margin-top:56px;padding-top:16px;border-top:1px solid var(--line-2);color
 
   <h2>三项要求分别怎么做的</h2>
   <p class="sub">对应你提的三条。</p>
-  <div class="cards"><article class="card"><span class="num">01</span><h3>字体和标志</h3><ul><li>标题和大数字用 Source Serif 4，正文和界面用 DM Sans，标签、读数、编号和时间用 Geist Mono；字号按设计页的九级（11–24px）。</li><li>三款字体以数据形式放在样式表里，页面仍然不从外部加载任何东西；中文用读者的系统字体。字体的许可文本随包一起分发。</li><li>J-2 标志在每个页面的左上角。run 页面的浏览器标签图标也换成它，右下角带一个表示运行状态的色点。</li></ul></article><article class="card"><span class="num">02</span><h3>风格和星空背景</h3><ul><li>配色是设计页的深色色板：平时只有灰和绿；蓝、黄、红只表示状态（运行中或选中、部分或警告、失败）。</li><li>背景取自主页的星空：保留三种星色和少量带光晕的亮星，去掉连线、动画和绿色，星星更少、更暗、不动，只从卡片之间和页边露出来。</li><li>按钮、状态标签、分段开关改成设计 7 的圆角胶囊；页面里只有“提交”这一类主要动作是实心白色按钮。</li></ul></article><article class="card"><span class="num">03</span><h3>页面设计</h3><ul><li>四个页面原来各有一套颜色（run 页面浅色、选择页紫色、轨迹页深浅两套），现在共用一份主题，样式表里不再直接写颜色值。</li><li>层级靠细线和明暗区分，去掉了粗的彩色边框和阴影；选择页节点以外的文字，最小字号从 8px 提到 11px。</li><li>绿色和白色有固定含义，和标志的两半对应：绿色是写代码的一方和“保留”，白色是理解和检查的一方。</li></ul></article></div>
+  <div class="cards"><article class="card"><span class="num">01</span><h3>字体和标志</h3><ul><li>标题和大数字用 Source Serif 4，正文和界面用 DM Sans，标签、读数、编号和时间用 Geist Mono；字号按设计页的九级（11–24px）。</li><li>三款字体以数据形式放在样式表里，页面仍然不从外部加载任何东西；中文用读者的系统字体。字体的许可文本随包一起分发。</li><li>J-2 标志在每个页面的左上角。run 页面的浏览器标签图标也换成它，右下角带一个表示运行状态的色点。</li></ul></article><article class="card"><span class="num">02</span><h3>风格和星空背景</h3><ul><li>配色是设计页的深色色板：平时只有灰和绿；蓝、黄、红只表示状态（运行中或选中、部分或警告、失败）。</li><li>背景取自主页的星空：保留三种星色和少量带光晕的亮星，去掉连线、动画和绿色，星星更少、更暗、不动，只从卡片之间和页边露出来。</li><li>按钮、状态标签、分段开关改成设计 7 的圆角胶囊；页面里只有“提交”这一类主要动作是实心白色按钮。</li></ul></article><article class="card"><span class="num">03</span><h3>页面设计</h3><ul><li>四个页面原来各有一套颜色（run 页面浅色、选择页紫色、轨迹页深浅两套），现在共用一份主题，样式表里不再直接写颜色值。</li><li>层级靠细线和明暗区分，去掉了粗的彩色边框和阴影；选择页节点以外的文字，最小字号从 8px 提到 11px。</li><li>run 页面上表示进度的东西（阶段、里程碑、步骤）都按状态上色：完成绿、进行中蓝、等你处理或有缺口黄、失败红、还没到灰；阶段归谁用小图标表示。</li></ul></article></div>
 
   <h2>需要你知道的取舍</h2>
   <p class="sub">这几处是我自己定的，不合适可以改。</p>
@@ -97,15 +97,15 @@ footer{margin-top:56px;padding-top:16px;border-top:1px solid var(--line-2);color
   <h2>现在的状态</h2>
   <p class="sub">代码在本地分支上，等你看过再决定是否推送或开 PR。</p>
   <div class="state">
-    <div><b>分支</b><span><code>frontend-restyle</code>，从 main 的 <code>cbf27b83</code> 分出，提交 <code>eda488fc</code>，未推送。</span></div>
-    <div><b>测试</b><span>全量 Python 测试 6331 个，结果和未改动的 main 逐条一致（两边都只有本机环境造成的那批失败，没有新增）；JavaScript 测试 409 个全部通过。新增 5 个主题测试。星空加密之后重跑了页面相关的测试，全部通过。</span></div>
+    <div><b>分支</b><span><code>frontend-restyle</code>，从 main 的 <code>cbf27b83</code> 分出，提交 <code>02c3e552</code>，未推送。</span></div>
+    <div><b>测试</b><span>全量 Python 测试 6331 个，结果和未改动的 main 逐条一致（两边都只有本机环境造成的那批失败，没有新增）；JavaScript 测试 409 个全部通过。之后的两次修改（星空加密、节点按状态上色）各重跑了页面相关的 Python 测试和全部 JavaScript 测试，都通过。</span></div>
     <div><b>主题说明</b><span>新增 <code>docs/theme.md</code>：主题文件在哪、颜色和字体的规则、怎么重新生成字体和星空。</span></div>
   </div>
   <footer>截图里的 run 页面和轨迹页用的是仓库自带的演示数据，选择页和报告页用的是 mini-swe-agent 那次运行的数据。可操作的三个演示页是仓库 <code>docs/</code> 里的回放页面，按这个分支重新生成。</footer>
 </div>
 <script>
 (function(){
-  var notes={"run":"页头是 J-2 标志和等宽小标签，仓库名用衬线字体。阶段卡片上沿的短线表示这个阶段归谁：白色是检查的一方，绿色是写代码的一方；蓝色只留给“正在运行”和“当前选中”。","run-zh":"中文页面：汉字用系统字体，拉丁字母和数字用新字体；带标签的小字不再拉宽字距。黄色表示有缺口，红色表示失败。","scope":"原来的紫色主色去掉了。保留的能力用绿色（勾选框、节点上沿、“Kept scope”标签），当前查看的节点用蓝色描边；统计数字用衬线字体。","report":"和选择页同一套样式。直接通过的检查是绿色，关联通过是蓝色，和页面底部图例的说法一致。","traj":"指标卡片、时间线和逐步记录。时间线里条形的颜色表示这一步怎么结束，阶段的六种颜色沿用原来的分类色。","phone":"420 像素宽度下的 run 页面。","scope-phone":"420 像素宽度下的选择页。"},key="run",side="a",w=1440;
+  var notes={"run":"页头是 J-2 标志和等宽小标签，仓库名用衬线字体。阶段卡片和里程碑按进度上色：完成是绿色，正在进行是蓝色，还没到的是灰色虚线框；里程碑里蓝色圆环是正在争取的那一个。","nodes":"图例展开后的样子，以及 Agents、详情面板。阶段归谁（检查方还是写代码的一方）改用小图标表示，不再占用颜色；Agents 节点左侧的竖条、详情面板的编号和上沿短线都跟着状态走。","run-zh":"中文页面，一次已经结束的运行：前四个阶段完成（绿），验证与修复失败（红），交付有缺口（黄）。汉字用系统字体，拉丁字母和数字用新字体。","scope":"原来的紫色主色去掉了。保留的能力用绿色（勾选框、节点上沿、“Kept scope”标签），当前查看的节点用蓝色描边；统计数字用衬线字体。","report":"和选择页同一套样式。直接通过的检查是绿色，关联通过是蓝色，和页面底部图例的说法一致。","traj":"指标卡片、时间线和逐步记录。时间线里条形的颜色表示这一步怎么结束，阶段的六种颜色沿用原来的分类色。","phone":"420 像素宽度下的 run 页面。","scope-phone":"420 像素宽度下的选择页。"},key="run",side="a",w=1440;
   var shot=document.getElementById("shot"),note=document.getElementById("note"),stage=document.getElementById("stage");
   function show(){shot.src="img/"+side+"-"+key+".png";shot.alt=(side==="a"?"改动后":"改动前")+"的截图";note.textContent=notes[key];stage.className="stage"+(w<600?" narrow":"");
     document.querySelectorAll(".tab").forEach(function(b){b.setAttribute("aria-pressed",String(b.dataset.key===key));});

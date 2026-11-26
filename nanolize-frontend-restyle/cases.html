@@ -96,10 +96,15 @@ body::before {
   font-size: 18px; line-height: 1; letter-spacing: -.025em; white-space: nowrap; text-decoration: none; }
 .nz-sym { display: block; flex: none; width: 1.3em; height: 1.3em; background: var(--mark) center / contain no-repeat; }
 /* The run page (run-dashboard.html). Its colors and type are the theme's (theme.css, loaded before this
-   sheet), named by their job. Two colors say who works in a stage, as the two halves of the mark do: the half
-   that checks is white (understanding, verifying), the half that writes is green (implementing). Blue, yellow
-   and red say a state and nothing else: running or selected, waiting or partial, failed. */
-:root { --check: var(--gray-12); --write: var(--green-9); --label-tracking: var(--tracking-wide); }
+   sheet), named by their job. What stands for the run's progress (a stage, a milestone, a step) takes the color
+   of its state: done green, at work blue, waiting on its owner or ended with gaps yellow, failed red, not
+   reached gray. Who works in a stage is a small picture beside it, not a color; green also marks the side that
+   writes (the author and its sessions). */
+:root { --write: var(--green-9); --label-tracking: var(--tracking-wide);
+  /* The two roles, as pictures a mask cuts out of the text's color: the side that understands and verifies
+     (a check in a ring), the side that implements (a pen). */
+  --icon-check: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='8' cy='8' r='6.1'/%3E%3Cpath d='M5.3 8.3l1.9 1.9 3.6-4.1'/%3E%3C/svg%3E");
+  --icon-write: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2.7 13.3l.7-3.1 7.3-7.3a1.45 1.45 0 0 1 2.05 0l.35.35a1.45 1.45 0 0 1 0 2.05l-7.3 7.3z'/%3E%3Cpath d='M9.5 4.1l2.4 2.4'/%3E%3C/svg%3E"); }
 :lang(zh) { --label-tracking: .02em; }  /* no wide tracking on Han characters */
 * { box-sizing: border-box; }
 html, body { margin: 0; }
@@ -111,9 +116,8 @@ a:hover { text-decoration-color: currentColor; }
 h1, h2 { font-family: var(--serif); font-weight: var(--serif-display-weight); font-variation-settings: "opsz" var(--serif-display-opsz);
   letter-spacing: var(--tracking-display); }
 h2 { font-size: var(--text-8); line-height: 1.2; letter-spacing: var(--tracking-tight); }
-.role-verifier { --role: var(--check); }
-.role-implementer { --role: var(--write); }
-.role-none { --role: var(--mute); }
+.role-verifier { --role-icon: var(--icon-check); }
+.role-implementer { --role-icon: var(--icon-write); }
 
 /* The mark and what this page is, then the run's name and its state. */
 .masthead { display: flex; align-items: center; gap: 14px; height: 64px; }
@@ -157,7 +161,7 @@ h1 { margin: 0; font-size: clamp(30px, 3.4vw, 44px); line-height: 1.08; overflow
 .spin { width: 13px; height: 13px; border-radius: 50%; border: 2px solid color-mix(in srgb, currentColor 25%, transparent); border-top-color: currentColor; animation: spin .9s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* The legend: what a stage's color says (who works in it, the mark over its column), and what a step's dot says. */
+/* The legend: the picture that says who works in a stage, and what the color of a stage or a step's dot says. */
 .legend { display: flex; flex-wrap: wrap; gap: 8px 34px; margin: 18px 0 0; color: var(--ink-2); font-size: var(--text-3); }
 .legend-group { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; min-width: 0; }
 .legend-group > b { font-family: var(--mono); font-size: var(--text-1); font-weight: 500; letter-spacing: var(--label-tracking); text-transform: uppercase; color: var(--ink-3); }
@@ -171,17 +175,23 @@ h1 { margin: 0; font-size: clamp(30px, 3.4vw, 44px); line-height: 1.08; overflow
 .legend-fold > .legend { margin-top: 10px; }
 .together-key { width: 12px; height: 14px; border-left: 2px solid var(--line-strong); background: linear-gradient(var(--ink-3), var(--ink-3)) 5px 2px / 7px 2px no-repeat,
   linear-gradient(var(--ink-3), var(--ink-3)) 5px 9px / 7px 2px no-repeat; }
-.role-key { width: 20px; height: 2px; border-radius: 1px; display: inline-block; background: var(--role); }
+.role-key { display: none; }
+.role-key.role-verifier, .role-key.role-implementer { display: inline-block; width: 14px; height: 14px; background: var(--ink-2); -webkit-mask: var(--role-icon) center / contain no-repeat; mask: var(--role-icon) center / contain no-repeat; }
 
 /* ---------- single detail panel ---------- */
-.detail { margin-top: 18px; background: var(--card); border: 1px solid var(--line-2); border-radius: var(--radius); box-shadow: var(--shadow);
+.detail { --st: var(--gray-8); --st-text: var(--ink-2);
+  margin-top: 18px; background: var(--card); border: 1px solid var(--line-2); border-radius: var(--radius); box-shadow: var(--shadow);
   padding: 22px 24px 20px; position: relative; }
-/* Whose stage it is: a short mark of the role's color on the panel's upper edge. */
-.detail::before { content: ""; position: absolute; left: 24px; top: -1px; width: 44px; height: 2px; border-radius: 0 0 2px 2px; background: var(--role); }
+/* The stage's state, as in the flow's head: the mark on the panel's upper edge and the stage's number take its color. */
+.detail[data-state="done"] { --st: var(--ok); --st-text: var(--ok-text); }
+.detail[data-state="active"] { --st: var(--info); --st-text: var(--info-text); }
+.detail[data-state="gap"], .detail[data-state="looped"], .detail[data-state="paused"] { --st: var(--warn); --st-text: var(--warn-text); }
+.detail[data-state="failed"], .detail[data-state="stopped"] { --st: var(--bad); --st-text: var(--bad-text); }
+.detail::before { content: ""; position: absolute; left: 24px; top: -1px; width: 44px; height: 2px; border-radius: 0 0 2px 2px; background: var(--st); }
 .detail[data-state="failed"] { border-color: var(--bad-line); }
 .detail-h { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 14px; }
 .detail-h .n { font-family: var(--serif); font-weight: var(--serif-display-weight); font-variation-settings: "opsz" var(--serif-display-opsz);
-  color: var(--role); font-size: 30px; line-height: 1; letter-spacing: var(--tracking-display); font-variant-numeric: tabular-nums lining-nums; }
+  color: var(--st-text); font-size: 30px; line-height: 1; letter-spacing: var(--tracking-display); font-variant-numeric: tabular-nums lining-nums; }
 .detail-h h2 { margin: 0; font-size: var(--text-9); }
 .detail-h .chip { margin-left: auto; align-self: center; }
 .detail-does { flex-basis: 100%; order: 9; margin: -2px 0 0; color: var(--ink-2); font-size: var(--text-3); }
@@ -189,7 +199,8 @@ h1 { margin: 0; font-size: clamp(30px, 3.4vw, 44px); line-height: 1.08; overflow
   text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: 3px; }
 .text-button:hover { color: var(--ink); text-decoration-color: currentColor; }
 .role { font-size: var(--text-2); color: var(--ink-3); display: inline-flex; align-items: center; gap: 6px; align-self: center; }
-.role i { width: 6px; height: 6px; border-radius: 50%; background: var(--role); }
+.role i { display: none; }
+.role-verifier .role i, .role-implementer .role i { display: block; flex: none; width: 13px; height: 13px; background: var(--ink-3); -webkit-mask: var(--role-icon) center / contain no-repeat; mask: var(--role-icon) center / contain no-repeat; }
 .chip { display: inline-flex; align-items: center; gap: 5px; font-family: var(--mono); font-size: var(--text-1); font-weight: 500; letter-spacing: var(--tracking-small);
   padding: 2px 9px; border-radius: var(--radius-pill); white-space: nowrap; border: 1px solid transparent; }
 .chip.done { background: var(--ok-soft); color: var(--ok-text); border-color: var(--ok-line); }
@@ -400,12 +411,12 @@ h3.sub { margin: 20px 0 8px; font-family: var(--mono); font-size: var(--text-1);
 .fold[open] > summary.sub { margin-bottom: 8px; }
 /* The run's flow (run-flow.js): where the run is now, the path it took through the stages, who is
    working, how far it is, and every step in order. Colors and type come from theme.css and run-dashboard.css.
-   An actor's color says which side of the source boundary it is on, as the role colors do:
-   white understands or verifies, green implements; yellow is the owner. */
+   A step of progress (a stage, a milestone, a step's dot) takes its state's color: done green, at work blue,
+   waiting or with gaps yellow, failed red, not reached gray. An actor is known by its picture and its name;
+   two of them have a color of their own: the author is green (the side that writes), the owner yellow. */
 .a-owner { --actor: var(--warn); }
-.a-host, .a-verifier, .a-test_agents { --actor: var(--check); }
+.a-host, .a-verifier, .a-test_agents, .a-controller { --actor: var(--gray-11); }
 .a-author { --actor: var(--write); }
-.a-controller { --actor: var(--gray-11); }
 .a-worker, .a-policy { --actor: var(--ink-3); }
 .kind { width: 15px; height: 15px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
 
@@ -417,6 +428,8 @@ h3.sub { margin: 20px 0 8px; font-family: var(--mono); font-size: var(--text-1);
 .who { display: inline-flex; align-items: center; gap: 6px; flex: none; margin-top: 1px; padding: 3px 11px; border-radius: var(--radius-pill); font-weight: 600; font-size: var(--text-3);
   color: var(--actor, var(--ink-2)); background: color-mix(in srgb, var(--actor, var(--ink-2)) 10%, transparent);
   border: 1px solid color-mix(in srgb, var(--actor, var(--ink-2)) 26%, transparent); }
+/* Who the sentence is about, while that actor works: in the color of work under way (the author keeps its green). */
+.now-main.s-active .who:not(.a-author):not(.a-owner) { --actor: var(--info-text); }
 .now-text { min-width: 0; }
 .now-line { margin: 0; font-size: var(--text-6); font-weight: 600; line-height: 1.4; letter-spacing: -.005em; color: var(--ink); overflow-wrap: anywhere; }
 .now-main.s-attention .now-line { color: var(--warn-text); }
@@ -457,17 +470,20 @@ h3.sub { margin: 20px 0 8px; font-family: var(--mono); font-size: var(--text-1);
 .mile:not(:last-child)::after { content: ""; width: 18px; height: 1px; background: var(--line-strong); margin-left: 2px; }
 .mile.s-done { color: var(--ink); } .mile.s-gap { color: var(--warn-text); } .mile.s-failed, .mile.s-stopped { color: var(--bad-text); }
 .mile.s-done:not(:last-child)::after { background: var(--ok); }
+/* The milestone the run works toward (the first not reached, while the run goes on): a ring of the color of work under way. */
+.mile.next { color: var(--ink-2); }
+.mile.next .fdot { background: none; border: 1.5px solid var(--info); box-shadow: 0 0 0 3px color-mix(in srgb, var(--info) 16%, transparent); }
 
 /* state dots: one mark for a step, a stage, a milestone */
-.fdot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--mute); display: inline-block; }
+.fdot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--gray-9); display: inline-block; }
 .fdot.s-done { background: var(--ok); } .fdot.s-done.t-bad { background: var(--bad); } .fdot.s-done.t-warn { background: var(--warn); }
 .fdot.s-done.t-neutral { background: var(--ink-2); }
 .fdot.s-active { background: var(--info); box-shadow: 0 0 0 3px color-mix(in srgb, var(--info) 22%, transparent); animation: fpulse 1.4s ease-in-out infinite; }
-.fdot.s-queued, .fdot.s-pending { background: none; border: 1.5px dashed var(--mute); }
+.fdot.s-queued, .fdot.s-pending { background: none; border: 1.5px dashed var(--gray-9); }
 .fdot.s-blocked, .fdot.s-skipped.t-warn, .fdot.s-interrupted, .fdot.s-gap, .fdot.s-looped, .fdot.s-paused { background: var(--warn); }
-.fdot.s-skipped { background: none; border: 1.5px solid var(--mute); }
+.fdot.s-skipped { background: none; border: 1.5px solid var(--gray-9); }
 .fdot.s-failed, .fdot.s-stopped { background: var(--bad); }
-.fdot.s-notrun, .fdot.s-unknown { background: none; border: 1.5px solid var(--mute); }
+.fdot.s-notrun, .fdot.s-unknown { background: none; border: 1.5px solid var(--gray-9); }
 /* A call whose condition was not met: the answer's branch that was not taken, a ring crossed out
    (neither a call the batch skipped after a failure, amber, nor a step skipped by design, a plain ring). */
 .fdot.s-untriggered { border: 1.5px solid var(--ink-2);
@@ -487,19 +503,31 @@ h3.sub { margin: 20px 0 8px; font-family: var(--mono); font-size: var(--text-1);
 .fgutter { display: flex; flex-direction: column; justify-content: center; gap: 1px; font-size: var(--text-2); color: var(--ink-3); min-width: 0; }
 .fgutter b { font-weight: 600; color: var(--ink); }
 .fback { color: var(--warn-text); font-weight: 600; overflow-wrap: anywhere; }
-.fstage { position: relative; font: inherit; text-align: left; color: var(--ink); background: var(--panel-2); border: 1px solid var(--line-2);
+/* A stage in the head of the grid is a step of the run's progress and takes its state's color (--st and the
+   three beside it): its number, the mark on its upper edge, its dot and the word under its name. A stage not
+   reached is an outline. Who works in the stage is the small picture at its corner (run-dashboard.css). */
+.fstage { --st: var(--gray-8); --st-text: var(--ink-3); --st-soft: var(--gray-a3); --st-line: var(--line-strong);
+  position: relative; font: inherit; text-align: left; color: var(--ink); background: var(--panel-2); border: 1px solid var(--line-2);
   border-radius: 10px; padding: 12px 12px 9px; cursor: pointer; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-/* Whose stage it is: a short mark of the role's color on its upper edge, as on the detail panel. */
-.fstage::before { content: ""; position: absolute; left: 12px; top: -1px; width: 22px; height: 2px; border-radius: 0 0 2px 2px; background: var(--role, var(--mute)); }
+.fstage.s-done { --st: var(--ok); --st-text: var(--ok-text); --st-soft: var(--ok-soft); --st-line: var(--ok-line); }
+.fstage.s-active { --st: var(--info); --st-text: var(--info-text); --st-soft: var(--info-soft); --st-line: var(--info-line); }
+.fstage.s-gap, .fstage.s-looped, .fstage.s-paused { --st: var(--warn); --st-text: var(--warn-text); --st-soft: var(--warn-soft); --st-line: var(--warn-line); }
+.fstage.s-failed, .fstage.s-stopped { --st: var(--bad); --st-text: var(--bad-text); --st-soft: var(--bad-soft); --st-line: var(--bad-line); }
+.fstage::before { content: ""; position: absolute; left: 12px; top: -1px; width: 22px; height: 2px; border-radius: 0 0 2px 2px; background: var(--st); }
+.fstage.role-verifier::after, .fstage.role-implementer::after { content: ""; position: absolute; top: 11px; right: 11px; width: 13px; height: 13px; background: var(--ink-3);
+  -webkit-mask: var(--role-icon) center / contain no-repeat; mask: var(--role-icon) center / contain no-repeat; }
 .fstage:hover { border-color: var(--line-strong); }
 .fstage:focus-visible, .chip2:focus-visible, .seg-b:focus-visible { outline: 2px solid var(--info); outline-offset: 2px; }
-.fnum { font-family: var(--mono); font-size: var(--text-1); font-weight: 500; letter-spacing: var(--tracking-small); color: var(--role, var(--ink-2)); font-variant-numeric: tabular-nums; }
+.fnum { font-family: var(--mono); font-size: var(--text-1); font-weight: 500; letter-spacing: var(--tracking-small); color: var(--st-text); font-variant-numeric: tabular-nums; }
 .fname { font-weight: 600; font-size: var(--text-4); line-height: 1.25; overflow-wrap: anywhere; }
-.fstate { display: flex; align-items: center; gap: 6px; font-size: var(--text-2); color: var(--ink-3); margin-top: 4px; }
-.fstage.s-pending, .fstage.s-notrun { opacity: .55; }
-.fstage.here { background: var(--info-soft); border-color: var(--info-line); }
-.fstage.s-paused.here { background: var(--warn-soft); border-color: var(--warn-line); }
-.fstage.s-failed { border-color: var(--bad-line); }
+.fstate { display: flex; align-items: center; gap: 6px; font-size: var(--text-2); color: var(--st-text); margin-top: 4px; }
+.fstage.s-done { border-color: rgba(var(--g), .22); }
+.fstage.s-failed, .fstage.s-stopped { border-color: var(--bad-line); }
+.fstage.s-pending, .fstage.s-notrun { background: transparent; border-style: dashed; border-color: var(--line); }
+.fstage.s-pending::before, .fstage.s-notrun::before { display: none; }
+.fstage.s-pending .fname, .fstage.s-notrun .fname { color: var(--ink-2); font-weight: 500; }
+/* The stage the run is in stands on its state's soft ground. */
+.fstage.here { background: var(--st-soft); border-color: var(--st-line); border-style: solid; }
 .fstage.selected { outline: 1.5px solid var(--gray-11); outline-offset: 2px; }
 .fcell { position: relative; min-width: 0; display: flex; }
 /* The path: a line leaves a visit toward the next stage of its lap and passes the stages in between. */
@@ -582,16 +610,17 @@ h3.sub { margin: 20px 0 8px; font-family: var(--mono); font-size: var(--text-1);
 .agents.compact { padding-top: 12px; padding-bottom: 12px; }
 .agents.compact .agents-head { margin-bottom: 0; align-items: center; }
 .chain { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; min-width: 0; flex: 1; }
-.chain-node { font: inherit; color: var(--ink); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; min-width: 0; padding: 4px 11px;
-  border: 1px solid var(--line); border-left: 2px solid var(--actor, var(--mute)); border-radius: 8px; background: var(--panel-2); }
-.chain-node:hover { border-color: var(--line-strong); border-left-color: var(--actor, var(--mute)); }
+/* An actor's node: the bar at its left says its state (at work blue, waiting for its owner yellow, else gray). */
+.chain-node { --bar: var(--gray-7); font: inherit; color: var(--ink); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; min-width: 0; padding: 4px 11px 4px 12px;
+  border: 1px solid var(--line); border-radius: 8px; background: var(--panel-2); box-shadow: inset 2px 0 0 var(--bar); }
+.chain-node:hover { border-color: var(--line-strong); }
 .chain-node:focus-visible { outline: 2px solid var(--info); outline-offset: 2px; }
 .chain-node .kind { color: var(--actor, var(--ink)); }
 .chain-node b { font-weight: 600; }
 .chain-node .agent-st { margin-left: 2px; }
-.chain-node.st-active { background: var(--info-soft); border-color: var(--info-line); border-left-color: var(--actor, var(--info)); }
+.chain-node.st-active { --bar: var(--info); background: var(--info-soft); border-color: var(--info-line); }
 .chain-node.st-active .agent-st { color: var(--info-text); }
-.chain-node.st-attention { background: var(--warn-soft); border-color: var(--warn-line); }
+.chain-node.st-attention { --bar: var(--warn); background: var(--warn-soft); border-color: var(--warn-line); }
 .chain-node.st-attention .agent-st { color: var(--warn-text); }
 .chain-arrow { color: var(--flow-text, var(--ink-3)); }
 .chain-note { font-weight: 600; font-size: var(--text-3); color: var(--flow-text, var(--ink)); overflow-wrap: anywhere; }
@@ -629,9 +658,9 @@ h3.sub { margin: 20px 0 8px; font-family: var(--mono); font-size: var(--text-1);
 .tlink.moving .tlabel { border-color: var(--flow); background: var(--flow-bg); color: var(--ink); }
 @keyframes tflow { to { background-position: 0 20px; } }
 .agent { font: inherit; text-align: left; color: var(--ink); cursor: pointer; flex: 1; width: 100%; min-width: 0; display: grid; align-content: start; gap: 3px;
-  border: 1px solid var(--line-2); border-left: 2px solid var(--actor, var(--mute)); border-radius: 10px; padding: 9px 11px; background: var(--panel-2);
+  --bar: var(--gray-7); border: 1px solid var(--line-2); border-radius: 10px; padding: 9px 11px 9px 12px; background: var(--panel-2); box-shadow: inset 2px 0 0 var(--bar);
   transition: border-color .2s, background-color .2s, box-shadow .2s, opacity .2s; }
-.agent:hover { border-color: var(--line-strong); border-left-color: var(--actor, var(--mute)); }
+.agent:hover { border-color: var(--line-strong); }
 .agent:focus-visible { outline: 2px solid var(--info); outline-offset: 2px; }
 .agent-h { display: flex; flex-wrap: wrap; align-items: center; gap: 1px 6px; min-width: 0; color: var(--actor, var(--ink)); }
 .agent-h b { color: var(--ink); font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -646,15 +675,15 @@ h3.sub { margin: 20px 0 8px; font-family: var(--mono); font-size: var(--text-1);
 .agent-sessions .sess-ended { background: var(--mute); }
 .chain-node .agent-sessions { flex: none; max-width: 64px; margin-left: 2px; }  /* a row of up to six marks, then the next */
 .chain-node:has(.agent-sessions) { flex-wrap: wrap; }  /* on a narrow line the marks go under the name */
-.agent.st-active { background: var(--info-soft); border-color: var(--info-line); border-left-color: var(--actor, var(--info)); }
+.agent.st-active { --bar: var(--info); background: var(--info-soft); border-color: var(--info-line); }
 .agent.st-active .agent-st { color: var(--info-text); }
-.agent.st-attention { background: var(--warn-soft); border-color: var(--warn-line); }
+.agent.st-attention { --bar: var(--warn); background: var(--warn-soft); border-color: var(--warn-line); }
 .agent.st-attention .agent-st { color: var(--warn-text); }
-.agent.on-path { border-color: var(--flow, var(--info)); border-left-color: var(--actor, var(--flow, var(--info)));
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--flow, var(--info)) 12%, transparent); }
+.agent.on-path { --bar: var(--flow, var(--info)); border-color: var(--flow, var(--info));
+  box-shadow: inset 2px 0 0 var(--bar), 0 0 0 3px color-mix(in srgb, var(--flow, var(--info)) 12%, transparent); }
 .agent.st-pending, .agent.st-away { opacity: .55; }
 .agent.st-pending .agent-now, .agent.st-away .agent-now { color: var(--ink-2); }
-.agent.st-off { opacity: .5; border-style: dashed; border-left-style: solid; background: none; }
+.agent.st-off { opacity: .5; border-style: dashed; background: none; box-shadow: none; }
 .bud-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 9px; }
 .bud-none { margin: 0; color: var(--ink-2); font-size: 13px; }
 /* A row's name keeps its width and its value takes the rest, wrapping where it is long (before, a long value
@@ -2085,9 +2114,13 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"single","title":"pair off \u00b7 par
         h("div", "now-text", h("p", "now-line2", other.text, ...(other.since ? [" ", also] : [])),
           other.sub ? h("p", "now-sub", other.sub) : null)) : null;
       const track = h("ol", "miles");
+      // The first milestone not reached is the one the run works toward, until the run has ended: it is marked.
+      let toward = line.state !== "ended";
       for (const milestone of flow.milestones || []) {
         const state = milestone.reached ? (milestone.state || "done") : "pending";
-        track.append(h("li", "mile s-" + state, dot(state, state === "done" ? "good" : "neutral"), h("span", "", T(milestone.title))));
+        const next = toward && !milestone.reached;
+        if (next) toward = false;
+        track.append(h("li", "mile s-" + state + (next ? " next" : ""), dot(state, state === "done" ? "good" : "neutral"), h("span", "", T(milestone.title))));
       }
       $("now").replaceChildren(...[main, beside, track].filter(Boolean));
       tick();
