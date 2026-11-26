@@ -3424,7 +3424,9 @@ def loads(s: str, /, *, parse_float: ParseFloat = float) -> dict[str, Any]:
          find it from the subgraph (all there by 19.9); from E1, 20 [26.2], the scene goes dark (gone) as
          its green stars fly into the nano code and the leaders are drawn into their rows (gone by 20.75);
          from E2, 21.45 [27.9], to the loop's end, T, 25 [31.5], the nano tree stands, with no dotted line,
-         and the nano code beside it drifts up as the opening's code does (finale(), slide()). */
+         and the nano code beside it drifts up as the opening's code does (finale(), slide()).
+         Design 11: t is still the scene's own time. A live loop shows THE WALL before it (show(), wallFrame()) and runs
+         A0 to E0 at twice the speed (tau()), so what is drawn here at t is what design 10 drew at t. */
       if (FT.of !== S) plant();
       const k = 1, sky = seg(t, A0, A1), web = ease(clamp01((sky - .6) / .4)), gone = ease(seg(t, E1 + .15, E1 + .9));
       const raw = seg(t, G0, G1) * k, m = ease(seg(t, G0, G1)) * k, vt = (t - C0) / CD, vu = (vt - GATHER / CD) / (1 - GATHER / CD), vc = lerp(vu, ease(clamp01(vu)), .6);
@@ -3702,7 +3704,7 @@ def loads(s: str, /, *, parse_float: ParseFloat = float) -> dict[str, Any]:
       const m = WL.rows[mid], kids = m.el.children, t = kids[WL.at], fly = WL.fly = WL.el.querySelector('.rw-fly'), fc = fly.firstElementChild, nm = fc.querySelector('.rw-n');
       t.style.visibility = kids[WL.at + WL.per].style.visibility = 'hidden';
       WL.cl = t.offsetLeft; WL.nl = nm.offsetLeft; WL.nc = nm.offsetLeft + nm.offsetWidth / 2; WL.stop = (sx0 + sx1) / 2 - t.offsetLeft - t.offsetWidth / 2;   // the row stops with the repository in the middle of the stage
-      WL.fc = fc; WL.nm = nm; WL.mn = fc.querySelector('.rw-m'); WL.mn.style.left = WL.nl + 'px'; WL.mn.style.letterSpacing = `${(fs * .018 * spec[mid].size / (FT.fs * 1.09)).toFixed(3)}px`; /* the canvas sets its type .018 of the code's size apart (layout()); so does the label, before it is scaled */ WL.part = [fc.firstElementChild, fc.querySelector('.rw-o'), fc.querySelector('.rw-s')]; WL.cur = WL.el.querySelector('.rw-cur'); WL.ring = WL.el.querySelector('.rw-ring');
+      WL.fc = fc; WL.nm = nm; WL.mn = fc.querySelector('.rw-m'); WL.mn.style.left = WL.nl + 'px'; { const sc = FT.fs * 1.09 / spec[mid].size, own0 = WL.mn.getBoundingClientRect().width; ctx.save(); ctx.font = `600 ${FT.fs * 1.09}px "Geist Mono",ui-monospace,monospace`; const at = ctx.measureText(REPO.name + '/').width; ctx.restore(); WL.mn.style.letterSpacing = `${(own0 > 0 && at > 0 ? (at / sc - own0) / (REPO.name.length + 1) : fs * .018 / sc).toFixed(3)}px`; } /* the label is spaced so that, once scaled, it is as wide as the folder's name on the canvas (which sets its type .018 of the code's size apart, layout()): measured, not worked out (design 11's last check), because a browser that rounds a letter's advance to whole pixels rounds it differently at the two sizes, and the name's end then stood 2 px off the folder's */ WL.part = [fc.firstElementChild, fc.querySelector('.rw-o'), fc.querySelector('.rw-s')]; WL.cur = WL.el.querySelector('.rw-cur'); WL.ring = WL.el.querySelector('.rw-ring');
       fly.style.top = (m.y - m.h / 2).toFixed(1) + 'px'; fly.style.transformOrigin = `${WL.nl}px 50%`; };
     const rowX = (r, u) => { if (r !== WL.rows[WL.mid]) return -((((r.ph * r.L - r.dir * r.v * u) % r.L) + r.L) % r.L);      // a row drifts on at its own speed
       const [a, b] = W_SLOW, rem = u >= b ? 0 : u >= a ? r.v * (b - u) ** 2 / (2 * (b - a)) : r.v * ((b - a) / 2 + a - u); return WL.stop - r.dir * rem; };   // the middle one slows to a stop under the pointer
