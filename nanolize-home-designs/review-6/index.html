@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<meta name="description" content="Nanolize 主页版本 6 的设计评审：八位评审从“是否贴合主题”和“简洁与高级感”两个方向提出的改进建议，按重要性排序。">
+<title>版本 6 设计评审</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%231c5cab'/%3E%3Cpath d='M4 11V5l8 6V5' fill='none' stroke='white' stroke-width='1.6'/%3E%3C/svg%3E">
+<style>
+:root { color-scheme: light; --bg:#f7f8fa; --card:#ffffff; --ink:#1b2230; --soft:#566074; --line:#dfe3ea; --head:#eef1f6;
+  --accent:#1c5cab; --code:#f1f3f7; --mark:#fff6d6; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { color-scheme: dark; --bg:#12151b; --card:#1a1e26; --ink:#e4e8ef;
+  --soft:#9aa5b8; --line:#2d3340; --head:#222834; --accent:#7fb0ee; --code:#222733; --mark:#3a3413; } }
+:root[data-theme="dark"] { color-scheme: dark; --bg:#12151b; --card:#1a1e26; --ink:#e4e8ef; --soft:#9aa5b8; --line:#2d3340; --head:#222834;
+  --accent:#7fb0ee; --code:#222733; --mark:#3a3413; }
+html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+  "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif; }
+main { max-width: 1180px; margin: 0 auto; padding: 28px 16px 80px; overflow-wrap: anywhere; }
+h1 { font-size: 26px; line-height: 1.3; margin: 0 0 10px; letter-spacing: -0.01em; }
+h2 { font-size: 20px; margin: 44px 0 12px; padding-top: 14px; border-top: 2px solid var(--line); scroll-margin-top: 12px; }
+p { margin: 10px 0; }
+a { color: var(--accent); }
+.lead { color: var(--soft); font-size: 14px; }
+.bar { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 6px; }
+.bar a { display: inline-block; padding: 6px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); text-decoration: none; font-size: 14px; }
+.bar a:hover { border-color: var(--accent); }
+nav.toc { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; margin: 14px 0 8px; }
+nav.toc b { font-size: 13px; color: var(--soft); font-weight: 600; }
+nav.toc ol { margin: 6px 0 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 2px 18px; }
+nav.toc a { text-decoration: none; font-size: 14px; }
+nav.toc a:hover { text-decoration: underline; }
+.tw { overflow-x: auto; margin: 12px 0 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); }
+table { border-collapse: collapse; width: 100%; font-size: 13px; line-height: 1.5; }
+th, td { padding: 6px 10px; border-bottom: 1px solid var(--line); border-right: 1px solid var(--line); text-align: left; vertical-align: top; }
+th:last-child, td:last-child { border-right: 0; }
+tr:last-child td { border-bottom: 0; }
+th { background: var(--head); font-weight: 600; white-space: nowrap; position: sticky; top: 0; }
+td { min-width: 3.2em; overflow-wrap: anywhere; }
+td:last-child { min-width: 16em; }
+td.n { white-space: nowrap; min-width: 0; }
+tbody tr:hover td { background: var(--mark); }
+code { font: 12.5px/1.5 ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; background: var(--code); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+pre { background: var(--code); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; margin: 8px 0 12px; overflow-x: auto;
+  white-space: pre-wrap; overflow-wrap: anywhere; max-height: 560px; overflow-y: auto; }
+pre code { background: none; padding: 0; font-size: 12.5px; }
+details { margin: 8px 0; border: 1px solid var(--line); border-radius: 8px; background: var(--card); padding: 0 12px; }
+details > summary { cursor: pointer; padding: 8px 0; color: var(--accent); font-size: 14px; }
+details[open] > summary { border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+ul, ol { padding-left: 22px; }
+li { margin: 4px 0; }
+strong { font-weight: 650; }
+footer { margin-top: 48px; color: var(--soft); font-size: 13px; border-top: 1px solid var(--line); padding-top: 12px; }
+.top { position: fixed; right: 16px; bottom: 16px; padding: 7px 11px; border-radius: 8px; border: 1px solid var(--line); background: var(--card);
+  text-decoration: none; font-size: 13px; box-shadow: 0 2px 8px rgba(0,0,0,.12); }
+@media (max-width: 640px) { body { font-size: 14.5px; } h1 { font-size: 21px; } h2 { font-size: 18px; } table { font-size: 12.5px; } }
+</style>
+</head>
+<body>
+<main id="top">
+<h1>版本 6 设计评审</h1>
+
+<p class="lead">版本 6 停下来的那一幅画（<code>?t=18</code>）已经是成品：细线画成的绿色子图、一行衬线标题、真实的仓库和模块名。八位评审没有一位要改子图本身的画法。问题不在画得不好，而在三处。第一，文字和画面讲的不是同一个故事：文字说“从零重写成一个一半大小、行为不变的新仓库”，画面演的是“把代码画成图，点亮值得留下的那一半”，而且从头到尾没有出现过 nano 仓库本身。第二，每一轮的结尾把结果倒着撤销了：读数从 382 / 382 退回 0 / 382，绿色的子图化回乱图，再变回原来的代码。第三，首屏说得太多、停得太少：同一组数字在三百多像素里叠了三层（其中一层是跑马灯），开场那一屏最挤，成品在 24 秒里只静止 4.9 秒。这些几乎都能靠删、合并、改字解决，只有“让 nano 仓库露面”是新的一轮设计。</p>
+<p class="lead">怎么读这份报告：</p>
+<ul>
+<li>八位评审各用一个角度看页面。看“贴不贴主题”的三位：T1 第一次来的访客，T2 画面有没有如实讲方法，T3 把整页从头读到尾的研究者。看“简洁和高级感”的五位：P1 美术指导，P2 专做减法，P3 动效，P4 细节做工，P5 拿最好的同类页面来比。</li>
+<li>改动大小：小是一两个小时，中是半天到一天，大是新的一轮设计。</li>
+<li>“在哪里看”里的 <code>?t=18</code> 是加在网址后面的参数，页面会停在那一秒。</li>
+<li>几个词：“读数”指动画下面那两行横条和数字；“阶段文字”指读数上方那行小字（比如 “detectron2 · delivered”）；“跑马灯”指三个大数字下面那条横着滚动的结果条；“停留”指 16.5 到 21.4 秒成品静止的那一段；“图 2”指你给的第二张图（文件树、图、选中的范围、nano 仓库四格）。</li>
+<li>所有判断都来自定格的截图和连拍，没有人看过页面真正跑起来的样子。凡是关于快慢和手感的改动，改完要再看一遍。评审有分歧、或者决定先后次序的地方，我自己重新截图核对过：21.8 秒的读数、开场一屏、生长和检查的连拍、首屏底部、1280×720 的窗口、手机、防火墙一节。</li>
+</ul>
+
+<div class="bar"><a href="REPORT.md" download>下载 Markdown 原文件</a><a href="../6/">打开版本 6</a><a href="../">全部版本</a></div>
+<nav class="toc"><b>章节</b><ol><li><a href="#s1">一、更贴合 Nanolize 的主题</a></li><li><a href="#s2">二、更简洁、更有高级感</a></li><li><a href="#s3">三、评审之间的分歧</a></li><li><a href="#s4">四、已经做对、不要动的地方</a></li><li><a href="#s5">五、如果只做五件事</a></li></ol></nav>
+<h2 id="s1">一、更贴合 Nanolize 的主题</h2>
+<h3>1. nano 仓库从头到尾没有露面</h3>
+<ul>
+<li><strong>问题</strong>：一轮从一个仓库开始（文件树加代码），却没有以一个仓库结束。图 2 有四格，版本 6 做了前三格；第四格是一棵短的绿色文件树，下面是代码量和检查数，也就是产品交出来的东西，页面上没有。访客看到的是“仓库进去，一张发光的图出来”，那是代码可视化工具的故事。往下翻完整页，也没有一处给人看一眼 nano 仓库长什么样、少掉的是哪类代码。</li>
+<li><strong>在哪里看</strong>：<code>?t=18</code>。停留的五秒里画面没有再讲新东西。对照图 2 最右一格。</li>
+<li><strong>怎么改</strong>，分两步：
+<ul>
+<li>第一步（中）：在首屏下面、方法和结果两节之间加一块“出来的是什么”。挑一个库（tqdm 或 requests），原仓库和 nano 仓库的文件树并排，用首屏文件树的画法，每个文件夹标上 token 数，再用一句话说少掉的是哪类代码。手机上也放得下。</li>
+<li>第二步（大）：停留时让一棵绿色的短文件树在子图右侧一行行出现，根那一行是 <code>仓库名-nano/</code>，虚线从子图上带名字的星连到它的各行，正好是 3.5 到 4.2 秒那一幕反过来。访客看到的是开场那棵树，短了一半，变绿了。宽 1440 的窗口里子图右边正好空着约 190 像素；手机上不放，只留第一步。</li>
+<li>两步都要 nano 仓库真实的文件列表，工作区里现在没有。页面的规矩是每个名字都核对过，所以不能照图 2 写 core1.py。另外图 2 上的数字（−49.43%、722 / 722）和页面上的（−49.44%、549 / 549）不一样，以页面为准。</li>
+</ul>
+</li>
+<li><strong>改动</strong>：第一步中，第二步大。</li>
+<li><strong>评审</strong>：T1、T2、T3、P5。四位各自独立提出，T1 和 T2 都把它排在第一。</li>
+</ul>
+<h3>2. 中段的画面是“挑出一半留下”，字却写着“从零重写”</h3>
+<ul>
+<li><strong>问题</strong>：7.2 到 11.8 秒，绿色沿着乱图里原本就有的线走，把原本就在的白星一颗颗点绿，旁边的星变暗。这个画面的意思是“从旧代码里挑出一半留下”，也就是裁剪。同一时刻阶段文字写的是 “rewriting from scratch”（从零重写）。裁剪正是最容易和 Nanolize 混淆的那类工具，而页面下面的结果表恰恰在说它和这类做法不一样。现在唯一演出“从零”的，是屏幕底部那条 3 像素高、从 0 涨起来的绿条。</li>
+<li><strong>在哪里看</strong>：<code>?t=8</code>、<code>?t=9</code>。我的连拍里，7.7 到 9.2 秒绿色是在还亮着的白色乱线上走的。</li>
+<li><strong>怎么改</strong>，分两步：
+<ul>
+<li>先做（小）：这一段的阶段文字不再写 “rewriting from scratch”，改成画面真在演的事，比如 “nanolizing”。“从零重写”这句话由标题下面的说明、从 0 涨起来的数字和第 1 条里新加的 nano 文件树来讲。</li>
+<li>再试一版（中）：留下的星、线、形状、比例都不变，只调换先后。7.2 到 8 秒整片乱线先一起退掉，其余的星先暗下去；然后绿色从根出发，在安静下来的星空里一段段画出来，每颗绿星在线头到达时才出现。这样绿色看上去是新写的，不是从旧图里找出来的。这一段现在是两位评审眼里全轮最好的一段，所以做成单独一版，和现在的并排看了再定（见第三节第 1 条）。</li>
+</ul>
+</li>
+<li><strong>改动</strong>：小，加一版中等的试验。</li>
+<li><strong>评审</strong>：T1、T2（都评为最要紧的两条之一）；T3 从整页的角度指出同一个矛盾。</li>
+</ul>
+<h3>3. 每一轮的结尾把结果撤销了</h3>
+<ul>
+<li><strong>问题</strong>：21.4 秒起故事倒着放。阶段文字从 “delivered”（已交付）跳回 “the same code, as a graph”；检查数从 382 / 382 一步掉到 0 / 382；NANO 的行数一路倒数到 0；绿色的子图褪回白色乱图，再变回那片臃肿的代码。每一轮最后的 2.6 秒，页面演的是它主张的反面。README 的约定 5 说 nano 的数字只从 0 往上涨、不往下减，这里正在往下减。</li>
+<li><strong>在哪里看</strong>：<code>?t=21.8</code>。我核对过：子图还全亮着，读数已经是 “23,625 lines、0 / 382 pass”。再看 <code>?t=22.2</code>、<code>?t=23.2</code>。</li>
+<li><strong>怎么改</strong>：不倒放。21.4 秒起子图、名字和星空在一秒左右一起淡到暗，读数停在交付时的数字上跟着暗下去，暗了之后再换成下一个仓库；然后下一个仓库的代码淡入，它的文件树一行行展开（这个展开的动画现在就有）。如果舍不得“星星变回代码”那一下，至少做到三件事：读数不倒数，阶段文字不往回跳，旧的文件树不再回来一次。</li>
+<li><strong>改动</strong>：小。</li>
+<li><strong>评审</strong>：T1、T2、P2、P3、P5，五位。P3 另外指出这一段同时有六到八种东西在动，是全轮最乱的一段。这一条对“高级感”同样有用。</li>
+</ul>
+<h3>4. “行为全部保留”没有说实</h3>
+<ul>
+<li><strong>问题</strong>：标题说行为全部保留，画面里却有一多半的星暗下去。方法一节写“每个选中的功能”，用法一节写“从 Core features 或 All features 开始，再逐个开关”；只有 Detectron2 明说了 106 项能力全部保留。结果表里的八个库是不是也保留了全部功能，页面没说。研究者的第一个问题就是“少一半 token，是不是因为少了一半功能”，现在的画面加上用法那句话，正好让人往这边想。另外，“一项检查”是什么、token 数的是哪些文件，页面没有定义；more-itertools 少了 62% 却只有 10 项检查，不解释就显得单薄。</li>
+<li><strong>在哪里看</strong>：结果一节的导语和表格下面那行小字；首屏三个大数字中间那一个的说明。</li>
+<li><strong>怎么改</strong>：在结果一节的导语里加一句实话（如果属实：“每个库的每一项功能都保留”）；三个大数字中间那个的说明改成“行为检查通过，功能全部保留”；表格下面加一行，说清一项行为检查是什么、549 项背后有多少个测试用例、token 只数哪些文件。如果八个库其实只做了核心功能，标题就要加限定，这一点发布前必须确认。</li>
+<li><strong>改动</strong>：小（只改字），但要从技术报告里拿到事实。</li>
+<li><strong>评审</strong>：T3；T2 也把它列为“我判断不了、但会影响结论”的事。</li>
+</ul>
+<h3>5. 读数说的不是标题的话，也不是结果表的记法</h3>
+<ul>
+<li><strong>问题</strong>：读数是首屏唯一证明标题的地方，有四处对不上。
+<ul>
+<li>标题说 “behavior”，读数说 “382 checks frozen”“running the frozen checks”。“frozen”（冻结）要到三节之后才解释，陌生人会读成“卡住的检查”。</li>
+<li>重写开始之前，NANO 一行有七到十二秒写着 “0 lines、0 / 382 pass”，看上去像一次失败的运行。</li>
+<li>八个库的那几轮，ORIGINAL 一行写 “100% tokens”，等于什么都没说。</li>
+<li>读数写“剩下多少”（tqdm 55.20% tokens），往下一点的跑马灯和结果表写“减了多少”（tqdm −44.80%）；Detectron2 那一轮又是行数，而标题讲的是 token。访客要自己做减法才知道说的是同一件事。</li>
+</ul>
+</li>
+<li><strong>在哪里看</strong>：<code>?t=1</code>（0 / 382 pass）；<code>?t=18&amp;repo=tqdm</code>（100%、55.20%），再往下滚一点看跑马灯。</li>
+<li><strong>怎么改</strong>：ORIGINAL 一行写 “382 behavior checks”，阶段文字写 “running the behavior checks”，“frozen” 留给方法一节；NANO 一行在轮到它之前显示一条短横，不显示 0；交付时阶段文字带上结果表的写法，“tqdm · delivered · −44.80% tokens”（Detectron2 是 “−52.6% lines”）；“100% tokens” 去掉，只留满格的横条。技术报告里如果有 Detectron2 的 token 数，它那一轮也改用 token。</li>
+<li><strong>改动</strong>：小。</li>
+<li><strong>评审</strong>：T1、T3、P2、P4、P5。</li>
+</ul>
+<h3>6. 第一次打开的前十几秒看不到主题</h3>
+<ul>
+<li><strong>问题</strong>：标题的两句话，画面要到 14 秒才第一次兑现。7.2 秒之前画面讲的是“代码可以画成图”，不是产品。只看十秒就走的访客，看到的是一面灰字的代码墙、一段最乱的飞散，读数上还写着 0 / 382。而且第一轮讲哪个仓库是随机的：九次里有一次是 tomli，文件树只有十行、18 项检查，配不上“臃肿的仓库”；每位访客看到的第一幅画都不一样，页面没有一张大家共有的“脸”。</li>
+<li><strong>在哪里看</strong>：不加参数直接打开页面，看前十秒；<code>?t=1&amp;repo=tomli</code>。</li>
+<li><strong>怎么改</strong>：只在第一轮，页面一打开先停在成品上（detectron2 的神经元，就是减少动态效果时显示的那一幅，用 0.8 秒淡入），停五秒让人读完标题，然后回到代码从头讲。从头讲的第一个完整故事固定为 requests：名气最大，剩 49.51% 的 token，几乎就是标题那句话，检查 91 / 91。之后照旧随机。循环本身不用改。</li>
+<li><strong>改动</strong>：小。</li>
+<li><strong>评审</strong>：P3、P5（先亮成品），T1（固定第一个仓库）。</li>
+</ul>
+<h3>7. 开场的代码是编的，下面却写着真仓库的名字</h3>
+<ul>
+<li><strong>问题</strong>：文件树、子图上的名字、所有数字都是真的、核对过的，唯独开场那片代码是编的（<code>class PipelineRunner</code>、<code>cfg.RUN.STAGES</code>），每一轮都是同一片，下面却写着 “tqdm · the original code”“requests · the original code”。懂这些库的人一眼看出这不是 tqdm。它还故意写得很臃肿，多疑的读者会当成摆拍。这是一页报告实测数字的页面上唯一的假展品，偏偏在第一秒。</li>
+<li><strong>在哪里看</strong>：<code>?t=1&amp;repo=tqdm</code> 和 <code>?t=1&amp;repo=requests</code> 对比，树换了，代码没换。</li>
+<li><strong>怎么改</strong>：每个仓库放它自己的一段真代码，取自文件树里有的一个文件，并把树里那一行点亮（tqdm 的 <code>std.py</code>、requests 的 <code>sessions.py</code>、detectron2 的 <code>modeling/backbone/fpn.py</code>）。八个库的源码已经取到，Detectron2 的要另取；引用前核对各自的许可证。做不了的话，最小的改法是把这行字改成 “the original repository”，对文件树来说这是真话。</li>
+<li><strong>改动</strong>：中；最小版小。</li>
+<li><strong>评审</strong>：T1、T2。用示例代码是 README 里早先写明的选择；文件树换成真的之后，它成了短板。</li>
+</ul>
+<h3>8. 文件树接到图上的那一刻只有 0.7 秒</h3>
+<ul>
+<li><strong>问题</strong>：文件树、虚线和星空同时在场，是全轮最贴题的一帧，也就是图 2 的左半。它只有 3.5 到 4.2 秒这 0.7 秒，而且这时星星还在飞、拖着尾线，虚线上的点也在移动，没有一样东西是静的，读不出来。紧接着 5.0 到 7.2 秒，乱图独自转了 2.2 秒，什么也没发生。</li>
+<li><strong>在哪里看</strong>：<code>?t=3.9</code>，对比 <code>?t=6</code>。</li>
+<li><strong>怎么改</strong>：把静止挪到有意义的地方，一轮总长不变。星星在 4.2 秒前落定，虚线在星星落定时正好连上；树、虚线和落定的乱图一起静止到 5.8 秒左右再松开；时间从后面那段空转里出。</li>
+<li><strong>改动</strong>：小，调几个时间。</li>
+<li><strong>评审</strong>：T2、P3。</li>
+</ul>
+<h3>9. Detectron2 在下文没有着落，下文还缺几件事实</h3>
+<ul>
+<li><strong>问题</strong>：Detectron2 是定格画面用的仓库，也是最大、最有说服力的例子（7.7 万行的真实框架）。可它的 76,888 行、36,458 行和 382 项检查，在首屏以下哪里都找不到，结果表里也没有它这一行。宽屏上 “76,888 lines、382” 就压在 “−49.44% tokens、549” 上方一百像素，单位和数字都对不上。读到页脚还不知道的事：重写一次花多少 token 或多少钱（一个讲 token 的页面只给了时长）；是不是只支持 Python；Goal mode 是什么；方法一节的“五个阶段”是哪五个，合同由谁、从哪里提取。</li>
+<li><strong>在哪里看</strong>：宽 1920 的窗口 <code>?t=18</code>；“The next agent pays less” 一节；方法一节的第三条。</li>
+<li><strong>怎么改</strong>：把 “The next agent pays less” 一节做成 Detectron2 的专场，开头用首屏那种两条横条写明 “76,888 行到 36,458 行，382 / 382，106 项功能全部保留”；方法一节第三条（五个阶段、三十九个工具，两个没有内容的数字）换成五个阶段的名字；用法一节下面加三四行事实；结果的导语用半句话解释 Goal mode，并把“只用三分之一的时间”说出来（1 小时 11 分对 3 小时 53 分）。</li>
+<li><strong>改动</strong>：小到中，都要技术报告里的事实。</li>
+<li><strong>评审</strong>：T3。</li>
+</ul>
+<h3>10. 几处小的</h3>
+<ul>
+<li>子图上名字挂在哪颗星上是随便定的：<code>layers</code> 挂在 <code>model_zoo</code> 外面的枝梢上，懂 Detectron2 的人知道 <code>layers</code> 是底层。按真实的层级给名字，被依赖的靠近根。小。T2。</li>
+<li>click 和 requests 点亮的名字里有 <code>compat</code>（兼容层）。在讲去掉臃肿的页面上，兼容层亮在 nano 的树上，意思是反的。换一个真实的模块名。小。T3。</li>
+<li>可选：检查的光经过一个模块时，名字从白变绿，后面出现一个小勾。“行为全部保留”在画面里就有了十三个看得见的证据。小。T2。</li>
+<li>标题下面那句话没解释 “nano”，也没说是谁在重写（访客自己的编程智能体）。小。T1。</li>
+</ul>
+<h2 id="s2">二、更简洁、更有高级感</h2>
+<h3>1. 首屏底部同一组数字叠了三层，其中一层是跑马灯</h3>
+<ul>
+<li><strong>问题</strong>：读数（这一轮仓库的两行）、三个大数字（八个库的平均）、跑马灯（八个库逐个滚动）一层压一层，再往下三屏是同样八行的结果表。−49.44% 出现三次，每个库的百分比出现三次，记法还有两种。跑马灯是整页唯一通栏的元素、唯一混用两种字体的一行，也是紧贴着会动的星空的第二个会动的东西。同样的话说几遍，再加一条跑马灯，正是让页面像产品落地页的两样东西。</li>
+<li><strong>在哪里看</strong>：把窗口拉高到 1300 以上，<code>?t=18&amp;repo=tqdm</code>，读数、三个数字、跑马灯都在一屏里。</li>
+<li><strong>怎么改</strong>：删掉跑马灯。它有的，首屏的循环和结果表都有。首屏于是结束在三个大数字和它们的细线上。</li>
+<li><strong>改动</strong>：小。</li>
+<li><strong>评审</strong>：P1、P2、P5、T3，四位一致，没有人为它辩护。读数要不要并成一行、三个数字要不要搬走，评审有分歧，见第三节。</li>
+</ul>
+<h3>2. 成品停得太短，一轮里六成时间画面在变</h3>
+<ul>
+<li><strong>问题</strong>：成品是页面最得意、也最安静的一幅，在 24 秒里只静止 4.9 秒（两成）。访客抬头五次，有三次看到的是“正在变”。版本 6 新加的纵深只有靠转动才看得出来，而停留里只转了 28 度。最好的页面是演完、落定、停住。</li>
+<li><strong>在哪里看</strong>：直接打开页面看一整轮。成品静止的只有 <code>?t=16.5</code> 到 <code>?t=21.4</code> 这一段；其余的时间里，代码、乱图各静止过 2.2 秒，别的时候都在变。</li>
+<li><strong>怎么改</strong>：一轮从 24 秒加到 30 秒，多出的 6 秒全给停留（约 11 秒，转 62 度），别的时刻都不动。结尾改成淡出（第一节第 3 条）还能再省出一秒。另一个由你定的选项：五种形状各放一遍之后停在成品上，只留慢转；访客滚走再回来，或者点一下画面，再重新讲。代价是每次只看得到五个形状和仓库。</li>
+<li><strong>改动</strong>：小。</li>
+<li><strong>评审</strong>：P3、P5。</li>
+</ul>
+<h3>3. 开场那一屏是全轮最挤的一帧</h3>
+<ul>
+<li><strong>问题</strong>：每位访客看到的第一帧像一张编辑器截图。
+<ul>
+<li>代码第一行离按钮只有 6 到 8 像素。</li>
+<li>长的代码行在栏边被硬切在单词中间（“str”“sel”“rename”），注释只剩 “# ke”，像没处理的溢出。</li>
+<li>文件树每一行后面的虚线在半空中断掉，像一份没有页码的目录，要到 3.4 秒才有去处。</li>
+<li>文件树（白、加粗、实心的文件夹）比代码还亮，眼睛先落在文件树上，不是标题上。</li>
+<li>手机上树只到七成高，左下角空一块；树的字 9.5 像素、代码 8.5 像素，两块都小得读不了。</li>
+</ul>
+</li>
+<li><strong>在哪里看</strong>：<code>?t=1</code>，1440×900、1280×720 和手机各看一眼。</li>
+<li><strong>怎么改</strong>：按钮下面留出 30 到 40 像素的空；碰到栏边的行，最后五六个字符渐隐，放不下的行尾注释整条不要；虚线从 2.2 秒起才从各行里长出来；文件树压到和代码差不多的灰度（根那一行除外），文件夹画成细线框；树在代码块的高度上居中；手机上让文件树成为读得清的那一块（12 像素、8 行），代码退成暗的底纹。</li>
+<li><strong>改动</strong>：小到中。</li>
+<li><strong>评审</strong>：P1、P2、P4、P5、T1，五位。文件树是你要的，没有人建议拿掉；这些改动是让它显得是有意为之。</li>
+</ul>
+<h3>4. 子图上的名字：半透明的残影，被枝条穿过</h3>
+<ul>
+<li><strong>问题</strong>：名字是画面里唯一的文字，也是“这是真仓库”的证据，现在却是做工最粗的地方。名字有三四种深浅，最淡的几个（<code>modeling</code>、<code>utils</code>，手机上的 <code>checkpoint</code>，海扇上的 <code>decorators</code>、<code>termui</code>）半透明、被细枝穿过，看着像渲染出了毛病，不像“这个模块转到背面了”。根的名字是最要紧的一个，却几乎总有一条主脊从字中间穿过。星星贴在名字边上像标点（“·model_zoo”）。1280×720 时九到十个名字围着一个 450 像素宽的图形，字比画重。</li>
+<li><strong>在哪里看</strong>：<code>?t=18</code>（<code>modeling</code>、<code>utils</code>、<code>detectron2</code>）；<code>?t=18&amp;shape=seafan&amp;repo=click</code>；手机。</li>
+<li><strong>怎么改</strong>：名字只有两种状态，全亮或者不显示，中间用很短的淡入淡出；一次最多六七个，手机四五个，离眼睛近的优先，其余的指针移上去才显示；根的名字加粗，离根周围那丛短枝再远一点，背后不许有主脊；名字周围 6 像素之内不许有星；手机上名字离屏幕边至少 16 像素。</li>
+<li><strong>改动</strong>：小到中。</li>
+<li><strong>评审</strong>：P1、P2、P4、P5，四位一致。T1 的意见相反，见第三节。</li>
+</ul>
+<h3>5. 代码变星空的那一段：拖尾线像一把针</h3>
+<ul>
+<li><strong>问题</strong>：2.6 到 4.9 秒，每颗飞行的星后面拖一条直线，一半的星顺着绕、一半逆着绕，于是画面上有几百条 30 到 90 像素长、朝向各异的划痕，还飞出舞台，到了按钮和导航的高度。这些线比乱图自己的细线亮得多（你要求过线要更淡），却没有任何含义；真正有含义的细线 3.9 秒才淡入，有一秒钟两者分不清。带速度线的粒子双向交叉，是现成粒子特效的样子，是整页唯一“像别的页面”的地方。</li>
+<li><strong>在哪里看</strong>：<code>?t=3.6</code>、<code>?t=3.9</code>。</li>
+<li><strong>怎么改</strong>：去掉拖尾线，或者压到现在的四分之一亮、三分之一长；所有的星朝同一个方向绕，就是星空自己转的方向，绕得少一点；字符飞出去之后更早变成光点，飞的是光点，不是字母；飞行不越出舞台。</li>
+<li><strong>改动</strong>：小。</li>
+<li><strong>评审</strong>：P2、P3。</li>
+</ul>
+<h3>6. 检查和收尾的两次亮光一样高，“delivered” 落在中间最暗的一帧</h3>
+<ul>
+<li><strong>问题</strong>：检查的光在 12.2 到 13.0 秒最亮；13.8 到 14.0 秒整棵树是这一段里最暗的，“delivered” 恰好在这时变绿；14.2 秒起树又从根亮一遍，14.8 秒和检查时差不多亮。2.6 秒里亮、暗、亮，眼睛读成同一件事演了两遍，最该有分量的那个词落在低谷里。另外，最亮的光偏黄（页面的绿是 #76B900，最亮处采到的是 #F8FFB2 一带），在冷色的底上发酸；检查时主脊上那几团光有 40 到 50 像素长，是全屏最亮的东西，比标题还亮。</li>
+<li><strong>在哪里看</strong>：<code>?t=12.6</code>、<code>?t=13.8</code>、<code>?t=14.8</code> 连着看。</li>
+<li><strong>怎么改</strong>：两道光都留（都是你要的），做成一高一低，连在一起。检查的那团光缩到现在的六成左右，读起来是沿线走的一个脉冲；收尾的光在 13.95 秒不停顿地接上，整棵树几乎同时亮起（从根到梢 0.25 秒，现在是 0.75 秒），这样 “delivered” 变绿时树正在亮起来。提亮时沿着绿色自己的色相往白里走，不往黄里走。</li>
+<li><strong>改动</strong>：小到中。</li>
+<li><strong>评审</strong>：P3（亮度和时间），P1（颜色）；P2 主张只留一道光，见第三节。</li>
+</ul>
+<h3>7. 页面是照 1440×900 调的，小窗口上画太小，大窗口上不长大</h3>
+<ul>
+<li><strong>问题</strong>：1280×720 是最常见的笔记本窗口。在那里，标签、标题、说明、按钮占掉上面 330 像素，读数占 90，子图只有约 450×200 像素，标题比它介绍的画宽将近一倍。2560 宽的窗口上舞台不长大，子图只有 620 到 800 像素宽，名字还是 11 像素，开场时代码两边各空 700 像素。</li>
+<li><strong>在哪里看</strong>：1280×720 窗口的 <code>?t=18</code> 和 <code>?t=1</code>。</li>
+<li><strong>怎么改</strong>：窗口高度不到 800 时，去掉标题上方那行标签、收紧上边距，让图形撑满舞台的高度，画面能多出五六十像素。窗口高度 1200 以上时，舞台的上限放到 640 至 760 像素，星的大小、线宽、名字的字号跟着放大，版心从 920 放到 1040 左右。</li>
+<li><strong>改动</strong>：中。</li>
+<li><strong>评审</strong>：P1、P2、P4、P5。</li>
+</ul>
+<h3>8. 手机上三处失去了作用</h3>
+<ul>
+<li><strong>问题</strong>：
+<ul>
+<li>结果表只看得到库名和横条。百分比、检查数（包括 Goal mode 那几个红色的失败数字，正是论据所在）、用时都在屏幕右边之外，没有任何提示可以横滑，表头被切成 “tokens left after the rewr”。</li>
+<li>读数的横条只有 50 到 90 像素长，nano 那条只有 22 到 46 像素，“同一把尺子”量不出来。</li>
+<li>用法里的命令被切在 “cd nanc”。</li>
+</ul>
+</li>
+<li><strong>在哪里看</strong>：手机宽度下的结果一节、<code>?t=18</code>、用法一节。</li>
+<li><strong>怎么改</strong>：结果表在窄屏上一个库一块：库名和 Nanolize 的百分比一行，两条横条通栏，下面一行小字 “58 / 58 checks · 1h 9min”，Goal mode 的在其下，失败的标红。读数每行拆成两行：名字和两个数字在上，横条通栏在下。命令块把注释放到命令上面一行，或者在右边加渐隐，表示可以滑。</li>
+<li><strong>改动</strong>：中。</li>
+<li><strong>评审</strong>：T3、P1、P2、P4。</li>
+</ul>
+<h3>9. 首屏以下的几处小改</h3>
+<ul>
+<li><strong>绿色用散了。</strong> 首屏停留时亮的绿只占屏幕的 0.5%（P1 量的），所以显得珍贵。往下，绿色出现在横条、圆点、徽标、数字、步骤编号 01/02/03、命令行的 <code>$</code>、标题上方标签的圆点、“tokens read so far” 的计数上。页面自己的规矩是绿色只表示 nano 代码和检查通过。改：步骤编号、<code>$</code>、标签的圆点、token 计数改成灰或白；全页的横条统一成首屏的 3 像素粗（现在有 3、5、6 三种）。小。P1、P2、P4、P5。</li>
+<li><strong>各节标题断在句子中间，上下两行两种颜色。</strong> “Writing and” 是白的，“checking never meet.” 是灰的；“Eight libraries. Same” 换行接 “model. Same checks.”。首屏标题已经按句分行、每句各自渐变，各节标题没有跟上。改：按句断行，渐变按行各算各的。小。P1、P4。</li>
+<li><strong>两种页面宽度。</strong> 导航栏和首屏舞台宽 1152，下面每一块宽 1080，左上角的标志从来不和任何一块内容的左边对齐。改：下面八块统一到 1152。小。P4。</li>
+<li><strong>结果表里的数字没有对齐。</strong> “1h 9min”“4h”“21min” 参差不齐，“58 / 58” 和 “136 / 136” 的斜线不在一条线上。小。P4。</li>
+<li><strong>防火墙演示的装饰。</strong> 点阵底纹、几处光晕可以去掉；内容和互动不动。分歧见第三节。小。P1、P2。</li>
+</ul>
+<h3>10. 背景里不代表任何东西的星太多</h3>
+<ul>
+<li><strong>问题</strong>：除了代表代码的 760 颗星，画面里还有四种装饰用的白点：840 颗跟着一起转的“尘”、两层慢慢横移的远星、一层不动的远星和它那条带子上的微光。P2 按代码里的算法数过，宽 1440 时合计约 5,500 个点，是仓库的七倍。简化之后，被去掉的那一半（是数据）和这些装饰（是墙纸）看上去是同一种灰点，定格的一幅画读不出“一半”。页面讲的是“少”，画面里的东西却从来没有少过。在小笔记本屏幕上，这些细点读成颗粒。</li>
+<li><strong>在哪里看</strong>：1280×720 的 <code>?t=18</code>；<code>?t=18</code> 放大看子图四周。</li>
+<li><strong>怎么改</strong>：评审分歧较大，见第三节第 5 条。我的建议是只动一层：跟着图一起转的“尘”减半或去掉（正是它和数据混在一起），再去掉近处失焦的大圆斑。不动的远星和被去掉的星照旧，星空不会空。做成一版并排看。</li>
+<li><strong>改动</strong>：中。</li>
+<li><strong>评审</strong>：P2、P5 主张减；P1、P3、P4 主张不动。</li>
+</ul>
+<h3>11. 读数的做工</h3>
+<ul>
+<li>“仓库名 · 阶段”整行居中，阶段文字一换，仓库名就左右跳一次（宽 1440 时在 x=575、606、636 之间），一轮六次，就在那些特意做成不会动的数字上方。改：把中间那个点钉在版心正中，仓库名在它左边、阶段文字在它右边。P4。</li>
+<li>“382 checks frozen” 压在 “96 / 382 pass” 上面，382 没有对着 382。改：数字和文字分成两格，数字右对齐。P4。</li>
+<li>阶段文字是硬切的，而且两次抢在画面前面：2.2 秒画面还全是代码，就写 “as a graph”；22.5 秒画面还是星空，就写 “the original code”。改：文字用 0.1 到 0.2 秒淡出淡入，等画面到了再换。P3、T2。</li>
+<li>改动都小。</li>
+</ul>
+<h3>12. 指针一动，有五六种反应</h3>
+<ul>
+<li><strong>问题</strong>：星空倾斜，附近的星变亮、让开，名字显出来，被去掉的星和线回来，点一下还有一圈波纹。</li>
+<li><strong>在哪里看</strong>：<code>?t=18</code>，把指针停在子图左侧。</li>
+<li><strong>怎么改</strong>：留下倾斜、名字和“被去掉的回来”（它贴题：让人看到重写没带走的东西），去掉波纹和“让开”。</li>
+<li><strong>改动</strong>：小。</li>
+<li><strong>评审</strong>：P2、P5；P3 认为现在的就合适。“被去掉的回来”这一项有分歧：P5 主张交付之后不让它们回来（指针一过，成品又被裹进灰色的乱线里），P2、T2 认为它贴题。我倾向留下，把回来的线画得更淡。</li>
+</ul>
+<h2 id="s3">三、评审之间的分歧</h2>
+<h3>1. 中段“绿色长出来”的那一段，改不改</h3>
+<ul>
+<li><strong>T1、T2</strong>：这段画面演的是裁剪，要改成“乱图先退场，绿色再新画出来”，否则访客会把 Nanolize 当成裁剪工具。</li>
+<li><strong>P2、P3</strong>：这是全轮最好的一段。一个前沿从根长出去，其余的星在同一个前沿上退开，节奏自己慢下来。不要动。P2 认为“绿色从白色乱图里长出来”正是页面的论点。</li>
+<li><strong>还有一层</strong>：这是你定的。README 约定 2 写着，绿线都是乱图里本来就有的。</li>
+<li><strong>我的判断</strong>：两边说的是两件事，都成立。含义上证据支持 T1、T2：我的连拍里绿色确实是沿着还亮着的白线走、把白星点绿。作为动作它也确实干净。所以不直接改，先改字（第一节第 2 条的第一步），再把“先退场、再新画”做成单独一版并排比较。那一版里星、线、形状、比例都不变，仍然只有一个从根出发的前沿，P3 看重的东西大部分还在。</li>
+</ul>
+<h3>2. 阶段文字要不要改成图 2 的说法</h3>
+<ul>
+<li><strong>T2</strong>：用项目自己的词（repository、capability graph、scope、rewrite、checks、nano），并把这六步排成一行，当前一步亮着，定格时也知道演到哪了。</li>
+<li><strong>T1、T3</strong>：不要把星空叫 capability graph，不要把绿色子图叫 selected scope。页面上星星的比例是代码量的比例（760 颗留 360 颗，就是留下 47.4% 的行），页面又说 Detectron2 的 106 项能力全部保留。如果星空是“能力图”，暗掉 400 颗星就是在说丢了一半能力。</li>
+<li><strong>我的判断</strong>：证据支持 T1、T3，星星继续代表代码。T2 建议的另一半可以单独采纳：把几个阶段排成一行小字，当前一步亮着，手机上只显示当前一步。根源是图 2 和页面对“星星代表什么”的说法不同，值得你定一次。</li>
+</ul>
+<h3>3. 读数：两行两条，还是并成一条</h3>
+<ul>
+<li><strong>P2、P5</strong>：并成一条横条（灰的底是原仓库，绿的填充是 nano）加两个数字。两行两条是一块仪表盘，ORIGINAL 那条永远是满的。</li>
+<li><strong>T1、T2、T3、P4</strong>：两行的形式是首屏最如实的东西。同一把尺子、同一套检查、nano 从 0 涨上来，“从零”和“一半”只在这里被真正演出来。要改的是它的话，不是它的形式。</li>
+<li><strong>我的判断</strong>：电脑上保留两行（这也是约定 5），改字、去掉 “100% tokens” 和开始前的 “0 / 382 pass”（第一节第 5 条）。删掉跑马灯之后，首屏底部已经不挤了。手机上横条只有几十像素，按第二节第 8 条让横条通栏。</li>
+</ul>
+<h3>4. 三个大数字，留不留在首屏</h3>
+<ul>
+<li><strong>P5</strong>：搬到结果一节的开头，首屏只留一种说法。<strong>P2</strong>：留两个，用时搬走。<strong>P1、P4、T3</strong>：已经是完成的作品，不动。</li>
+<li><strong>我的判断</strong>：不动。1440×900 时它们本来就在第一屏之外，首屏结束在读数下面，不和画面抢。删掉跑马灯、读数在交付时改用减号的写法之后，“三层、两种记法”的问题已经没有了。</li>
+</ul>
+<h3>5. 背景的星，减不减</h3>
+<ul>
+<li><strong>P2、P5</strong>：装饰的点是数据的七倍，被去掉的那一半混进了墙纸；高级的深色页面大部分是黑的。P2 要去掉尘和两层横移的远星，P5 要减半以上。</li>
+<li><strong>P1、P3、P4</strong>：停留时四周那片暗下去的星空正是好的地方，有纵深、不起雾；远星之间相互错动是好的动效；乱图的细线不要更重也不要更淡。</li>
+<li><strong>还有一层</strong>：你定过，简化之后星空不能空掉。</li>
+<li><strong>我的判断</strong>：在 1440×900 上它是一片安静的夜空；在 1280×720 上和放大看时，P2、P5 说的颗粒和“分不清哪些是数据”是看得到的。所以只动最容易和数据混淆的那一层（跟着图一起转的尘），其余不动，做一版并排看。排在名字和开场之后。</li>
+</ul>
+<h3>6. 名字：全部显示，还是只留几个</h3>
+<ul>
+<li><strong>T1</strong>：停留时背面的名字保底半亮，让 12 个模块都读得到。“各个部分都还在”是画面里“行为全部保留”最好的证据。</li>
+<li><strong>P1、P2、P4、P5</strong>：半亮的名字正是毛病的来源，名字要么全亮要么不显示，最多六七个。</li>
+<li><strong>我的判断</strong>：证据支持四位。我看过的每一幅里，半亮的名字都像渲染残留；T1 自己也说它们是“灰色的污迹”。T1 要的证据换个办法给：星空在转，名字会随着模块转到前面轮流出现，停留加长之后一轮里看得到更多；再加上第一节第 1 条的 nano 文件树。</li>
+</ul>
+<h3>7. 收尾的那一下亮光，和停留时走动的小光点</h3>
+<ul>
+<li><strong>P2</strong>：只留一道光。检查到头时整棵树轻轻亮一下就够了。停留时主脊上走动的小光点也去掉：光在走的意思是“检查在跑”，交付之后还在走，意思就乱了。</li>
+<li><strong>P3</strong>：两道光都留，一高一低连起来。小光点是恰到好处的活气。<strong>P5</strong>：都不动。两道光都是你要的。</li>
+<li><strong>我的判断</strong>：按 P3 的办法（第二节第 6 条）。我的连拍确认了“亮、暗、亮”和 “delivered” 落在暗处，这是要改的；第二道光本身不必去掉。小光点留着：停留要加长到十秒左右，需要一点动静，可以少几个。</li>
+</ul>
+<h3>8. 防火墙演示，要不要大改</h3>
+<ul>
+<li><strong>P1</strong>：这是全页最忙、最像普通产品网站的一块，卡片套卡片、药丸形标签、光晕、点阵，要把装饰剥掉。</li>
+<li><strong>P2、P5、T3</strong>：这是全页最有特色、最有说服力的一节，不要动。P5 甚至说首屏应该向它看齐。</li>
+<li><strong>我的判断</strong>：内容、布局、四个作弊按钮不动。只做两边都不反对的减法：去掉点阵底纹（P2 也这么说）和几处光晕。作者一栏的绿条代表 nano 代码，符合用色规矩，留着。排在后面做。</li>
+</ul>
+<h3>9. 第一轮讲什么，要不要把“交付”提前</h3>
+<ul>
+<li><strong>T1</strong>：把交付从 14 秒提前到 11 秒（空转的乱图压到 1 秒，生长从 4.6 秒压到 3.6 秒），第一轮固定讲 requests。</li>
+<li><strong>P2、P3</strong>：生长的节奏正好，不要压。<strong>P3、P5</strong>：第一轮直接从成品开场。P5 主张开场用 detectron2 的神经元，它已经是定格和减少动态效果时的那一幅，等于页面的“脸”。</li>
+<li><strong>我的判断</strong>：从成品开场，T1 要解决的问题（前十秒看不到主题）就解决了，不必压缩生长。开场那一幅用 detectron2 的神经元，接下来第一个完整的故事讲 requests，两边的理由都用上。空转的乱图可以压缩，这一点大家都同意，但省下的时间更该给文件树接到图上的那一刻（第一节第 8 条）。</li>
+</ul>
+<h3>10. 几处小分歧</h3>
+<ul>
+<li><strong>标题的渐变</strong>：P1 要纯色或更浅的渐变，P2 觉得现在够安静，P4 只要求按行渐变。三位都同意两行的标题不该上白下灰。按行渐变是最小的改法，先做这个。</li>
+<li><strong>标题上方的标签 “TECHNICAL REPORT, 2026”</strong>：P2、P5 要去掉，P4 认为不用动，P1 建议矮窗口上去掉。我的判断：去掉那个绿点（它既不是 nano 代码，也不是通过的检查，三位都指出了），矮窗口上整行隐藏，其余照旧。</li>
+<li><strong>页脚的大字 “Nanolize”</strong>：P1 要去掉，P2、P5 要留。留。</li>
+<li><strong>文件树的行数、代码的栏数</strong>：P2 要树最多 10 行、代码并成一块；其余评审只要求收拾边缘。两栏代码和文件树都是你定的，先收拾边缘。</li>
+<li><strong>五种形状</strong>：T2 指出橡树和支气管树说的是生物，不是代码；其余评审认为形状一眼能认，是亮点。形状是你选的，不动；以后要减，先减这两个。</li>
+<li><strong>开始简化前把乱线提亮一下</strong>：T1 觉得“臃肿”在画面里没有样子，乱图和成品一样安详。P4 认为细线现在的轻重正好，你也要求过线更淡。不动。</li>
+</ul>
+<h2 id="s4">四、已经做对、不要动的地方</h2>
+<ul>
+<li><strong>停留时的那幅画</strong>。细线、越往外越细越暗、根最亮、近的枝条压在远的上面、四周留着暗下去的星空，亮的绿只占屏幕的千分之五。不要加粗、提亮、加光晕。八位评审一致。</li>
+<li><strong>标题、说明和两个按钮</strong>。六个词、一行衬线字、两秒读完。字号、间距、居中都不用动。</li>
+<li><strong>生长的动作</strong>。一个前沿从根长出去，取景不动，节奏自己慢进细枝。要动的只是它的含义（第一节第 2 条），不是它的节奏。</li>
+<li><strong>检查的演法</strong>。光沿着子图自己的线走，到分叉处分开，计数跟着光走，数满了 “delivered” 才变绿。没有圆圈、闪光、白色的光头。这是画面和数字同时说同一件事的唯一一刻。</li>
+<li><strong>真实</strong>。真实的仓库、模块名、文件树，真实的留存比例；每一轮换一个形状、一个仓库。对一个研究项目的页面来说，具体就是高级。</li>
+<li><strong>文件树和它的虚线</strong>。它让开场一眼看出是“一个仓库”，并解释了星星是什么。只需要让那一刻长一点、静一点。</li>
+<li><strong>读数的形式</strong>。同一把尺子上的两条横条、同一套检查、nano 从 0 涨上来。要改的是字。</li>
+<li><strong>用色的规矩</strong>。绿色只给 nano 代码和通过的检查，红色只给失败和被拦住的。结果表里 Goal mode 那个红色的 “126 / 136” 是全页最有说服力的一处用色。</li>
+<li><strong>取景不动、匀速慢转</strong>，字后面压暗的星空，按钮里不画星。</li>
+<li><strong>减少动态效果时的静帧</strong>。成品加完整的读数，一幅画就是整个主张。</li>
+<li><strong>字体、导航栏和标志</strong>。衬线标题、等宽的小标签、三个大数字的排法；导航在顶上透明、滚动后变成毛玻璃。</li>
+<li><strong>首屏以下的骨架</strong>。各节的顺序；大段的衬线陈述；防火墙演示的内容和四个作弊按钮；结果表的诚实（Goal mode 减得更多的地方照实画出来，红色只标它的失败）；用法的三条命令、三步。</li>
+<li><strong>性能</strong>。最忙的一段和停留时都是每秒 60 帧，这次评审里没有一条是性能问题。</li>
+</ul>
+<h2 id="s5">五、如果只做五件事</h2>
+<ol>
+<li>结尾不再倒放：21.4 秒起整幅画淡出，读数停在交付时的数字上，暗了再换下一个仓库；一轮加到 30 秒，多出的时间全给成品的停留。</li>
+<li>删掉首屏底部的跑马灯，把读数的话改成标题和结果表的话：写 “behavior checks”，交付时写 “−44.80% tokens”，轮到之前不显示 “0 / 382 pass” 和 “100% tokens”。</li>
+<li>让字和画面对上：先确认八个库是否保留了全部功能并写进结果一节，再把 7.2 到 11.8 秒那行 “rewriting from scratch” 改成画面真在演的事，“乱图先退场、绿色再新画”的生长做成一版并排比较。</li>
+<li>收拾第一眼：第一次打开先停在成品上五秒再从头讲；开场一屏给按钮留出空、代码行尾渐隐、虚线等有去处再出现；代码变星空时去掉拖尾线；子图上的名字只留全亮的六七个。</li>
+<li>让 nano 仓库露面：先在首屏下面加一块“出来的是什么”，原仓库和 nano 仓库的文件树并排；再在停留时让一棵绿色的短文件树从子图旁边长出来。这是下一轮设计的主题。</li>
+</ol>
+<p>前四件都是小改，合起来一两天。第五件对“贴合主题”的作用最大，但要新的设计，也要真实的材料。</p>
+<p>动手之前要先拿到的东西：</p>
+<ul>
+<li>至少一个 nano 仓库的真实文件列表（第 5 件；第一节第 1 条）。</li>
+<li>八个库重写时是否保留了全部功能；一项“行为检查”是什么，549 项背后有多少个测试用例；token 数的是哪些文件（第 3 件；第一节第 4 条）。</li>
+<li>Detectron2 的 token 数、重写一次的花费、五个阶段的名字（第一节第 5、9 条）。</li>
+</ul>
+
+<footer>这一页由脚本从同目录的 Markdown 文件生成，内容相同。评审对象是版本 6（<a href="../6/">../6/</a>）；文中的 <code>?t=18</code> 等是加在版本 6 网址后面的参数。</footer>
+</main>
+<a class="top" href="#top">回到顶部</a>
+</body>
+</html>
