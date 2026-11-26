@@ -3504,11 +3504,13 @@ def loads(s: str, /, *, parse_float: ParseFloat = float) -> dict[str, Any]:
          says delivered: nothing counts back and the phase never steps back, whatever the picture does after the hold. The nano row shows
          a dash till its turn comes, never a zero: its code from 7.2, once there is any (up from nothing, on the original's scale, in the
          repository's own unit), its checks from C0 (the stars the light has passed, as a share of the repository's checks). The phase's words change through a
-         fade (out before the moment, in after it; across the loop's end the whole line, with the name), a function of t like the rest;
-         a frozen scene shows its moment's words whole, as it shows the readout's colours at once. */
+         fade (out before the moment, in after it), and across the loop's end the whole readout does: out before the end, in again from
+         .2 s, with the next repository's own folder, so that its name and figures do not stand under the nano tree of the loop before
+         while that gives way, and no bar or figure is seen to jump. A function of t like the rest; a frozen scene shows its moment's
+         words whole, as it shows the readout's colours at once. */
       { const w = ease(seg(t, 7.2, 11.6)), amt = REPO.to * w, some = amt >= (REPO.unit === 'lines' ? .5 : .005), won = t > C0 + CD - 1e-6, ph = won ? 4 : t >= C0 ? 3 : t >= 7.2 ? 2 : web > .1 ? 1 : 0, now = some ? ph + 8 : ph;
         if (now !== shown || hud.of !== REPO) { put(hud.phase, ph < 4 ? PHASE[ph] : told()); hud.box.classList.toggle('wait', !some); hud.box.classList.toggle('idle', ph < 3); hud.box.classList.toggle('done', won); shown = now; hud.of = REPO; }
-        veil(hud.phase, still ? 1 : clamp01(Math.min(Math.abs(t - 7.2), Math.abs(t - C0), Math.abs(t - C0 - CD), t < 7.2 ? Math.abs(web - .1) * 2.2 : 9) / FADE)); veil(hud.phase.parentNode, still ? 1 : clamp01(Math.min(t, Math.abs(T - t)) / FADE));
+        veil(hud.phase, still ? 1 : clamp01(Math.min(Math.abs(t - 7.2), Math.abs(t - C0), Math.abs(t - C0 - CD), t < 7.2 ? Math.abs(web - .1) * 2.2 : 9) / FADE)); veil(hud.box, still ? 1 : clamp01(Math.min(t - (FT.turn && FT.was ? .2 : 0), Math.abs(T - t)) / FADE));
         put(hud.lines, !some ? NONE : REPO.unit === 'lines' ? fmt(amt) : amt.toFixed(2) + '%'); put(hud.checks, ph < 3 ? NONE : `${won ? REPO.checks : Math.round(REPO.checks * passed(fr) / K)} / ${REPO.checks}`);
         const wide = (100 * amt / REPO.from).toFixed(1) + '%'; if (hud.wide !== wide) hud.bar.style.width = hud.wide = wide; }
     };
