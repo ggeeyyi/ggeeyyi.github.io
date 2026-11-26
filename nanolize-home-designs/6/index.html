@@ -894,15 +894,18 @@ def resolve_options(base, overrides=None, env=None, *, allow_new=False, freeze=T
          the axis. Height: the stage is wide (about 2.4 : 1 on a desktop, nearly square on a phone) and seen
          from only 17 degrees above the level, and a shape must stand inside it even if it were AIR (1.2)
          times as big, the two stars that reach furthest up and the two furthest down not counted. On a
-         desktop that is about four fifths of the stage's height: the spiral is about 720 px wide and 210
-         to 360 tall there as it turns, a ball comes out 330 across, an upright tree (the oak) about 600
-         wide and 390 tall. A shape taller than VMAX allows (r *
+         desktop that is about four fifths of the stage's height: the spiral is 680 to 820 px wide and 230
+         to 390 tall there as it turns, a ball comes out 330 across, an upright tree (the oak) about 570
+         wide and 400 tall. Height is dear: a limb that climbs a unit costs the shape three times what a
+         limb that lies a unit out costs it, and most at the rim, so give a shape its depth where it is
+         narrow, near its middle (the neuron's limbs arch, the bronchial lobes drop beside the root and
+         then run level), and it stays nearly as wide. A shape taller than VMAX allows (r *
          .30 + |y| * .96 under .43 for every star, r its distance from the axis) is told so by ?stats, 'held
          by the height'; where the stage is taller, as on a phone, it is drawn up to 2.2 times bigger again.
          Shapes that lie flat fill the stage best.
        The standard is the spiral. Hold a new shape beside it at the same ?t, ?repo and viewport: as big, as
          bright, as loose. Its make-up for 360 stars: 94 on six paths (the three arms, 24 stars each from
-         the root, and their three side arms, 7 each), 18 in the bush round the root, about 95 in the
+         the root, and their three side arms, 7 each), 20 in the bush round the root, about 95 in the
          stems the arms divide into and their twigs, about 80 in sprigs at the packages, the rest (about
          70) loose twigs beside the arms, .04 to .05 apart; 359 lines and no tie; orderly in the large,
          loose in the small. A star on a path is drawn bigger and carries a haze, and every path a
@@ -1007,9 +1010,9 @@ def resolve_options(base, overrides=None, env=None, *, allow_new=False, freeze=T
          lines beyond it and how many of them join two leaves, its depth, its longest way, leaves, forks,
          the most twigs on one star), px to the unit and, in a frozen scene, the light: how wide and tall
          the box round the shape is, how much of it is lit and how much bright. The spiral at t=18 on a 1440
-         x 900 screen: 4.9 to 8.8% of its box lit as it turns, 1.4 to 2.5% bright (the neuron 4.1 to 6.2%
-         and 1.2 to 1.9%, the oak 4.9 to 5.3% and 1.4 to 1.5%, the sea fan from its faces 4.8 to 5.4% and 1 to 1.3%,
-         the bronchial tree 5.4 to 6.8% and 1.6 to 2%; the share is of the shape's box, so the side on
+         x 900 screen: 4.9 to 7.8% of its box lit as it turns, 1.4 to 2% bright (the neuron 4.2 to 6.2%
+         and 1.2 to 1.9%, the oak 4.5 to 5.7% and 1.2 to 1.7%, the sea fan from its faces 5.4 to 6% and 1.1 to 1.5%,
+         the bronchial tree 5.6 to 7% and 1.7 to 2.2%; the share is of the shape's box, so the side on
          which a shape lies flattest reads highest); 3% bright glares. ?stats=log also puts all that on the console as an error, where a
          screenshot tool will print it. ?sweep=900 makes the shape with 900 seeds (?seed and on), the nine
          repositories in turn (all with one, if ?repo names it), and tells the console which failed and how
@@ -1057,7 +1060,7 @@ def resolve_options(base, overrides=None, env=None, *, allow_new=False, freeze=T
     /* shape:spiral */
     /* A spiral galaxy grown as a tree: arms that wind out of the root and divide as they go, all winding the
        same way. It is the standard of size and weight, and the shape shown when another one fails.
-       The core: the root in the middle and a small bush of short stems round it.
+       The core: the root in the middle and a small bush of short stems round it, nearly as tall as it is wide: a ball.
        Three arms leave the root, a third of a turn apart: each sets out straight and is wound round as it
        goes (wind: the angle between an arm and the circles it crosses falls from P0 to PITCH), half a turn
        in all, neither quite true: each wavers. An arm divides twice on its way and once at its end, and
@@ -1066,16 +1069,17 @@ def resolve_options(base, overrides=None, env=None, *, allow_new=False, freeze=T
        between the two a short feather (a stem) turns inward; and where its own spine ends the arm parts
        into two stems. So the light leaves the root three ways and divides at every fork, outward, and no
        spine is longer than 24 stars. The arms do not share a plane: each, with all that hangs from it, lies
-       in its own, tipped out of the level about its own line, so one arm passes over the other and the
-       galaxy has depth from every side. The packages are the two forks of each arm, the end of its spine
+       in its own, tipped out of the level about its own line, one by about 9 degrees, one by 6 and one
+       by 3 (TIP), so the disc is warped: one arm climbs as it goes out, another sinks, one passes over
+       the other, and the galaxy has depth from every side. The packages are the two forks of each arm, the end of its spine
        and the end of its side arm's; each has its own spray of twigs, some rich, some thin. The remaining
        stars are loose twigs along the arms, beside them, above them and below them (THICK). No line
        beyond the tree. */
     shape('spiral', () => {
-      const NA = 3, DS = .07, P0 = 1.5, PITCH = .45, THICK = .13, all = [], heart = [], a0 = rng() * TAU;
+      const NA = 3, DS = .07, P0 = 1.5, PITCH = .45, THICK = .15, TIP = [.15, .11, .06], all = [], heart = [], a0 = rng() * TAU, t0 = Math.floor(rng() * NA);   // TIP: how far each arm's plane is tipped out of the level
       const root = star(0, 0, 0); hub(root, .13);
-      bush(root, .13, part(18), heart, .7);
-      for (let a = 0; a < NA; a++) { const lean = (.08 + .05 * rng()) * (rng() < .5 ? -1 : 1), node = rng() * TAU, w1 = rng() * TAU;
+      bush(root, .14, part(20), heart, .95);
+      for (let a = 0; a < NA; a++) { const lean = TIP[(a + t0) % NA] * (.9 + .2 * rng()) * (rng() < .5 ? -1 : 1), node = rng() * TAU, w1 = rng() * TAU;
         /* a stretch of an arm: up to n stars a step apart from star `from`, winding outward; p0, p1: how steeply it crosses the circles as it sets out and later on */
         const wind = (from, n, p0, p1, kind) => { const ids = []; let i = from, r = Math.hypot(S[i].x, S[i].z), th = i === root ? a0 + a * TAU / NA : Math.atan2(S[i].z, S[i].x);
           for (let j = 1; j <= n && r < 1.03; j++) { const psi = p1 + (p0 - p1) * Math.exp(-j / 3.5) + .09 * Math.sin(.8 * j + w1 + 9 * r); r += DS * Math.sin(psi); th += DS * Math.cos(psi) / Math.max(r, .1);
@@ -1157,7 +1161,8 @@ def resolve_options(base, overrides=None, env=None, *, allow_new=False, freeze=T
     /* A tree as trees are, roots and all, standing in the round. The root star is the collar, where the trunk
        meets the ground, in the middle of the picture: the crown divides upward from it and the root system
        downward, so the light leaves the middle both ways. The crown: places for the ends of its twigs are
-       spread through a broad low dome well above the collar (scatter), and limbs are grown to serve them all
+       spread through a broad round dome well above the collar, its top a third of its radius above its rim
+       (scatter), and limbs are grown to serve them all
        (limb): a limb runs part of the way to the middle of its places, curving out of the line it came in on,
        and there divides in two, the places parted across it and seldom evenly; the greater part gets the
        leader, which carries the spine on, the lesser a side limb with a spine of its own; a limb with few
@@ -1172,7 +1177,7 @@ def resolve_options(base, overrides=None, env=None, *, allow_new=False, freeze=T
        small spray, every end breaks into one (the foliage and the root hairs), and the remaining stars are
        loose twigs out among them, most in the crown. No line beyond the tree. */
     shape('oak', () => {
-      const DS = .068, HI = Math.ceil(K / 150), RC = .84, RUNS = [], TIP = [], FORK = [], END = [], top = [], low = [], wood = [];
+      const DS = .068, HI = Math.ceil(K / 150), RC = .8, RUNS = [], TIP = [], FORK = [], END = [], top = [], low = [], wood = [];
       const root = star(0, 0, 0); hub(root, .07);
       const spiny = n => n >= HI || n > 1 && n === HI - 1 && rng() < HI - K / 150;      // a limb with so many places is a spine: 2 for the fewest stars, 3 for the most, in between 3 and some of those with 2
       const unit = (x, y, z) => { const l = Math.hypot(x, y, z) || 1; return [x / l, y / l, z / l]; };
@@ -1190,8 +1195,8 @@ def resolve_options(base, overrides=None, env=None, *, allow_new=False, freeze=T
         const ord = pts.map((q, j) => [o[j][0] * a[0] + o[j][1] * a[1] + o[j][2] * a[2], q]).sort((x, y) => x[0] - y[0]).map(x => x[1]), cut = Math.min(n - 1, Math.max(1, Math.round(n * (.36 + .28 * rng()))));
         const A = ord.slice(0, cut), B = ord.slice(cut), big = A.length >= B.length ? A : B, small = big === A ? B : A, on = sp && spiny(big.length), too = sp && spiny(small.length), side = [at]; if (sp) (on ? FORK : END).push(at);      // FORK: the spine goes on from here; END: it ends here, in stems
         limb(at, b, big, on ? run : null, .5 + .12 * rng(), mine); limb(at, b, small, too ? side : null, .5 + .12 * rng(), mine); if (side.length > 1) RUNS.push(side); };
-      /* the crown: a broad low dome well above the collar, its places mostly out in its shell */
-      const crown = scatter(Math.round(K / 9), () => { const az = rng() * TAU, s = .04 + .96 * rng(), c = Math.sqrt(1 - s * s), far = 1 - .4 * rng() ** 2; return [RC * c * far * Math.cos(az), .4 + .2 * s * far, RC * c * far * Math.sin(az)]; });
+      /* the crown: a broad round dome well above the collar, its places mostly out in its shell */
+      const crown = scatter(Math.round(K / 9), () => { const az = rng() * TAU, s = .04 + .96 * rng(), c = Math.sqrt(1 - s * s), far = 1 - .4 * rng() ** 2; return [RC * c * far * Math.cos(az), .37 + .27 * s * far, RC * c * far * Math.sin(az)]; });
       /* the trunk: two stars up, leaning; there the first limb leaves, away from the lean, with the third of the crown on that side; the trunk goes on a little and divides in two */
       const la = rng() * TAU, lx = Math.cos(la), lz = Math.sin(la), trunk = [root], first = []; let t = root;
       crown.sort((p, q) => p[0] * lx + p[2] * lz - q[0] * lx - q[2] * lz);
@@ -1228,12 +1233,14 @@ def resolve_options(base, overrides=None, env=None, *, allow_new=False, freeze=T
        fine: twigs that leave the outer branches outward at every angle, no two alike, and divide.
        The packages are forks: a few of the first ones, clear of the foot, and the last ones before the rim,
        none out on the lowest branches at the two sides; each has a small spray.
-       The fan stands near one upright plane, turned TH, but it is not a sheet: it is cupped (CUP) and
-       twisted like a blade (TW), and every branch leans out of it its own way (THICK). Seen edge on it is
+       The fan stands near one upright plane, turned TH, but it is not a sheet: it is cupped like a shallow
+       bowl (CUP), twisted like a blade (TW), and every branch leans out of it its own way (THICK): one of
+       its sides comes towards the eye and the other falls away from it, and near branches pass in front
+       of far ones as it turns. Seen edge on it is
        a narrow plume, so it names its faces: the scene is turned so that it is seen a little from one
        side while it grows and a little from the other when the hold ends. No line beyond the tree. */
     shape('seafan', () => {
-      const DS = .068, OPEN = 1.34, REACH = .92, WIDE = 1.14, TALL = .9, TH = 2.03, CT = Math.cos(TH), ST = Math.sin(TH), CUP = .22, TW = .26, THICK = .12, SPLIT = .11 * 360 / K, SWEEP = .16, SPINES = 90, Q = [], RUNS = [], FORK = [], all = [], L1 = rng() * TAU, L2 = rng() * TAU, L3 = rng() * TAU; let lit = 0;
+      const DS = .068, OPEN = 1.34, REACH = .92, WIDE = 1.14, TALL = .9, TH = 2.03, CT = Math.cos(TH), ST = Math.sin(TH), CUP = .3, TW = .32, THICK = .16, SPLIT = .11 * 360 / K, SWEEP = .16, SPINES = 90, Q = [], RUNS = [], FORK = [], all = [], L1 = rng() * TAU, L2 = rng() * TAU, L3 = rng() * TAU; let lit = 0;
       const edge = a => REACH * (1 + .05 * Math.sin(2.6 * a + L1) + .03 * Math.sin(6.3 * a + L2)) * (1 - .12 * (a / OPEN) ** 4);     // the rim: round, a little lobed, drawn in at the two sides
       /* a place of the fan: r from the foot, a from the upright, off out of the plane (before the cup and the twist) */
       const at = (r, a, off) => { a = a * (1 - SWEEP * (r / REACH) ** 2) + .014 * Math.sin(9 * r + 3 * a + L3) / Math.max(.3, r); const u = WIDE * r * Math.sin(a), v = TALL * r * Math.cos(a), o = off + CUP * u * u + TW * u * (v - .45); return [u * CT - o * ST, v, u * ST + o * CT]; };
@@ -1243,7 +1250,7 @@ def resolve_options(base, overrides=None, env=None, *, allow_new=False, freeze=T
       /* the branches, the one that begins nearest the foot first: each is the part of the fan from lo to hi, grown from star i; run: the spine it carries on or begins; lv: how many forks lie behind it */
       const stem = [root]; RUNS.push(stem); Q.push({ i: root, lo: -OPEN, hi: OPEN, run: stem, lv: 0 });
       while (Q.length) { let n = 0; for (let q = 1; q < Q.length; q++) if (S[Q[q].i].fr < S[Q[n].i].fr) n = q; const it = Q[n]; Q[n] = Q[Q.length - 1]; Q.pop();
-        const i = it.i, lo = it.lo, hi = it.hi, p = S[i], wide = hi - lo, mid = lerp(lo, hi, .5 + .1 * bell()), far = edge(mid), sp = !!it.run && lit < SPINES, lam = .07 + .2 * p.fr, off = Math.max(-THICK, Math.min(THICK, p.fo + .09 * bell()));
+        const i = it.i, lo = it.lo, hi = it.hi, p = S[i], wide = hi - lo, mid = lerp(lo, hi, .5 + .1 * bell()), far = edge(mid), sp = !!it.run && lit < SPINES, lam = .07 + .2 * p.fr, off = Math.max(-THICK, Math.min(THICK, p.fo + .12 * bell()));
         let r1 = Math.max(p.fr + .085 + .05 * rng(), SPLIT * (.75 + .6 * rng()) / (wide + .45 * SPLIT / REACH)), tip = i; const ends = r1 > far - .14; if (ends) r1 = far * (.95 + .08 * rng());
         for (let j = 1, m = Math.max(1, Math.round((r1 - p.fr) / (sp ? DS : DS * 1.2))); j <= m; j++) { const r = lerp(p.fr, r1, j / m); tip = put(r, mid + (p.fa - mid) * Math.exp(-(r - p.fr) / lam) + (j < m ? .008 * bell() / Math.max(.2, r) : 0), lerp(p.fo, off, j / m), tip, sp ? 0 : 2); if (sp) { it.run.push(tip); lit++; } }
         if (ends) { S[i].last = (S[i].last || 0) + 1; continue; }
@@ -1257,7 +1264,7 @@ def resolve_options(base, overrides=None, env=None, *, allow_new=False, freeze=T
       HUB.slice(1).forEach(h => sprig(h, .05 * (.8 + .5 * rng()), part(3 + Math.floor(rng() * 4)), all, .034));
       /* the fine edge: twigs that leave the outer branches outward, to one side or the other and out of the fan, and divide in their turn */
       for (let tries = 0; left() > 0 && tries < 20000; tries++) { const h = all[Math.floor(rng() * all.length)], p = S[h]; if (!(p.fr >= .28)) continue;
-        const r = p.fr + .03 + .075 * rng() ** 2, a = p.fa + (rng() < .5 ? -1 : 1) * (.015 + .075 * rng()) / r, off = p.fo + .05 * bell(), q = at(r, a, off);
+        const r = p.fr + .03 + .075 * rng() ** 2, a = p.fa + (rng() < .5 ? -1 : 1) * (.015 + .075 * rng()) / r, off = p.fo + .06 * bell(), q = at(r, a, off);
         if (r < edge(a) + .05 && Math.abs(a) < OPEN + .06 && clear(q[0], q[1], q[2], all, .032 + .02 * rng())) put(r, a, off, h); }
       strew(all, .04, .03);
     }, { kin: 'stands', face: [[2.3, 2.5], [5.44, 5.64]] });                       // TH + .27 to TH + .47, and the same from behind
@@ -1265,8 +1272,12 @@ def resolve_options(base, overrides=None, env=None, *, allow_new=False, freeze=T
 
     /* shape:bronchi */
     /* A bronchial tree: two main branches leave the root, one to each side, and each divides again and again
-       until it fills a rounded lobe; the two lobes lie side by side like lungs, one clearly the smaller,
-       the one rising a little away from the root and the other falling. A lobe is a thick lens of seeds
+       until it fills a rounded lobe; the two lobes hang from the root like lungs, one to each side and a
+       little below it, one clearly the smaller: a branch drops as it leaves the root and then runs level
+       (DROOP, HANG: the height is spent beside the root, where the stage has room for it, and none of it
+       at the rim), so the root stands over the middle of the two lobes; and the lobes are tipped opposite
+       ways about the line that joins them (TIPPED, about 8 degrees), like the blades of a propeller: from
+       the side one lobe is seen in front of the other. A lobe is a thick lens of seeds
        (evenly scattered), narrower at its apex than at its base. A branch is given the seeds it must reach:
        it grows from where its parent ended towards their middle, FRAC of the way (the two out of the root
        only an eighth, so that they divide close to it; a long branch bows a little); there the seeds are
@@ -1277,17 +1288,17 @@ def resolve_options(base, overrides=None, env=None, *, allow_new=False, freeze=T
        stars run out the tree is equally far everywhere. Spines: the two main branches, and at each fork
        the greater part carries the spine on, down to branches of SPN seeds; the lesser part begins a
        spine of its own only if it is a large one (NEW seeds), otherwise it is a stem and then a twig: a
-       dozen or so long spines, not thirty short ones. The root is the heart of the picture: a small bush
+       dozen or so long spines, not thirty short ones. The root is the heart of the tree: a small bush
        of short stems round it, and twigs beside the first branches (RES stars are kept back for them).
        The packages are forks of the spines and their ends, those furthest from each other, dealt to the
        two lobes in turn. No line beyond the tree. It reads from every side and names no face. */
     shape('bronchi', () => {
-      const DS = .068, FRAC = .46, SPN = 3, NEW = Math.max(6, Math.round(K / 28)), RES = part(26), Q = [], CAND = [], all = [], main = [], small = rng() < .5 ? 1 : -1;
+      const DS = .068, FRAC = .46, SPN = 3, NEW = Math.max(6, Math.round(K / 28)), RES = part(26), Q = [], CAND = [], all = [], main = [], small = rng() < .5 ? 1 : -1, DROOP = .45, HANG = .3, TIPPED = .14 * (rng() < .5 ? 1 : -1);
       const root = star(0, 0, -.16); hub(root, .09);
       bush(root, .1, part(12), main, .8);
       const lobe = sx => { const pts = [], big = sx === small ? .84 : 1, P = Math.ceil(K * (sx === small ? .24 : .35));
         for (let tries = 0; pts.length < P && tries < 20000; tries++) { const u = rng() * 2 - 1, v = rng() * 2 - 1, w = rng() * 2 - 1; if (Math.pow(Math.abs(u), 2.6) + v * v + Math.pow(Math.abs(w), 2.6) > 1) continue;
-          const x = sx * (.02 + big * (.47 + .45 * u * sx * (1 + .2 * w) + .06 * w)), y = big * .23 * v + sx * small * .07 * (Math.abs(x) - .1), z = .06 + big * .68 * w; if (apart(x, y, z, pts, .075)) pts.push([x, y, z]); }
+          const x = sx * (.02 + big * (.47 + .45 * u * sx * (1 + .2 * w) + .06 * w)), z = .06 + big * .64 * w, y = big * .22 * v - (DROOP + sx * small * .03) * HANG * Math.tanh((Math.abs(x) - .1) / HANG) + sx * TIPPED * (z - .06); if (apart(x, y, z, pts, .075)) pts.push([x, y, z]); }
         return pts; };
       const give = (from, pts, run, sx, gen, dir) => Q.push({ from, pts, run, sx, gen, dir, key: pts.length + rng() });
       give(root, lobe(1), [root], 1, 0); give(root, lobe(-1), [root], -1, 0);
@@ -1407,7 +1418,7 @@ def resolve_options(base, overrides=None, env=None, *, allow_new=False, freeze=T
          checks is still one light divided among the lines that leave the root (1 over their number at the
          root itself), or the lights of a dozen lines and of the bush's stars pile up into a white blot. */
       const share = 1 / Math.max(1, twigs[root]);
-      for (let i = 0; i < K; i++) { const p = S[i]; p.lo = 1 - FALL * p.gd; p.cr = clamp01((near2[i][6] - 4) / 10); p.gw = i ? Math.min(1, Math.sqrt(GIRTH * (kids[i] - 1) / K)) : 1; p.rt = Math.min(1, share + (1 - share) * d2(p, S[root]) / (HEART * HEART)); }
+      for (let i = 0; i < K; i++) { const p = S[i]; DP[i] = clamp01(d2(p, S[root]) / (HEART * HEART)); p.lo = 1 - FALL * p.gd; p.cr = clamp01((near2[i][6] - 4) / 10); p.gw = i ? Math.min(1, Math.sqrt(GIRTH * (kids[i] - 1) / K)) : 1; p.rt = Math.min(1, share + (1 - share) * d2(p, S[root]) / (HEART * HEART)); }
       for (const e of KEPT) { e.lo = (1 - FALL_L * Math.min(1, (e.ga + e.gb) / 2)) * (e.kind === 1 ? 1 : e.kind ? 1 + BODY * clamp01(1 - d2(S[e.b], S[root]) / (HEART * HEART)) : 1 - THIN * Math.max(S[e.a].cr, S[e.b].cr)); e.gw = e.tree ? S[e.b].gw : 0; }
       const tangle = (i, j) => { if (i !== j && !tied.has(key(i, j))) { tied.add(key(i, j)); MESS.push({ i, j, off: Math.min(1, Math.max(S[i].ord, S[j].ord) * .8 + rng() * .2), spark: rng() < .22 }); } };
       S.forEach((p, i) => {
@@ -1443,8 +1454,9 @@ def resolve_options(base, overrides=None, env=None, *, allow_new=False, freeze=T
        Each is x, height, z and how big; one on the near side is drawn bigger and brighter than one on the far
        side. GONE: how far a star of the graph fades when it is removed, if it stood
        beside the shape; FAR: if it stood far from it (1 would be all the way). It keeps its place and stays on,
-       a fainter and smaller star among the dust: the sky that is left behind. */
-    const GONE = .45, FAR = .15, BLUR = 1.3, DUST = new Float32Array(4 * 840); { const r = dice(7); for (let i = 0; i < DUST.length; i += 4) { const far = Math.sqrt(r()), th = r() * TAU; DUST[i] = far * Math.cos(th); DUST[i + 1] = r(); DUST[i + 2] = far * Math.sin(th); DUST[i + 3] = r() * r(); } }
+       a fainter and smaller star among the dust: the sky that is left behind. EYE: how far off the eye
+       stands, in radii of the sky's disc (see layout). */
+    const GONE = .45, FAR = .15, EYE = 2.5, DUST = new Float32Array(4 * 840); { const r = dice(7); for (let i = 0; i < DUST.length; i += 4) { const far = Math.sqrt(r()), th = r() * TAU; DUST[i] = far * Math.cos(th); DUST[i + 1] = r(); DUST[i + 2] = far * Math.sin(th); DUST[i + 3] = r() * r(); } }
     /* The far field: the sky well behind all that, over the whole canvas, from under the top bar to past the end
        of the first screen and from edge to edge of any window. Specks finer and fainter than the dust, far
        fainter than any star of the graph, no lines, never lit, never removed. They do not turn with the scene.
@@ -1488,28 +1500,34 @@ def resolve_options(base, overrides=None, env=None, *, allow_new=False, freeze=T
     const SX = new Float32Array(N), SY = new Float32Array(N), SQ = new Float32Array(N), SD = new Float32Array(N), SN = new Float32Array(N), LIT = new Float32Array(N), SW = new Float32Array(N), SA = new Float32Array(N), SE = new Float32Array(N), TX = new Float32Array(N), TY = new Float32Array(N), LA = new Float32Array(13);
     const BK = Array.from({ length: 18 * NL }, () => []), DB = [[], [], []], TB = Array.from({ length: 5 }, () => []), RUN = [];            // lit links by slab, kind and brightness, one stroke each; a lit stretch of a path
     /* FAR TO NEAR. The subgraph is a thing in space and is drawn as one. Once it is lit, how near a part of it is
-       (SE, 0 at the back of the shape to 1 at its front) says how it is drawn: a spine near the front is well
-       over twice as broad as one near the back and three times as bright, a stem and a twig likewise, a star
-       over twice the size (NEAR, and the perspective) and brighter; halfway it is all about as it
-       was in design 5, so the whole is no brighter, only deeper. And a limb hides what passes behind it. The lines are drawn from the
+       (SE, 0 at the back of the shape to 1 at its front; told over SPAN of the shape's reach, a little short
+       of its rim, so that most of a shape is clearly near or clearly far) says how it is drawn: a spine near
+       the front is over twice as broad as one near the back and nearly three times as bright, a stem and a
+       twig likewise, a star over twice the size (NEAR, and the perspective), brighter, and whiter at its
+       heart; halfway it is all about as it was in design 5, so the whole is no brighter, only deeper, and
+       the far side stays plainly lit. The body round the root (all within HEART of it) is drawn as one thing
+       at one depth, its middle's (DP): a ball of short stems told apart by depth is only a brighter knot. A
+       line that is still growing is inked by its depth already, so nothing steps when it is whole.
+       And a limb hides what passes behind it. The lines are drawn from the
        back of the scene to the front in NL slabs of depth; a spine is cut into stretches of three stars for it
        (GEO: where each runs; CHS: its middle star and how many curves; CZ: how near it is; ORD: the stretches,
        the farthest first; SLAB: where each slab begins in ORD). Before a slab is drawn, the spines and stems of
        the slab after it clear a narrow band along themselves (CUT: how much of what lies there they take
-       away; GAP: how far the band reaches beyond the line, in px): of all that is two slabs or more behind
-       them, so a far limb, its twigs and the light on it break off just short of a nearer limb that crosses
+       away, first of what is two slabs behind them, then again of what is three or more behind, so that a
+       band deepens in two steps as one limb moves behind another and does not switch on; GAP: how far the
+       band reaches beyond the line, in px): of all that is two slabs or more behind them, so a far limb, its twigs and the light on it break off just short of a nearer limb that crosses
        them and go on beyond it, and the one is seen to pass in front of the other; two limbs that part at a
        fork are in one slab or in neighbouring ones there, and neither cuts the other. The soft lights that
        travel the lines and stand on a growing tip (LT: where, how big, how bright, which light) are laid
        over all of it afterwards: light is not hidden. */
-    const CUT = .9, GAP = 2.4, NEAR = .6, CHN = 512, GEO = new Float32Array(14 * CHN), CHS = new Int16Array(2 * CHN), CZ = new Float32Array(CHN), ORD = new Uint16Array(CHN), SLAB = new Uint16Array(NL + 1), LTN = 2048, LT = new Float32Array(5 * LTN), byZ = (p, q) => CZ[p] - CZ[q]; let NC = 0, NG = 0;
+    const CUT = [.55, .78], GAP = 2.4, NEAR = .5, SPAN = 1.75, DP = new Float32Array(N), CHN = 512, GEO = new Float32Array(14 * CHN), CHS = new Int16Array(2 * CHN), CZ = new Float32Array(CHN), ORD = new Uint16Array(CHN), SLAB = new Uint16Array(NL + 1), LTN = 2048, LT = new Float32Array(5 * LTN), byZ = (p, q) => CZ[p] - CZ[q]; let NC = 0, NG = 0, OV = ORD.subarray(0, 0);
     const light = (which, x, y, r, al) => { if (NG < LTN && al >= .006) { const q = 5 * NG++; LT[q] = x; LT[q + 1] = y; LT[q + 2] = r; LT[q + 3] = al; LT[q + 4] = which; } };   // which: 0 the green light on a spine, 1 a bloom, 2 the point of a growing line
     const hud = { lines: $('#orb-lines'), checks: $('#orb-checks'), phase: $('#orb-phase'), bar: $('#orb-bar'), box: $('#cmp'), repo: $('#orb-repo'), from: $('#orb-from'), frozen: $('#orb-frozen') }; hud.units = [...hud.box.querySelectorAll('.u')];
     /* the readout's standing words for the scene's repository: its name before the phase, what it was (76,888 lines; for a library 100% of
        its tokens), its unit and how many checks were frozen. What is counted while the scene plays is written by draw() */
     const sign = () => { hud.repo.textContent = REPO.name; hud.from.textContent = REPO.unit === 'lines' ? fmt(REPO.from) : REPO.from + '%'; hud.frozen.textContent = REPO.checks; for (const u of hud.units) u.textContent = REPO.unit; hud.box.classList.toggle('tok', REPO.unit !== 'lines'); };
     const PHASE = ['the original code', 'the same code, as a graph', 'rewriting from scratch', 'running the frozen checks', 'delivered'];
-    let W = 0, H = 0, dpr = 1, HAIR = 1, cx = 0, cy = 0, R = 1, RK = 1, UN = 1, RW = 1, F = 1000, tilt0 = .46, room = 400, edge = 600, shown = -1, BARH = 0, spin = .6, yaw = 0, pitch = 0, tyaw = 0, tpitch = 0, clock = 0, sized = false;
+    let W = 0, H = 0, dpr = 1, HAIR = 1, cx = 0, cy = 0, R = 1, RK = 1, UN = 1, RW = 1, F = 1000, tilt0 = .46, BLUR = 1.3, N0 = .45, NW = .3, DE = 1, room = 400, edge = 600, shown = -1, BARH = 0, spin = .6, yaw = 0, pitch = 0, tyaw = 0, tpitch = 0, clock = 0, sized = false;   // BLUR; N0, NW: how close to the eye a star that goes is out of focus, and a line of the tangle fades (layout); DE: the depth over which the subgraph's ink is told (seat)
     let sx0 = 0, sx1 = 0, sy0 = 0, sy1 = 0, fs = 9.5, lh = 12.7, cw = 5.7;       // the stage box, and the code's type
     let faded = -1, px = -999, py = -999, seenAt = -1e9, lens = 0, rx = 0, ry = 0, rt = -1e9, FX = 0, FY = 0, RS = 0;   // the pointer, how awake the sky is to it, and the last click; RS: where the root's name stands, 0 below it
     /* How far above the middle of the scene and how far below it a set of stars reaches on the screen, at k px to
@@ -1525,7 +1543,10 @@ def resolve_options(base, overrides=None, env=None, *, allow_new=False, freeze=T
     /* The stage. The sky is seen from low down: about 17 degrees above its level on a wide screen, up to 34 on a
        phone, where the stage is nearly square. Its disc is as wide as the stage allows, and no wider than lets it
        stand inside the stage from top to bottom. A shape of the standard weight is drawn at R px to the unit: SIZE
-       of the sky's radius, so that there is sky all round it and it does not run from edge to edge. */
+       of the sky's radius, so that there is sky all round it and it does not run from edge to edge. The disc
+       is fitted as an eye three of its radii off sees it (design 5's eye) and keeps that size; the eye itself
+       then stands nearer, EYE radii off (and never nearer than 680 px), so that the near side of the scene is
+       plainly bigger than its far side. */
     const layout = () => {
       if (bar && bar.offsetHeight && bar.offsetHeight !== BARH) hero.style.setProperty('--bar', (BARH = bar.offsetHeight) + 'px');   // the hero begins under the top bar, however tall the bar is (theme.css says 61px until this has run)
       const r = hero.getBoundingClientRect(), s = stage.getBoundingClientRect(), tall = s.height - hud.box.offsetHeight - 12, R0 = Math.min(s.width * .5, 540);   // the readout sits at the bottom of the stage
@@ -1534,6 +1555,7 @@ def resolve_options(base, overrides=None, env=None, *, allow_new=False, freeze=T
       sx0 = s.left - r.left; sx1 = sx0 + s.width; sy0 = s.top - r.top; sy1 = sy0 + tall;
       RW = Math.max(cx, W - cx) * 1.12; tilt0 = Math.min(.6, Math.max(.3, Math.asin(Math.min(.84, tall * .38 / (R0 * 1.06))))); room = tall + (W < 600 ? 0 : 30);   // on a wide screen the far rim may rise a little behind the buttons
       R = R0 * SIZE; for (let n = 0; n < 6; n++) { F = Math.max(760, R / SIZE * 3); const h = span(DISC, 2, R, true); if (h > room - 12) R *= (room - 12) / h; else break; }
+      { const f0 = F; F = Math.max(680, R / SIZE * EYE); const nb = f0 / F; BLUR = 1 / (1 - .2308 * nb); N0 = 1 - .55 * nb; NW = .3 * nb; }   // the disc is fitted as design 5's eye saw it, three sky radii off, and keeps that size; then the eye comes nearer (EYE radii), so near things are plainly bigger than far ones, and what counts as close to the eye (BLUR; N0, NW) stays where it was in space
       edge = Math.max(RIM * R, Math.min(W * .5, s.width * .7));                  // past the rim, the stars that go are spread as far as the sides of the window, on a very wide one a little past the stage's
       dpr = Math.min(2, window.devicePixelRatio || 1, Math.sqrt(5e6 / (W * H))); HAIR = dpr < 1.5 ? 1.25 : 1;   // a 0.6 px hairline is under a pixel wide on a 1x screen and comes out weaker than on a 2x one: a quarter more ink there
       cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
@@ -1568,7 +1590,7 @@ def resolve_options(base, overrides=None, env=None, *, allow_new=False, freeze=T
        its form. The stars that go keep to the sky's scale, except those close to the shape, which stay beside it. */
     const seat = () => {
       let f = GROW; for (let n = 0; n < 8; n++) { const h = span(S, K, R * f * AIR); if (h > room - 12) f *= (room - 12) / h; else break; }
-      RK = R * f; span(S, K, RK); cy = sy1 - 6 - dn - Math.max(0, (sy1 - sy0 - 12 - up - dn) / 2); UN = Math.min(1.1, Math.max(.5, RK / (440 * SIZE)));   // in the middle of the stage; a shape taller than the stage stands on its floor
+      RK = R * f; DE = SPAN * RK * Math.max(.45, HX); span(S, K, RK); cy = sy1 - 6 - dn - Math.max(0, (sy1 - sy0 - 12 - up - dn) / 2); UN = Math.min(1.1, Math.max(.5, RK / (440 * SIZE)));   // in the middle of the stage; a shape taller than the stage stands on its floor
       for (const p of S) if (p.wide) { p.px = p.ux * RW; p.pz = p.uz * RW; p.py = lerp(-cy * 1.04, (H - cy) * 1.04, (p.uy + 1) / 2); }
         else if (p.keep) { p.px = p.x * RK; p.py = p.y * RK; p.pz = p.z * RK; }
         else { const k = R * (1 + (f - 1) * p.by), far = p.rxz * SIZE, kx = far <= 1 ? k : (k / SIZE + (far - 1) / (RIM * SIZE - 1) * (edge - k / SIZE)) / p.rxz; p.px = p.x * kx; p.py = p.y * k; p.pz = p.z * kx; }
@@ -1604,7 +1626,7 @@ def resolve_options(base, overrides=None, env=None, *, allow_new=False, freeze=T
     const trace = c => { let q = 14 * c; ctx.moveTo(GEO[q], GEO[q + 1]); for (let n = CHS[2 * c + 1]; n--; q += 4) ctx.quadraticCurveTo(GEO[q + 2], GEO[q + 3], GEO[q + 4], GEO[q + 5]); };
     const limb = c => { const o = CHS[2 * c], d = SE[o], g = S[o].gd, lo = 1 - FALL_L * g, gw = S[o].gw; ctx.beginPath(); trace(c);
       ctx.strokeStyle = `rgba(${NV},${(.01 + .125 * d) * (.3 + .7 * gw) * lo})`; ctx.lineWidth = (1.6 + 3.2 * gw) * (.35 + 1.15 * d) * UN; ctx.stroke();
-      ctx.strokeStyle = `rgba(${196 - 52 * g | 0},${240 - 28 * g | 0},${110 - 66 * g | 0},${(.21 + .64 * d) * lo})`; ctx.lineWidth = (.72 + .72 * gw) * (.5 + 1 * d) * Math.max(.8, UN); ctx.stroke(); };   // the pale green of the heart deepens to the plain green towards the tips
+      ctx.strokeStyle = `rgba(${196 - 52 * g | 0},${240 - 28 * g | 0},${110 - 66 * g | 0},${(.27 + .52 * d) * lo})`; ctx.lineWidth = (.72 + .72 * gw) * (.6 + .74 * d) * Math.max(.8, UN); ctx.stroke(); };   // the pale green of the heart deepens to the plain green towards the tips
     /* ================= THE FILE TREE =================
        What stands at the left of the opening code, and what it does as the code becomes the sky. It is the
        original repository: star-white and gray, never green. Three small things, all of them pure functions
@@ -1730,8 +1752,8 @@ def resolve_options(base, overrides=None, env=None, *, allow_new=False, freeze=T
           fly(p, Math.max(0, go - .1), x, y, x0, y0); TX[i] = FX; TY[i] = FY; fly(p, go, x, y, x0, y0); x = FX; y = FY; } } else go = ease(clamp01((sky - .4) / .6));
         let w = 0; if (wake > .01) { const dx = x - px, dy = y - py, d = Math.hypot(dx, dy); w = Math.exp(-(d * d) / (reach * reach)) * wake; if (d > 1) { const push = w * 9 * Math.min(1, d / 30); x += dx / d * push; y += dy / d * push; } }
         if (ring >= 0 && web > 0) { const dx = x - rx, dy = y - ry, d = Math.hypot(dx, dy), e = (d - ring) / 44, hit = Math.exp(-e * e) * (1 - age / 1.5) * web; if (hit > .02) { w = Math.max(w, hit); if (d > 1) { x += dx / d * hit * 7; y += dy / d * hit * 7; } } }
-        SX[i] = x; SY[i] = y; SQ[i] = q; SA[i] = go; SW[i] = w; SN[i] = clamp01(((F + Z) / F - .45) / .3);
-        const d = SD[i] = p.wide ? clamp01(.5 - Z / (2.2 * RW)) : clamp01(.5 - Z / (p.keep ? DK : DS)); SE[i] = d * d * (3 - 2 * d);   // SD: how near, 0 at the back of the scene to 1 at its front; SE: the same told more plainly, for the subgraph once it is lit (see FAR TO NEAR)
+        SX[i] = x; SY[i] = y; SQ[i] = q; SA[i] = go; SW[i] = w; SN[i] = clamp01(((F + Z) / F - N0) / NW);
+        const d = SD[i] = p.wide ? clamp01(.5 - Z / (2.2 * RW)) : clamp01(.5 - Z / (p.keep ? DK : DS)); if (p.keep) { const e = clamp01(.5 - Z / DE); SE[i] = .5 + (e * e * (3 - 2 * e) - .5) * DP[i]; }   // SD: how near, 0 at the back of the scene to 1 at its front; SE: the same for the subgraph once it is lit, told more plainly and over a shorter range (DE), so that most of a shape is clearly near or clearly far; less so in the body round the root (DP), which is one thing at one depth (see FAR TO NEAR)
       }
       /* the code: a long file drifting up, fading as its characters leave */
       const ta = 1 - ease(clamp01(sky / .5));
@@ -1782,9 +1804,9 @@ def resolve_options(base, overrides=None, env=None, *, allow_new=False, freeze=T
         for (const bk of BK) bk.length = 0; NC = NG = 0;
         for (const e of KEPT) { const g = LIT[e.b], w = (SW[e.a] + SW[e.b]) / 2, x1 = SX[e.a], y1 = SY[e.a], x2 = SX[e.b], y2 = SY[e.b], d = (SE[e.a] + SE[e.b]) / 2;
           if (g <= 0) { if (w >= .03) { ctx.strokeStyle = `rgba(${WHITE},${(.08 + .28 * w) * web})`; line(x1, y1, x2, y2); } continue; }
-          if (g < 1) { const hx = x1 + (x2 - x1) * g, hy = y1 + (y2 - y1) * g; ctx.lineWidth = .6; ctx.strokeStyle = `rgba(${WHITE},${.08 * (1 - g)})`; line(x1, y1, x2, y2); ctx.strokeStyle = `rgba(${NV},${(.27 + .45 * d) * e.lo})`; ctx.lineWidth = e.kind === 1 ? .8 + .55 * e.gw : .8; line(x1, y1, hx, hy); ctx.lineWidth = 1;
+          if (g < 1) { const hx = x1 + (x2 - x1) * g, hy = y1 + (y2 - y1) * g; ctx.lineWidth = .6; ctx.strokeStyle = `rgba(${WHITE},${.08 * (1 - g)})`; line(x1, y1, x2, y2); ctx.strokeStyle = `rgba(${NV},${((e.kind === 1 ? .27 + .52 * d : e.kind ? .1 + .44 * d : .1 + .46 * d * d) + .2 * (1 - g)) * e.lo})`; ctx.lineWidth = e.kind === 1 ? .8 + .55 * e.gw : .8; line(x1, y1, hx, hy); ctx.lineWidth = 1;
             light(2, hx, hy, (e.kind === 1 ? 6 + 5 * e.gw : 5) * (.6 + .8 * d), (e.kind === 1 ? .9 : .45) * Math.sin(Math.PI * g) * e.lo * lerp(S[e.a].rt, S[e.b].rt, g)); continue; }   // the points of the lines that leave the root together are one light divided, as in the checks
-          if (e.kind !== 1) BK[18 * Math.min(NL - 1, d * NL | 0) + (e.kind ? 9 : 0) + Math.min(8, (e.kind ? .07 + .5 * d : .08 + .5 * d * d) * e.lo * 16 | 0)].push(x1, y1, x2, y2);   // by how near (its slab) and how bright: nearer the eye and nearer the root brighter, in a crowd fainter
+          if (e.kind !== 1) BK[18 * Math.min(NL - 1, d * NL | 0) + (e.kind ? 9 : 0) + Math.min(8, (e.kind ? .1 + .44 * d : .1 + .46 * d * d) * e.lo * 16 | 0)].push(x1, y1, x2, y2);   // by how near (its slab) and how bright: nearer the eye and nearer the root brighter, in a crowd fainter
           if (w >= .03) { ctx.strokeStyle = `rgba(${LIME},${.5 * w})`; ctx.lineWidth = 1.2; line(x1, y1, x2, y2); ctx.lineWidth = 1; } }
         /* the paths: every stretch whose stars are all lit is a spine. An open path is read from its first star; a
            closed one from a star that is not lit yet, so that a stretch across its seam is one stretch */
@@ -1802,7 +1824,7 @@ def resolve_options(base, overrides=None, env=None, *, allow_new=False, freeze=T
            pale on a spine and a lighter green on a fine line; the soft lights are noted and drawn last */
         const lights = fr > -RISE && fr < 1.45 || env > 0;
         if (lights) { for (const lb of LB) lb.length = 0;
-          for (const e of KEPT) { if (LIT[e.b] < 1) continue; const x1 = SX[e.a], y1 = SY[e.a], x2 = SX[e.b], y2 = SY[e.b], dm = (SE[e.a] + SE[e.b]) / 2, d = (.3 + .7 * dm) * (.4 + .6 * e.lo), row = 32 * Math.min(NL - 1, dm * NL | 0) + (e.kind === 1 ? 16 : 0), sp = e.kind === 1, ra = S[e.a].rt, rb = S[e.b].rt;   // the light on a line falls off from the root as the line does; ra, rb: round the root it is one light divided
+          for (const e of KEPT) { if (LIT[e.b] < 1) continue; const x1 = SX[e.a], y1 = SY[e.a], x2 = SX[e.b], y2 = SY[e.b], dm = (SE[e.a] + SE[e.b]) / 2, d = (.36 + .58 * dm) * (.4 + .6 * e.lo), row = 32 * Math.min(NL - 1, dm * NL | 0) + (e.kind === 1 ? 16 : 0), sp = e.kind === 1, ra = S[e.a].rt, rb = S[e.b].rt;   // the light on a line falls off from the root as the line does; ra, rb: round the root it is one light divided
             if (env > 0) { const br = swell(tf - (e.ga + e.gb) / 2 * SPREAD, sp ? .75 : .55) * env * d * (sp ? .31 : .24); if (br > .03) LB[row + Math.min(15, br * 16 | 0)].push(x1, y1, x2, y2); }
             if (fr - e.g0 <= -RISE || fr - e.g1 > 3.5 * WAKE) continue;
             for (let n = 0; n < 3; n++) { const s = (n + .5) / 3, br = front(fr - (s <= e.gm ? e.ga + s * e.gl : e.gb + (1 - s) * e.gl), sp ? WAKE : TAIL) * d * (ra + (rb - ra) * s);
@@ -1817,7 +1839,7 @@ def resolve_options(base, overrides=None, env=None, *, allow_new=False, freeze=T
            the spines and stems of the next slab but one clear of all that is drawn so far (the slab between
            the two is drawn after the band is cleared: two limbs that part at a fork do not cut each other
            there, only limbs that are really one behind the other) */
-        ORD.subarray(0, NC).sort(byZ); SLAB[0] = 0; for (let l = 0, c = 0; l < NL; l++) { while (c < NC && (l === NL - 1 || CZ[ORD[c]] * NL < l + 1)) c++; SLAB[l + 1] = c; }
+        if (OV.length !== NC) OV = ORD.subarray(0, NC); OV.sort(byZ); SLAB[0] = 0; for (let l = 0, c = 0; l < NL; l++) { while (c < NC && (l === NL - 1 || CZ[ORD[c]] * NL < l + 1)) c++; SLAB[l + 1] = c; }
         for (let l = 0; l < NL; l++) {
           ctx.lineCap = 'butt'; for (let n = SLAB[l]; n < SLAB[l + 1]; n++) limb(ORD[n]);
           ctx.lineCap = 'round';
@@ -1826,8 +1848,8 @@ def resolve_options(base, overrides=None, env=None, *, allow_new=False, freeze=T
           ctx.lineCap = 'butt';
           if (lights) for (let n = 0; n < 32; n++) { const lb = LB[32 * l + n]; if (!lb.length) continue; const lv = (n % 16 + .5) / 16, sp = n > 15; ctx.beginPath(); for (let q = 0; q < lb.length; q += 4) { ctx.moveTo(lb[q], lb[q + 1]); ctx.lineTo(lb[q + 2], lb[q + 3]); }
             ctx.strokeStyle = `rgba(${sp ? PALE : LIME},${lv * (sp ? .76 : .5)})`; ctx.lineWidth = sp ? 1.3 * Math.max(.8, UN) : .9; ctx.stroke(); }
-          const m = l + 2; if (m < NL) { ctx.beginPath(); for (let n = SLAB[m]; n < SLAB[m + 1]; n++) trace(ORD[n]); for (let n = 9; n < 18; n++) { const bk = BK[18 * m + n]; for (let q = 0; q < bk.length; q += 4) { ctx.moveTo(bk[q], bk[q + 1]); ctx.lineTo(bk[q + 2], bk[q + 3]); } }
-            ctx.globalCompositeOperation = 'destination-out'; ctx.globalAlpha = CUT; ctx.strokeStyle = '#000'; ctx.lineWidth = (1 + 2 * GAP) * Math.max(.7, UN) * (.6 + .6 * (m + .5) / NL); ctx.stroke(); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'lighter'; }
+          for (let c = 0; c < 2; c++) { const m = l + 2 + c; if (m >= NL) break; ctx.beginPath(); for (let n = SLAB[m]; n < SLAB[m + 1]; n++) trace(ORD[n]); for (let n = 9; n < 18; n++) { const bk = BK[18 * m + n]; for (let q = 0; q < bk.length; q += 4) { ctx.moveTo(bk[q], bk[q + 1]); ctx.lineTo(bk[q + 2], bk[q + 3]); } }
+            ctx.globalCompositeOperation = 'destination-out'; ctx.globalAlpha = CUT[c]; ctx.strokeStyle = '#000'; ctx.lineWidth = (1 + 2 * GAP) * Math.max(.7, UN) * (.6 + .6 * (m + .5) / NL); ctx.stroke(); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'lighter'; }
           ctx.lineCap = 'round'; }
         for (let n = 0; n < NG; n++) { const q = 5 * n, which = LT[q + 4]; if (which === 1) bloom(LT[q], LT[q + 1], LT[q + 2], LT[q + 3]); else glow(which ? GL : GG, LT[q], LT[q + 1], LT[q + 2], LT[q + 3]); }
         ctx.lineWidth = 1;
@@ -1852,12 +1874,12 @@ def resolve_options(base, overrides=None, env=None, *, allow_new=False, freeze=T
         const xc = fr - p.gd, done = (xc <= 0 ? 0 : xc < .03 ? ease(xc / .03) : 1) * k, hit = xc > .4 ? 0 : front(xc, TAIL) * (.7 + .25 * p.sp) * (.5 + .5 * p.lo) * (i ? p.rt : 1);      // the checks: it warms as the front comes up to it, is brightest as it is passed and fades behind it, no two stars quite as brightly; done: checked, it keeps a whiter heart (until the sky comes back)
         const lift = env > 0 ? swell(tf - p.gd * SPREAD, p.em) * env * (.5 + .5 * p.lo) : 0, wave = lift * (.6 + .4 * Math.sin(t * (9 + 5 * p.sp) + 7 * p.ph)), own = Math.sin(Math.PI * L) * .8 + w * 1.1, pop = own + hit * .8;   // the glow: the swell where the star is, and a shimmer of its own in it; own: how much it grows as it lights and under the pointer
         if (L < 1) { const al = Math.min(1, lum * (1 - L) * (1 + w)); ctx.fillStyle = `rgba(${p.tint},${al})`; dot(x, y, pt * (1 + .6 * w * (1 - L))); if (p.mag > 1.25) glow(GW, x, y, pt * (p.mag > 2 ? 8 : 5), al * (p.mag > 2 ? .5 : .26)); }
-        if (L > 0) { const named = p.hub >= 0, lo = p.lo, sz0 = (p.hub === 0 ? 2.9 : named ? 1.7 + .5 * lo : (p.spine ? .47 + .83 * lo : 1) * (.8 + .22 * Math.min(2.2, p.mag))) * q * (1 - NEAR / 2 + NEAR * SE[i]) * Math.max(.78, UN), sz = sz0 * (1 + .4 * pop), al = L * (.27 + .66 * SE[i]) * (.86 + .14 * tw) * lo, big = sz * (1 + .14 * wave);   // lo: a star far out in the tree is fainter than one by the root, and on a spine smaller, down to a twig's size; SE: at the front of the shape it is greater and brighter than at its back
+        if (L > 0) { const named = p.hub >= 0, lo = p.lo, sz0 = (p.hub === 0 ? 2.9 : named ? 1.7 + .5 * lo : (p.spine ? .47 + .83 * lo : 1) * (.8 + .22 * Math.min(2.2, p.mag))) * q * (1 - NEAR / 2 + NEAR * SE[i]) * Math.max(.78, UN), sz = sz0 * (1 + .4 * pop), al = L * (.31 + .58 * SE[i]) * (.86 + .14 * tw) * lo, big = sz * (1 + .14 * wave);   // lo: a star far out in the tree is fainter than one by the root, and on a spine smaller, down to a twig's size; SE: at the front of the shape it is greater and brighter than at its back
           if (p.hub > 0) glow(GG, x, y, p.rad * RK * q * 2.4, al * (.1 + .13 * lift)); else if (p.spine) glow(GG, x, y, (9 + 12 * p.gw) * UN * q, al * (.03 + .07 * p.gw + .06 * lift));       // the haze of a package; of a spine, as wide as the limb's girth
           if (p.spine && lift > .02) glow(BL, x, y, (15 + 13 * p.gw) * UN * q, al * lift * (.07 + .07 * p.gw));          // in the glow the spines are wrapped in a wide soft light, as wide and as strong as the limb's girth: a trunk's is twice the end of a limb's, so arms that lie side by side do not run into one bright band
           glow(GG, x, y, sz * (named ? 7.5 : 4.2) * (1 + .3 * lift), al * (named ? .72 : .4) * (1 + .5 * wave));
           ctx.fillStyle = `rgba(${p.spine || named ? LIME : PALE},${al})`; dot(x, y, big);
-          const hot = Math.max(done * .5, wave * .8, w, hit, named ? .72 : p.spine ? .12 + .2 * p.gw : 0); if (hot > 0) { ctx.fillStyle = `rgba(255,255,255,${al * hot * .85})`; dot(x, y, big * .58); }
+          const hot = Math.max(done * .5, wave * .8, w, hit, named ? .72 : p.spine ? (.12 + .2 * p.gw) * (.3 + 1.4 * SE[i]) : 0); if (hot > 0) { ctx.fillStyle = `rgba(255,255,255,${al * hot * .85})`; dot(x, y, big * .58); }
           if (named) { const fl = sz0 * (1 + .4 * own) * (5.5 + 1.5 * tw) * (1 + .5 * own); ctx.strokeStyle = `rgba(${LIME},${al * .32})`; ctx.lineWidth = .9; ctx.beginPath(); ctx.moveTo(x - fl, y); ctx.lineTo(x + fl, y); ctx.moveTo(x, y - fl * .7); ctx.lineTo(x, y + fl * .7); ctx.stroke();      // a package's rays: they grow as it lights and under the pointer, never with the checks or the glow
             ctx.strokeStyle = `rgba(255,255,255,${al * .5})`; ctx.beginPath(); ctx.moveTo(x - fl * .4, y); ctx.lineTo(x + fl * .4, y); ctx.moveTo(x, y - fl * .28); ctx.lineTo(x, y + fl * .28); ctx.stroke(); }
           if (hit > .02) glow(GL, x, y, sz0 * (named ? 6 : 8), hit * (named ? .5 : .75)); if (named && lift > .02) glow(GL, x, y, sz * 12, lift * .3 * al); }      // lit by the checks; in the glow, and a package is a small lantern
@@ -1953,10 +1975,10 @@ def resolve_options(base, overrides=None, env=None, *, allow_new=False, freeze=T
       lens += ((performance.now() - seenAt < 2600 ? 1 : 0) - lens) * Math.min(1, dt * 5);               // the sky wakes to the pointer and settles after it rests
       if (!hero._on) return; clock += dt; if (clock >= T) { clock -= T; next(); seat(); tell(); }                 // the loop comes round: only code is on the screen, and behind it the next scene is made
       spin += dt * .1; draw(clock); });
-    /* the pointer: the whole sky leans a little towards it, the stars near it answer, and a click sends a ripple out */
+    /* the pointer: the whole sky leans towards it (a fifth more than in design 5, so that near limbs are seen to move against far ones), the stars near it answer, and a click sends a ripple out */
     const point = e => { const r = hero.getBoundingClientRect(); px = e.clientX - r.left; py = e.clientY - r.top; const on = py >= 0 && py <= r.height && !(bar && e.clientY < bar.getBoundingClientRect().bottom);       // the hero begins under the top bar, and the bar stays over it as the page scrolls: a pointer on the bar is not on the sky
       if (on) { seenAt = performance.now(); if (e.type === 'pointerdown') { rx = px; ry = py; rt = seenAt; } }
-      if (e.pointerType !== 'touch') { tyaw = (e.clientX / innerWidth - .5) * .5; tpitch = (e.clientY / innerHeight - .5) * .14; }
+      if (e.pointerType !== 'touch') { tyaw = (e.clientX / innerWidth - .5) * .6; tpitch = (e.clientY / innerHeight - .5) * .18; }
       if (still) { lens = on ? 1 : 0; draw(rest0); } };
     addEventListener('pointermove', point, { passive: true }); addEventListener('pointerdown', point, { passive: true });
     /* the top bar: at the top of the page it is clear and the sky is seen through it; it is glass again once the page is scrolled */
