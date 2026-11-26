@@ -3349,7 +3349,7 @@ def loads(s: str, /, *, parse_float: ParseFloat = float) -> dict[str, Any]:
     const written = (f, n, L) => f >= 1 ? 1 : ease(clamp01((f - .4 * (n + .5) / L - .36) / .2));       // how far line n of L is there when the flight is f along: a line is there as its stars land
     /* the soft edges of the nano code's block (design 9: it drifts up as the opening's code does, by s): a line leaving at the top fades over
        under two rows, one entering at the bottom comes up over three, the opening's edges in proportion, each with a rounded shoulder
-       (1 - x * x), so that the def line at the head keeps most of its strength for as long as the loop lasts (.8 at its end) and the
+       (1 - x * x), so that the def line at the head keeps most of its strength for as long as the loop lasts (.8 at its end; .68 on a phone, whose rows are closer) and the
        foot row is not lost while the code is written. With s = 0 every row is whole but a column's last two (.9 and .56: the file
        goes on below what is shown) */
     const soft = y => { const a = clamp01((NY - y) / (1.8 * nlh)), b = 1 - clamp01((NY + NR * nlh - y) / (2.94 * nlh)); return (1 - a * a) * (1 - b * b); };
