@@ -132,7 +132,7 @@ button{font:inherit;color:inherit}
    code is delivered. A version's script sets #orb-phase, #orb-lines, #orb-checks and the width of #orb-bar, and
    adds .still to #cmp in a frozen scene, where no colour may be on its way. The star version's also sets, once
    per loop, what the loop's repository is: its name (#orb-repo), the original's figure and checks (#orb-from,
-   #orb-frozen), the unit of the two figures (.u) and, in a loop that counts in tokens, .tok on #cmp; and while
+   #orb-frozen) and the unit of the figures (.u; in a loop that counts in tokens the original's figure and unit are left empty); and while
    the scene plays, .wait on #cmp until the nano code begins and .idle until its checks do: till then the nano
    row shows a dash in the figure's place, without its word (never a zero: nothing has failed), and the word
    comes in softly with the first figure.
@@ -460,26 +460,23 @@ button{font:inherit;color:inherit}
    is not shown and there is less space above the words, so the scene is some 46px taller (177 is the 214 above
    less the label's 11 and the 26 under it); the label keeps its place in the flow at no height, because hero.js
    measures where the words begin from it. A tall one: the scene grows on past 640px, to 750 in a window 1300
-   high and 760 at most (the rule above), and from 1200px of height the measure widens with the height, from
-   920 to 1040 at 1300, and the headline, which is fitted to the measure, with it (from 4.1rem to 4.635rem). */
+   high and 760 at most (the rule above); the measure and the headline stay as they are. */
 @media (min-width:1000px) and (max-height:799px){
   .hero{--pad:clamp(14px,2.8vh,22px)}
   .hero .chip{visibility:hidden;height:0}
   .hero h1{margin-top:0}
   .stage{height:clamp(336px,calc(100svh - 177px - var(--pad) - 1.06*var(--h1) - 2*var(--lead)*var(--sub)),600px)}
 }
-@media (min-width:1000px) and (min-height:1200px){.hero{--measure:clamp(760px,64vw,min(1040px,920px + 1.2*(100svh - 1200px)));--h1:clamp(2.7rem,4.5vw,min(4.635rem,4.1rem + .0856*(100svh - 1200px)))}}
 /* ---- design 5, the repositories (one block; nothing else in this file was changed for them) ----
    The readout names the repository of the loop before the phase, as the project writes it: no capitals, and in
    the ink of the figures, not the green of the phase (a little less widely spaced than the phase's capitals; on
    the narrowest phones not spaced at all, to leave the phase its room). A loop about a library counts in tokens,
    and its original is the whole of them: the full bar says so, and since design 7 the row does not also write
-   "100% tokens" (.tok on #cmp hides that figure and its unit; the cell stays, so the checks stand where they
+   "100% tokens" (hero.js leaves that figure and its unit empty; the cells stay, so the checks stand where they
    stand in a loop about lines). The cells themselves are .cmp .row's in base.html and the same in every loop
    (the unit's is wide enough for "tokens"), so the two bars are as long whatever the repository. */
 .cmp .ph .rp{color:var(--ink)}
 @media (min-width:360px){.cmp .ph .rp{letter-spacing:.04em}}
-.cmp.tok .row:not(.nano) #orb-from,.cmp.tok .row:not(.nano) .u{visibility:hidden}
 </style>
 </head>
 <body>
@@ -2986,9 +2983,10 @@ def loads(s: str, /, *, parse_float: ParseFloat = float) -> dict[str, Any]:
     const CUT = [.55, .78], GAP = 2.4, NEAR = .5, SPAN = 1.75, DP = new Float32Array(N), CHN = 512, GEO = new Float32Array(14 * CHN), CHS = new Int16Array(2 * CHN), CZ = new Float32Array(CHN), ORD = new Uint16Array(CHN), SLAB = new Uint16Array(NL + 1), LTN = 2048, LT = new Float32Array(5 * LTN), byZ = (p, q) => CZ[p] - CZ[q]; let NC = 0, NG = 0, OV = ORD.subarray(0, 0);
     const light = (which, x, y, r, al) => { if (NG < LTN && al >= .006) { const q = 5 * NG++; LT[q] = x; LT[q + 1] = y; LT[q + 2] = r; LT[q + 3] = al; LT[q + 4] = which; } };   // which (LS): 0 the body of the checks' light on a spine, 1 where their front stands, 2 the point of a growing line, 3 a star's own light as the checks pass it and in the finish, 4 the band round a spine in the finish
     const hud = { lines: $('#orb-lines'), checks: $('#orb-checks'), phase: $('#orb-phase'), bar: $('#orb-bar'), box: $('#cmp'), repo: $('#orb-repo'), from: $('#orb-from'), frozen: $('#orb-frozen') }; hud.units = [...hud.box.querySelectorAll('.u')];
-    /* the readout's standing words for the scene's repository: its name before the phase, what it was (76,888 lines; for a library 100% of
-       its tokens), its unit and how many checks were frozen. What is counted while the scene plays is written by draw() */
-    const sign = () => { hud.repo.textContent = REPO.name; hud.from.textContent = REPO.unit === 'lines' ? fmt(REPO.from) : REPO.from + '%'; hud.frozen.textContent = REPO.checks; for (const u of hud.units) u.textContent = REPO.unit; hud.box.classList.toggle('tok', REPO.unit !== 'lines'); };
+    /* the readout's standing words for the scene's repository: its name before the phase, what it was (76,888 lines; a library's original
+       is the whole of its tokens: the full bar says so, and its figure and unit are left empty, the cells stay), the nano row's unit and
+       how many checks it has. What is counted while the scene plays is written by draw() */
+    const sign = () => { const ln = REPO.unit === 'lines'; hud.repo.textContent = REPO.name; hud.from.textContent = ln ? fmt(REPO.from) : ''; hud.frozen.textContent = REPO.checks; hud.units.forEach((u, n) => { u.textContent = n || ln ? REPO.unit : ''; }); };
     /* The phase line's words (design 7): the headline's and the results table's, and each says what the picture shows: the repository as it
        is, its code drawn as a graph (the stars stand for code), the graph being nanolized, the behavior checks running, and delivered.
        told(): the last, with the loop's result as the results table writes it ("delivered · −44.80% tokens"; Detectron2, which the page
@@ -3109,7 +3107,8 @@ def loads(s: str, /, *, parse_float: ParseFloat = float) -> dict[str, Any]:
        plot(), from layout(): how the tree is set. The type design's mono, at the size of its readouts (13px;
          its label's 12 on a stage under 1100 px and on a phone, where the tree is what is read and the code
          beside it a texture), a row every 23 px or as close as the stage needs (21 at most on a phone); the
-         long tree where its rows have 16 px each, else the short one (always on a phone). The column is as
+         long tree where its rows have 19 px each, else the short one (always on a phone; on a laptop's low
+         window too, 1366 x 768 and under, where the long tree's rows would stand too close). The column is as
          wide as the widest row of any tree of the nine repositories, nano trees too, so the code beside it
          stands in one place whatever the repository; a tree stands centred on the height of the code (FT.mid).
        plant(): once a scene. It notes which repository the loop before was about (FT.was; none at load; in a
@@ -3140,7 +3139,7 @@ def loads(s: str, /, *, parse_float: ParseFloat = float) -> dict[str, Any]:
     const FT = { v: 0, x: 0, mid: 0, w: 0, pitch: 23, fs: 12, ind: 16, ch: 7.4, far: 400, of: null, now: null, was: null, turn: false, out: [], back: [] }, LD = [[], [], []], PL = new Float32Array(100), PA = new Float32Array(50);   // v: 0 the long tree, 1 the short; x: where a tree's rows begin; mid: the middle of the code's height, and of a tree's; w: the column's width; pitch, fs, ind, ch: from row to row, the type, a level's indent, a character's width; far: how far from its row a leader's dots are full size; of: the scene the leaders were aimed for; now, was: its repository and that of the loop before; turn: the loop opens with a hand-over (or at load), not with the tree standing; LD: the leaders' dots by brightness; PL, PA: one leader as a run of points, and how far along it each is
     const plot = () => { const phone = W < 600, most = v => Math.max(...REPOS.map(r => TREE[r.name][v].length)) - 1, y0 = sy0 + (phone ? 28 : 40), y1 = sy1 - (phone ? 12 : 18), room = y1 - y0;
       FT.fs = sx1 - sx0 < 1100 ? 12 : 13; FT.x = sx0 + (phone ? 1 : 8); FT.mid = (y0 + y1) / 2;
-      FT.v = phone || room / most(0) < 16 ? 1 : 0; FT.pitch = Math.min(phone ? 21 : 23, room / most(FT.v)); if (FT.pitch < FT.fs * 1.25) FT.fs = Math.max(7, FT.pitch / 1.25);   // a very low stage: smaller type before rows touch
+      FT.v = phone || room / most(0) < 19 ? 1 : 0; FT.pitch = Math.min(phone ? 21 : 23, room / most(FT.v)); if (FT.pitch < FT.fs * 1.25) FT.fs = Math.max(7, FT.pitch / 1.25);   // a very low stage: smaller type before rows touch
       FT.ind = Math.round(FT.fs * (phone ? .8 : 1.33)); FT.ch = cw * FT.fs / fs; let wide = 0;
       for (const r of REPOS) for (const o of [...TREE[r.name][FT.v], ...NANO[r.name].rows]) wide = Math.max(wide, o.d * FT.ind + FT.fs * 1.7 + o.n.length * FT.ch * (o.d ? 1 : 1.09));
       FT.w = Math.ceil(wide) + (phone ? 9 : 30); FT.far = (sx1 - sx0 - FT.w) * .45; plant(); };
@@ -3226,8 +3225,12 @@ def loads(s: str, /, *, parse_float: ParseFloat = float) -> dict[str, Any]:
        and comes up again in a clear place (the root's leaves only if it has a clear place to go to).
        The fade and the waiting run on the clock, not on the loop's time; a frozen scene (?t=) shows every
        name in its final state, chosen afresh, with no memory of the frames before: there every name is
-       clear. Each name is written on a dark edge of its own */
-    const names = (web, a, cb, sb, lie) => { ctx.textBaseline = 'middle'; ctx.textAlign = 'center'; ctx.lineJoin = 'round';      // a function of its own, called by draw(): draw() is long enough as it is
+       clear. Each name is written on a dark edge of its own.
+       At the end of the loop: once the nanolized repository's tree stands at the left (from E0) no name stands
+       on its column (left: where the column ends; a name there gives way like any other and comes up beside
+       the subgraph if it has a clear place), and as the stars leave for the code (from E1) the names go out
+       ahead of the scene (dim), so that no word is left among the stars in flight */
+    const names = (web, a, cb, sb, lie, left, dim) => { ctx.textBaseline = 'middle'; ctx.textAlign = 'center'; ctx.lineJoin = 'round';      // a function of its own, called by draw(): draw() is long enough as it is
       const most = W < 600 ? 4 : RK < 300 ? 5 : 6, rim = W < 600 ? 16 : 10, pace = 11 * Math.min(1, Math.max(.6, RK / 360)), now = performance.now(), step = still ? 1 : clamp01((now - NMT) / 200), boxes = []; NMT = now; NMF++;
       const on = n => !still && NMO[n] === 1, order = HUB.map((_, n) => n).sort((p, q) => p && q ? SD[HUB[q]] + (on(q) ? 1 : 0) - SD[HUB[p]] - (on(p) ? 1 : 0) : p - q); let cnt = 0, lx = 0, ly = 0, own = 0, later = 0;      // the root's first, then those that show, then the nearest first: a name that shows keeps its place among the six while its package is on the near side, and no other takes it
       /* what the name of hub i must keep clear of, within reach of it: x, y, how much it counts, how far off it is to be kept. Stars: one that stays counts 1, a package 3 (its rays reach out); one that goes 1, a small one half. The middle of a lit line: through the words it counts 2 on a spine (6 for the root's name: no spine runs through it while there is any other place), under half on a fine line */
@@ -3247,7 +3250,7 @@ def loads(s: str, /, *, parse_float: ParseFloat = float) -> dict[str, Any]:
         lx = Math.min(W - hw - rim, Math.max(hw + rim, lx)); };
       const keep = (n, hw) => { const i = HUB[n]; lx = Math.min(W - hw - rim, Math.max(hw + rim, SX[i] + NMX[n])); ly = SY[i] + NMY[n]; own = Math.hypot(lx - SX[i], ly - SY[i]); };      // a name that shows: where it stands now
       /* how much is in the way of a name standing at lx, ly (under 1: it is clear); k: how much of each thing's distance is asked */
-      const harm = (hw, k, n) => { let c = ly < sy0 + 12 || ly > sy1 + 2 ? 99 : 0; later = 0; for (const b of boxes) if (b[3] !== n && Math.abs(b[0] - lx) < b[2] + hw + (k === 1 ? 12 : 2) && Math.abs(b[1] - ly) < (k === 1 ? 20 : 12)) c += 99;
+      const harm = (hw, k, n) => { let c = ly < sy0 + 12 || ly > sy1 + 2 || lx - hw < left ? 99 : 0; later = 0; for (const b of boxes) if (b[3] !== n && Math.abs(b[0] - lx) < b[2] + hw + (k === 1 ? 12 : 2) && Math.abs(b[1] - ly) < (k === 1 ? 20 : 12)) c += 99;
         for (let q = 0; q < NMQ && c < 99; q += 4) { const w = NMK[q + 2]; if (k < 1 && w < 2) continue; const pad = NMK[q + 3] * k, dx = Math.abs(NMK[q] - lx), dy = Math.abs(NMK[q + 1] - ly); if (dx < hw + pad && dy < 5 + pad * .7) { if (w < 0) later -= w; else c += w === 2 && !n ? 6 : w; } else if (w === 3 && k === 1 && Math.max(0, dx - hw) + dy < own * .8) c += 2; } return c; };      // nor nearer to another package than to its own
       if (!still) for (let n = 0; n < HUB.length; n++) if (LA[n] > .2 && !NMO[n]) { const hw = NAMES[n].length * (n ? 3.4 : 3.72) + 1; keep(n, hw); boxes.push([lx, ly, hw, n]); }      // a name on its way out keeps its place until it is gone: no other comes up on top of it
       for (const n of order) { const i = HUB[n], hw = NAMES[n].length * (n ? 3.4 : 3.72) + 1, lit = LIT[i] >= .5, hov = SW[i] * web > .3, held = !still && LA[n] > .05; let at = n ? NMA[n] : RS, ok = false, tried = false;
@@ -3259,7 +3262,7 @@ def loads(s: str, /, *, parse_float: ParseFloat = float) -> dict[str, Any]:
           if (!held) { at = to; c = low < 50 || must && low < 149 ? 0 : 99; stand(n, at, hw); NMX[n] = lx - SX[i]; NMY[n] = ly - SY[i]; } else { if (low >= 50) { c = c < 99 ? 0 : 99; NMW[n] = now + 600; } keep(n, hw); } }      // a name takes its place and from then on keeps that distance from its star (NMX, NMY); one that must show stays where it is unless there is a clear place for it, and then it fades out here first
         ok = want && c < 1; if (held && !ok && NMO[n]) NMW[n] = want && n ? now + 1500 : 0; else if (!held && !ok && tried) NMW[n] = now + 600;      // one that gave way waits a second and a half before it looks for a place again; one that looked and found none looks again after .6 s
         NMO[n] = ok ? 1 : 0; if (ok) { boxes.push([lx, ly, hw, n]); if (n && !hov) cnt++; } if (n) NMA[n] = at; else RS = at;
-        const v = LA[n] = still ? +ok : LA[n] + Math.max(-step, Math.min(step, +ok - LA[n])), al = v * v * (3 - 2 * v); if (al < .01) continue;
+        const v = LA[n] = still ? +ok : LA[n] + Math.max(-step, Math.min(step, +ok - LA[n])), al = v * v * (3 - 2 * v) * dim; if (al < .01) continue;
         const g = LIT[i]; ctx.font = n ? '11px "Geist Mono",ui-monospace,monospace' : '600 12px "Geist Mono",ui-monospace,monospace'; ctx.lineWidth = n ? 3.5 : 4; ctx.strokeStyle = `rgba(5,6,7,${al * .85})`; ctx.strokeText(NAMES[n], lx, ly);
         ctx.fillStyle = `rgba(${214 + 8 * g + (n ? 0 : 12) | 0},${220 + 20 * g + (n ? 0 : 8) | 0},${236 - 50 * g + (n ? 0 : 14) | 0},${al * (n ? .86 : 1)})`; ctx.fillText(NAMES[n], lx, ly); }      // star-white under the pointer before its star is lit, a tint of the green once it is; the root's a shade lighter
       ctx.lineJoin = 'miter'; };
@@ -3310,8 +3313,8 @@ def loads(s: str, /, *, parse_float: ParseFloat = float) -> dict[str, Any]:
          by 4.6), the tree's leaders run out to the stars, stand with them and let go from 5.5, and the tree is
          gone by 6.4; then the tangled sky; 7.2 it is simplified; 11.8 the checks:
          light gathers on the root, leaves it (fr: how far the front has come along the lines) and passes the
-         last star at 13.95; with that the readout says delivered and the finishing glow begins to rise from
-         the root (tf: seconds since then; it shows from about 14.1) and has died away by 16.5 (env), as the
+         last star at 13.95; with that the readout says delivered and the finishing glow rises at once over
+         the whole tree (tf: seconds since then; it is highest at about 14.3) and has died away by 16.5 (env), as the
          idle beads come up; the subgraph holds, to E0 (24.5). Nothing runs backwards after that (k, which
          used to undo the subgraph, is 1). From E0 the nanolized repository's tree opens at the left and
          leaders find it from the subgraph; from E1 (26.2) the scene goes dark (gone) as its green stars fly
@@ -3462,7 +3465,7 @@ def loads(s: str, /, *, parse_float: ParseFloat = float) -> dict[str, Any]:
           const b = clamp01((SQ[i] - BLUR) / .9); if (b > 0) glow(WB, x, y, pt * (2.4 + 7 * b) * (1 - .3 * gone), al * (.75 - .4 * b));       // nearer the eye than the shape ever comes: out of focus, a soft disc, wider and fainter the closer
           if (b < 1) { ctx.fillStyle = `rgba(${p.tint},${al * (1 - b)})`; dot(x, y, Math.max(.7 * SM, pt * (1 - .5 * gone)) * (1 + .6 * w)); }
           if (p.mag > 1.25 || w > .3) glow(GW, x, y, pt * (p.mag > 2 ? 8 : 5 + 3 * w), al * (p.mag > 2 ? .5 : p.mag > 1.25 ? .26 : .3 * w) * (1 - gone) * (1 - b)); continue; }
-        const xc = fr - p.gd, done = (xc <= 0 ? 0 : xc < .03 ? ease(xc / .03) : 1) * k, hit = xc > .4 ? 0 : CHK * front(xc, TAIL) * (.7 + .25 * p.sp) * (.5 + .5 * p.lo) * (i ? p.rt : 1);      // the checks: it warms as the front comes up to it, is brightest as it is passed and fades behind it, no two stars quite as brightly; done: checked, it keeps a whiter heart (until the sky comes back)
+        const xc = fr - p.gd, done = (xc <= 0 ? 0 : xc < .03 ? ease(xc / .03) : 1) * k, hit = xc > .4 ? 0 : CHK * front(xc, TAIL) * (.7 + .25 * p.sp) * (.5 + .5 * p.lo) * (i ? p.rt : 1);      // the checks: it warms as the front comes up to it, is brightest as it is passed and fades behind it, no two stars quite as brightly; done: checked, it keeps a whiter heart (to the end: it goes dark with the scene)
         const lift = env > 0 ? swell(tf - p.gd * SPREAD, p.em * 1.4) * env * (.5 + .5 * p.lo) : 0, wave = lift * (.6 + .4 * Math.sin(t * (9 + 5 * p.sp) + 7 * p.ph)), own = Math.sin(Math.PI * L) * .8 + w * 1.1, pop = own + hit * .8;   // the glow: the swell where the star is, and a shimmer of its own in it; own: how much it grows as it lights and under the pointer
         if (L < 1) { const al = Math.min(1, lum * (1 - L) * (1 + w)); ctx.fillStyle = `rgba(${p.tint},${al})`; dot(x, y, pt * (1 + .6 * w * (1 - L))); if (p.mag > 1.25) glow(GW, x, y, pt * (p.mag > 2 ? 8 : 5), al * (p.mag > 2 ? .5 : .26)); }
         if (L > 0) { const named = p.hub >= 0, lo = p.lo, sz0 = (p.hub === 0 ? 2.9 : named ? 1.7 + .5 * lo : (p.spine ? .47 + .83 * lo : 1) * (.8 + .22 * Math.min(2.2, p.mag))) * q * (1 - NEAR / 2 + NEAR * SE[i]) * Math.max(.78, UN), sz = sz0 * (1 + .4 * pop), al = L * (.31 + .58 * SE[i]) * (.86 + .14 * tw) * lo, big = sz * (1 + .14 * wave);   // lo: a star far out in the tree is fainter than one by the root, and on a spine smaller, down to a twig's size; SE: at the front of the shape it is greater and brighter than at its back
@@ -3483,7 +3486,7 @@ def loads(s: str, /, *, parse_float: ParseFloat = float) -> dict[str, Any]:
       if (live > 0) PATHS.forEach((P, a2) => { const top = P.ids.length - (P.closed ? 0 : 1);
         for (let n = 0; n < P.nb; n++) { const pace = (3.3 + .65 * (n % 4 + .2 * (n >> 2))) / top, wait = Math.max(1.7, 10 * pace), pos = (t * pace + (n * .37 + a2 * .19) * wait) % wait; if (pos < 1) bead(P, pos * top, 1, 15 * BD * P.bd, live * .85 * (P.closed ? 1 : Math.pow(Math.sin(Math.PI * pos), .5)), GL); } });
       ctx.globalCompositeOperation = 'source-over';
-      if (web > 0) names(web, a, cb, sb, lie);                                  // the names of the root and of the nearest packages (see names(), before draw())
+      if (web > 0) names(web, a, cb, sb, lie, t >= E0 ? sx0 + FT.w + 6 : 0, 1 - clamp01(2.5 * gone));      // the names of the root and of the nearest packages (see names(), before draw()); at the end they keep off the nano tree and go out first
       }                                                                         // end of the scene
       if (gone > 0) finale(t, gone, cols, two, shift, tx0);                     // the last seconds: the scene goes dark and its green stars become the nano code
       grove(t, ca, sa, cb, sb);                                                 // the file tree at the left of the code, and its leaders into the sky
