@@ -151,10 +151,13 @@ body.ov { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-ro
 .ov-find:focus { width: 230px; border-color: var(--info-line); background: var(--gray-a3); }
 .ov-found { order: -1; font-family: var(--mono); font-size: var(--text-2); letter-spacing: var(--tracking-small); white-space: nowrap; color: var(--ink-3); }
 .ov-found:empty { display: none; }
-/* The way back to the whole tree, while the sky is zoomed or frames a part of it. */
-.button.ov-whole { position: absolute; left: 28px; top: 6px; z-index: 3; pointer-events: auto; background: color-mix(in srgb, var(--bg) 70%, transparent); }
-.button.ov-whole[hidden] { display: none; }
-.listing .ov-whole, body[data-scene="select"] .ov-whole { display: none; }
+/* What is done to the sky itself, at its corner: "Static" lets it stand still, and the way back to the whole tree
+   is there while the sky is zoomed or frames a part of it. */
+.ov-tools { position: absolute; left: 28px; top: 6px; z-index: 3; display: flex; gap: 8px; pointer-events: auto; }
+.ov-tools[hidden], .ov-tools .button[hidden] { display: none; }
+.ov-tools .button { background: color-mix(in srgb, var(--bg) 70%, transparent); }
+.ov-tools .button.quiet[aria-pressed="true"] { background: var(--gray-a3); }
+.listing .ov-tools, body[data-scene="select"] .ov-tools, body[data-scene="mapping"] .ov-tools { display: none; }
 .button.quiet { font-weight: 500; color: var(--ink-2); border-color: var(--line); }
 .button.quiet:hover { color: var(--ink); }
 .button.quiet[aria-pressed="true"] { color: var(--ink); background: var(--gray-a3); border-color: var(--line-strong); }
@@ -352,7 +355,8 @@ body[data-scene="select"] .ov-foot { background: linear-gradient(to top, var(--b
 .t-cloud .ov-dot { background: var(--gray-12); }
 .t-small .ov-dot { width: 4px; height: 4px; margin: 0 2px; background: var(--gray-11); }
 .t-ready .ov-dot { background: var(--gray-12); box-shadow: 0 0 7px var(--gray-a10); }
-.t-wrote .ov-dot, .t-picked .ov-dot { background: var(--green-8); }
+.t-wrote .ov-dot { background: var(--green-7); }
+.t-picked .ov-dot { background: var(--green-8); }
 .t-pass .ov-dot { background: var(--green-10); box-shadow: 0 0 8px var(--green-9); }
 .t-fail .ov-dot { background: var(--bad); }
 .t-gap .ov-dot { background: var(--green-8); box-shadow: 0 0 0 2px var(--panel), 0 0 0 3px var(--warn); }
@@ -443,7 +447,7 @@ body[data-scene="select"] .ov-foot { background: linear-gradient(to top, var(--b
   .ov-time { grid-area: ways; justify-self: start; align-self: center; }
   .ov-time i { display: none; }                  /* the time alone: the two ways out stand beside it */
   .ov-finder { display: none; }                  /* no room for a box: the list of capabilities is the way to find one */
-  .button.ov-whole { left: 12px; }
+  .ov-tools { left: 12px; }
   .ov-meter { order: 4; }
   .ov-meter-bar { width: 96px; }
   .ov-actions .button { padding: 5px 12px; }
@@ -550,7 +554,10 @@ body.ov .demo-bar select { min-width: 0; max-width: 100%; }
     <div class="ov-rows" id="rows"></div>
   </div>
   <button type="button" class="ov-more" id="more" hidden></button>
-  <button type="button" class="button quiet ov-whole" id="whole" hidden>Whole tree</button>
+  <div class="ov-tools" id="tools" hidden>
+    <button type="button" class="button quiet ov-static" id="static" aria-pressed="false">Static</button>
+    <button type="button" class="button quiet ov-whole" id="whole" hidden>Whole tree</button>
+  </div>
   <div class="ov-facts" id="facts" hidden></div>
   <p class="ov-line" id="line" aria-live="polite" hidden></p>
   <p class="ov-void" id="void" role="status" hidden></p>
@@ -7157,8 +7164,10 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
 
   /* The sky's own light: the one place colors are written as values (the exception docs/theme.md allows). They are
      the homepage's (design 9): star white, a dimmer white, the brand green, three tints of it on the way to white,
-     the red of a failed capability and the yellow of the ring round one that cannot be verified. */
-  const LIGHT = {star: "230,236,255", dim: "206,214,232", green: "118,185,0", t5: "187,220,128", t7: "214,234,178",
+     the red of a failed capability and the yellow of the ring round one that cannot be verified; "moss" is the brand
+     green darkened, for a capability that is written and does not pass yet: it must read as clearly darker than one
+     that passes, by its color as well as by its light. */
+  const LIGHT = {star: "230,236,255", dim: "206,214,232", green: "118,185,0", moss: "70,118,8", t5: "187,220,128", t7: "214,234,178",
     t9: "241,248,230", fail: "230,54,78", ring: "253,213,6"};
 
   /* A state's look. spot: the sprite of its point; a: how bright; g: how wide its glow; d: how much of its distance
@@ -7171,7 +7180,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
     cloud: {spot: "star", a: .95, g: 1, d: 1, line: "dim", la: .3, sat: "star", sa: .46, name: "dim"},
     dim: {spot: "dim", a: .5, g: .7, d: .3, line: "dim", la: .19, sat: "dim", sa: .2, name: "dim"},
     ready: {spot: "star", a: 1, g: 1.3, d: .3, line: "star", la: .6, halo: .07, sat: "star", sa: .52, name: "star"},
-    wrote: {spot: "green", a: .64, g: .9, d: .3, line: "green", la: .38, sat: "green", sa: .3, name: "t5"},
+    wrote: {spot: "moss", a: .6, g: .8, d: .3, line: "moss", la: .34, sat: "moss", sa: .26, name: "green"},
     pass: {spot: "pass", a: 1, g: 1.4, d: .3, line: "green", la: .66, over: "t5", oa: .3, halo: .13, sat: "pass", sa: .54, name: "t7"},
     fail: {spot: "fail", a: 1, g: 1.1, d: .3, line: "fail", la: .46, sat: "fail", sa: .4, name: "dim"},
     picked: {spot: "star", a: 1, g: .9, d: 0, line: "t5", la: .4, sat: "star", sa: .5, name: "star"},
@@ -7217,7 +7226,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
      "bloom" is a bell with no point in it, the light that travels a line. A passing capability is green to its
      heart, so a leaf reads green and not grey-white; only the root's heart ("crown") and the wave are near white. */
   const SPRITES = {
-    star: {rim: LIGHT.star}, dim: {rim: LIGHT.dim}, green: {rim: LIGHT.green},
+    star: {rim: LIGHT.star}, dim: {rim: LIGHT.dim}, green: {rim: LIGHT.green}, moss: {rim: LIGHT.moss},
     pass: {rim: LIGHT.green, core: LIGHT.t5}, crown: {rim: LIGHT.green, core: LIGHT.t9}, fail: {rim: LIGHT.fail}, hot: {rim: LIGHT.t7, core: LIGHT.t9},
     bloom: {rim: LIGHT.t5, core: LIGHT.t9, bell: true}
   };
@@ -8173,6 +8182,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
     let geo = {t0: 0, dur: 0}, m0 = 0, m1 = 0, fit0 = {s: 1, cx: 0, cy: 0, crowd: 1}, fit1 = fit0, shape = null, geoKey = "", begun = false;
     let hovered = null, pinned = false, pointer = null, drag = null, cel = null, raf = 0, running = false, lastMs = 0, moveKey = 0, dead = false, plan = null;
     let lit = null;      // the capabilities the page points at (emphasize), or null: every other one is drawn faint
+    let turns = true;    // turning(false): the sky stands still until it is told to turn again (a drag still turns it by hand)
     /* The lens: every point of the fitted picture p is drawn at z * p + (x, y). zoomTo and panTo are where it is
        going while nothing is framed; framed is the capability frameOn() holds, and follow says how (the point of
        space kept at the stage's middle, or the record of a leaf; off: how far from the middle the visitor moved it;
@@ -9019,7 +9029,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
       raf = 0;
       if (!running || dead || (doc && doc.hidden)) return;
       step = lastMs ? clamp((ms - lastMs) / 1000, 0, .1) : 0; lastMs = ms;
-      const still = calm(), held = still || hovered !== null || !!drag || !!pinch || m1 > 0;
+      const still = calm(), held = still || !turns || hovered !== null || !!drag || !!pinch || m1 > 0;
       spin += ((held ? 0 : finite(opt.spin, SPIN)) - spin) * (lastMs && step ? 1 - Math.exp(-step / (held ? .14 : .6)) : still ? 1 : 0);     // quick to rest, slow to start again
       phase += spin * step;
       draw(T + step);
@@ -9214,6 +9224,15 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
       off(name, fn) { if (heard[name]) heard[name] = heard[name].filter(one => one !== fn); return view; },
       // Marks a capability as the one in hand from outside the canvas (a row of the page's list that has the focus).
       focus(id) { pinned = id != null && !!recOf[id]; hover(pinned ? id : null); refresh(); return view; },
+      /* turning(false) lets the sky come to rest and stay so, for a reader who wants to look at it standing still;
+         turning(true) lets it turn again. A drag still turns it by hand, and everything else goes on as before
+         (the pointer, the zoom, a change of scene). turning() says which it is. */
+      turning(on) {
+        if (on === undefined) return turns;
+        turns = on !== false;
+        refresh();
+        return view;
+      },
       /* Points at some capabilities: `ids` (a set, a list) are drawn as they are and every other one faint, until
          emphasize(null). Nothing of the layout, the looks or the turning changes; an empty set points at nothing. */
       emphasize(ids) {
@@ -9275,7 +9294,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
         return {mode: scene.mode, morph: lerp(m0, m1, whole()), time: T, running, moving: geo.dur > 0, width: W, height: H, capabilities: recs.filter(rec => !rec.gone).length,
           kept: recs.filter(rec => !rec.gone && rec.v1[IN] > .5).length, stars: recs.reduce((sum, rec) => sum + (rec.gone ? 0 : rec.n1), 0), scroll, scrollMax,
           hovered, celebrating: !!cel, emphasized: lit ? lit.size : 0, collapsed: plan && scene.mode === "2d" && Array.isArray(plan.collapsed) ? plan.collapsed.slice() : [],
-          zoom: zoomTo, framed, ghosts: ghostly};      // the zoom the view is at or going to (1: the fitted scene), what frameOn holds, ghosts(true)
+          zoom: zoomTo, framed, ghosts: ghostly, turning: turns};      // the zoom the view is at or going to (1: the fitted scene), what frameOn holds, ghosts(true)
       },
       resize() { if (!dead && measure()) { geoKey = ""; arrange(true); refresh(); } return view; },
       destroy() { dead = true; halt(); for (const off of offs.splice(0)) off(); if (watcher) watcher.disconnect(); heard.hover = []; heard.choose = []; heard.move = []; heard.view = []; }
@@ -9382,6 +9401,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
     "Holds": "包含", "{n} capabilities": "{n} 个能力", "{n} capabilities: {parts}": "{n} 个能力：{parts}", ", ": "、",
     "{n} passing": "{n} 个通过", "{n} failing": "{n} 个失败", "{n} written": "{n} 个已写", "{n} tests ready": "{n} 个测试就绪",
     "{n} not started": "{n} 个未开始", "{n} cannot be verified": "{n} 个无法验证", "Code, with all under it": "代码（含下属）",
+    "Static": "静止", "Stop the sky from turning": "让星空停止旋转", "Let the sky turn again": "让星空继续旋转",
     "Find a capability": "查找能力", "{n} found": "找到 {n} 个", "none found": "没有找到", "Whole tree": "整棵树",
     "Point here to see what the selection left out; click to keep it shown": "指向这里可以看到没有保留的部分；点击可保持显示",
     "Keeps {n}% of the code": "保留 {n}% 的代码", "A lock: the box takes no click. Point at the row to read why.": "带锁的行不能取消勾选，指向它可以看到原因。",
@@ -9841,6 +9861,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
       $("find").placeholder = T("Find a capability");
       $("find").setAttribute("aria-label", T("Find a capability"));
       $("whole").textContent = T("Whole tree");
+      $("static").textContent = T("Static");
       doc.title = D.T("nanolize run");
     }
     speak(doc.documentElement.lang);
@@ -10380,6 +10401,21 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
       if (event.key === "Enter") { if (typeof event.preventDefault === "function") event.preventDefault(); visit(event.shiftKey ? -1 : 1); }
       else if (event.key === "Escape") { if (typeof event.stopPropagation === "function") event.stopPropagation(); endSearch(); }
     });
+    /* "Static": the sky stands still while it is pressed (the sky's own `turning`), for a reader who wants to look at
+       the tree without it moving; a drag still turns it by hand. The choice is kept in the browser, as the folds are:
+       a reload shows the sky as it was left. There is no such button where the sky does not turn anyway (`moves`). */
+    const STATIC_KEY = "nanolize.overview.static", fixer = $("static");
+    let fixed = moves && attempt(() => shelf().getItem(STATIC_KEY) === "1", false);
+    function fix(on, keep) {
+      fixed = Boolean(on);
+      fixer.setAttribute("aria-pressed", String(fixed));
+      fixer.title = fixed ? T("Let the sky turn again") : T("Stop the sky from turning");
+      if (typeof sky.turning === "function") sky.turning(!fixed);
+      if (keep) attempt(() => { if (fixed) shelf().setItem(STATIC_KEY, "1"); else shelf().removeItem(STATIC_KEY); }, null);
+    }
+    fixer.hidden = !moves;
+    fix(fixed, false);
+    fixer.addEventListener("click", () => fix(!fixed, true));
     /* The way back to the whole tree: shown while the sky is zoomed or frames a part of the tree (the sky says so). */
     const whole3 = $("whole");
     whole3.addEventListener("click", () => { if (typeof sky.frameOn === "function") sky.frameOn(null); });
@@ -10517,6 +10553,8 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
       // The search box is there while there is a tree to search; a search does not outlive its tree.
       const searchable = !empty && tree.nodes.length > 1;
       $("finder").hidden = !searchable;
+      // The sky's own controls are there while a tree stands in space.
+      $("tools").hidden = empty || name === "select" || !tree.nodes.length;
       if (!searchable && query) { query = ""; finder.value = ""; hits = []; hitAt = -1; $("found").textContent = ""; }
       /* A run past its discovery whose tree cannot be drawn: neither its plan nor its function graph can be read
          (a service that answers /api/run alone, a record that is being written). The sky would be empty with
