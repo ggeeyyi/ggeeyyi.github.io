@@ -585,11 +585,11 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
     "This page replays a run: nothing is running, so the action does nothing.": "这是回放：没有任何东西在运行，这个操作不会生效。",
     "The capability selection page is embedded here in a live run.": "真实运行时，这里嵌入的是能力选择页面。"};
   // What a reader of the proposal should look at, part by part.
-  const ABOUT = [["This is the overview page itself, the page a run's link opens, not a mock-up: its own scripts and styles, fed the frames this file holds. Choose a run and press Play, or drag the slider.", "这就是概览页面本身（打开一次运行的链接时看到的那个页面），不是示意图：用的是它自己的脚本和样式，喂给它的是这个文件里保存的每一帧数据。选一次运行后点播放，或拖动滑块。"], ["The sky: each capability of the repository is a star, and the small stars around it are its public classes and callables. Before a scope is chosen every star is white. Once a job exists the capabilities the selection left out are gone, and each kept one is colored by how far it is: dim while it is only selected, then greener as its tests are ready, as it is written and as its tests pass; red where a test fails, and a yellow ring where it cannot be fully verified. Point at a star for its card; \"Capability list\" shows the same as a table.", "星空：仓库的每个能力是一颗星，周围的小星是它对外的类和函数。选定范围之前，所有的星都是白色。作业开始后，没有保留的能力会消失，保留下来的每个能力按进度上色：只是选中时较暗，测试就绪、代码写完、测试通过后一步步变绿变亮；有测试失败的是红色，无法完整验证的带一个黄圈。鼠标指向一颗星会显示它的卡片；“能力列表”用表格显示同样的内容。"], ["The bar at the bottom: one percentage for the whole run and the stage it is in, and under it how many of the kept capabilities have their tests ready, are written and pass.", "底部的进度条：整次运行的一个百分比和当前所在的阶段，下面是保留的能力里有多少个测试就绪、已写完、已通过。"], ["The runs are the ones the run page's replays hold, frame for frame (run-page-demo.html: real runs; run-page-cases.html: four timelines written by hand). The note above says where the chosen run comes from, and where its plan comes from.", "这里的运行就是 run 页面的两个回放页里的那些，逐帧相同（run-page-demo.html：真实运行；run-page-cases.html：四条手写的时间线）。上面的说明写了当前这次运行的来源，以及它的计划从哪里来。"], ["The plan (what the page asks /api/plan for). A run that carries its own job's plan shows the real capabilities, the real number of names in each interface and the selection the job was submitted with; its function graph, which a trajectory gives as the kept leaves under the project, is answered with every capability of that plan under its parent and with what the selection left out. A run that carries no plan gets one made of its function graph: the capabilities and their parents are the run's, and the number of small stars around each is fixed by its name, not measured.", "计划（页面向 /api/plan 要的内容）。带着自己作业的计划的运行，显示的是真实的能力、每个接口里真实的名字个数，以及作业提交时的选择；轨迹文档给出的功能图只有挂在项目下面的保留叶子，这里按那份计划补成完整的：每个能力挂在它的父节点下面，没有保留的标为范围之外。没有带计划的运行，计划由它的功能图推出：能力和父子关系是这次运行的，每个能力周围小星的个数按名字固定生成，不是实测的。"], ["Choosing the scope: the four timelines written by hand wait for their owner's choice in their second frame. The page first shows the map it has just made, every capability as a white star in space, and after a few seconds lays it flat as a tree with a tick box on every capability (step back to frame 1 and on to frame 2 to see it again; frame 3, after the Submit, is back in space with what was kept); the tick boxes, the groups that open and shut, \"Core features\" and \"All features\" work as on the live page. Submit starts nothing: opened as a file the page says that the execution service is not available, and served over http the request is told that this is a replay. One of the four (its note says which) has a review that holds Submit back and has notes, to show both.", "选择范围：四条手写的时间线在第 2 帧等 owner 选择范围。页面先显示刚分析出来的功能图（每个能力是空间里的一颗白色的星），几秒后把它平铺成一棵树，每个能力前有一个勾选框（退回第 1 帧再到第 2 帧可以再看一遍；第 3 帧是提交之后，回到空间里，只剩保留下来的部分）；勾选框、分组的展开和收起、“核心功能”和“全部功能”和真实页面上一样可用。提交不会启动任何东西：直接打开文件时，页面会说执行服务不可用；通过 http 打开时，请求会被告知这是回放。四条里有一条（它的说明里写了是哪条）的审阅会拦下提交并带有说明，用来展示这两样。"], ["This replay holds one page: \"Detailed progress\" and the other links to the detailed page lead nowhere here, and say so. Nothing is running.", "这个回放只包含概览这一个页面：“详细进度”和其他通往详细页面的链接在这里打不开，点了会有提示。没有任何东西在运行。"]];
+  const ABOUT = [["This is the overview page itself, the page a run's link opens, not a mock-up: its own scripts and styles, fed the frames this file holds. Choose a run and press Play, or drag the slider.", "这就是概览页面本身（打开一次运行的链接时看到的那个页面），不是示意图：用的是它自己的脚本和样式，喂给它的是这个文件里保存的每一帧数据。选一次运行后点播放，或拖动滑块。"], ["The sky: each capability of the repository is a star, and the small stars around it are its public classes and callables. Before a scope is chosen every star is white. Once a job exists the capabilities the selection left out are gone, and each kept one is colored by how far it is: dim while it is only selected, then greener as its tests are ready, as it is written and as its tests pass; red where a test fails, and a yellow ring where it cannot be fully verified. Point at a star for its card; \"Capability list\" shows the same as a table.", "星空：仓库的每个能力是一颗星，周围的小星是它对外的类和函数。选定范围之前，所有的星都是白色。作业开始后，没有保留的能力会消失，保留下来的每个能力按进度上色：只是选中时较暗，测试就绪、代码写完、测试通过后一步步变绿变亮；有测试失败的是红色，无法完整验证的带一个黄圈。鼠标指向一颗星会显示它的卡片；“能力列表”用表格显示同样的内容。"], ["The bar at the bottom: one percentage for the whole run and the stage it is in, and under it how many of the kept capabilities have their tests ready, are written and pass.", "底部的进度条：整次运行的一个百分比和当前所在的阶段，下面是保留的能力里有多少个测试就绪、已写完、已通过。"], ["The runs are the ones the run page's replays hold, frame for frame (run-page-demo.html: real runs; run-page-cases.html: four timelines written by hand). The note above says where the chosen run comes from, and where its plan comes from.", "这里的运行就是 run 页面的两个回放页里的那些，逐帧相同（run-page-demo.html：真实运行；run-page-cases.html：四条手写的时间线）。上面的说明写了当前这次运行的来源，以及它的计划从哪里来。"], ["The plan (what the page asks /api/plan for). A run that carries its own job's plan shows the real capabilities, the real number of names in each interface and the selection the job was submitted with; its function graph, which a trajectory gives as the kept leaves under the project, is answered with every capability of that plan under its parent and with what the selection left out. A run that carries no plan gets one made of its function graph: the capabilities and their parents are the run's, and the number of small stars around each is fixed by its name, not measured.", "计划（页面向 /api/plan 要的内容）。带着自己作业的计划的运行，显示的是真实的能力、每个接口里真实的名字个数，以及作业提交时的选择；轨迹文档给出的功能图只有挂在项目下面的保留叶子，这里按那份计划补成完整的：每个能力挂在它的父节点下面，没有保留的标为范围之外。没有带计划的运行，计划由它的功能图推出：能力和父子关系是这次运行的，每个能力周围小星的个数按名字固定生成，不是实测的。"], ["Choosing the scope: the four timelines written by hand wait for their owner's choice in their second frame. The page first shows the map it has just made, every capability as a white star in space, and after a few seconds lays it flat as a tree with a tick box on every capability (step back to frame 1 and on to frame 2 to see it again; frame 3, after the Submit, is back in space with what was kept). While the replay plays by itself it then makes the choice the recorded run submitted (it presses the preset where that choice is one, and unticks what the run left out where it is not), before it goes on; the tick boxes, the groups that open and shut, \"Core features\" and \"All features\" work as on the live page. Submit starts nothing: opened as a file the page says that the execution service is not available, and served over http the request is told that this is a replay. One of the four (its note says which) has a review that holds Submit back and has notes, to show both.", "选择范围：四条手写的时间线在第 2 帧等 owner 选择范围。页面先显示刚分析出来的功能图（每个能力是空间里的一颗白色的星），几秒后把它平铺成一棵树，每个能力前有一个勾选框（退回第 1 帧再到第 2 帧可以再看一遍；第 3 帧是提交之后，回到空间里，只剩保留下来的部分）。自动播放时，回放随后会替你做出录下来的那次运行提交的选择（那次选择正好是某个预设时点那个预设，否则把没有保留的能力一个个取消勾选），然后才往下走；勾选框、分组的展开和收起、“核心功能”和“全部功能”和真实页面上一样可用。提交不会启动任何东西：直接打开文件时，页面会说执行服务不可用；通过 http 打开时，请求会被告知这是回放。四条里有一条（它的说明里写了是哪条）的审阅会拦下提交并带有说明，用来展示这两样。"], ["This replay holds one page: \"Detailed progress\" and the other links to the detailed page lead nowhere here, and say so. Nothing is running.", "这个回放只包含概览这一个页面：“详细进度”和其他通往详细页面的链接在这里打不开，点了会有提示。没有任何东西在运行。"]];
   ZH["What this page shows"] = "这页展示什么";
   ZH["This replay holds one page, the overview: the detailed page is not in it."] = "这个回放只包含概览这一个页面，没有详细页面。";
   const T = (text, values) => (lang === "zh-CN" && ZH[text] || text).replace(/\{(\w+)\}/g, (slot, key) => values && key in values ? String(values[key]) : slot);
-  let frames = [], graphs = [], index = 0, playing = false, timer = null;
+  let frames = [], graphs = [], index = 0, playing = false, timer = null, choosing = 0;
   async function inflate(data) {
     const bytes = Uint8Array.from(atob(data), char => char.charCodeAt(0));
     return JSON.parse(await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"))).text());
@@ -616,6 +616,38 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
       excluded: nodes.filter(node => node.in_scope === false).map(node => node.id), operation_contract_digest: digest(scenario.id + " contract"),
       truncated: graph.truncated === true};
     return made;
+  }
+  /* The choice the recorded run submitted, made on the page's own controls while the replay plays by itself. Where
+     that choice is one of the page's presets (by the page's own rules: its chooser over the plan the review would
+     answer), the preset is pressed, as an owner would; any other choice is made box by box: the capabilities the
+     job's plan leaves out are unticked, one after another (a group's box takes what stands under it along, and a
+     capability that a kept one needs takes no click until that one is unticked, so the boxes are gone through again
+     until a whole pass unticks nothing). `going`: whether the replay still shows this frame and plays. A viewer who
+     steps through the frames is left to choose for themselves. */
+  async function demoSelect(going, speed) {
+    const base = await carried || derived(), gone = (base.excluded || []).map(String);
+    const chips = Array.from(document.querySelectorAll("#select .ov-presets .ov-chip"));      // "Core features", "All features"
+    if (!gone.length) { if (chips[1] && going()) chips[1].click(); return; }
+    const wanted = base.capabilities.map(item => String(item.id)).filter(id => !gone.includes(id)).sort().join("\n");
+    let core = null;
+    try {
+      const probe = window.NanolizeRunOverview.chooser({schema_version: 1, available: true, ...base, phase: "review", locked: [], excluded: [], submit_url: "/api/jobs"}, null);
+      probe.preset("core");
+      core = [...probe.kept()].map(String).sort().join("\n");
+    } catch (error) { core = null; }
+    if (core === wanted && chips[0]) { if (going()) chips[0].click(); return; }
+    const boxes = Array.from(document.querySelectorAll("#rows .ov-row")).filter(row => gone.includes(row.dataset.capability)).map(row => row.querySelector("input")).filter(Boolean);
+    const pause = Math.max(30, Math.min(200, 1800 / Math.max(1, boxes.length))) / speed;
+    for (let pass = 0; pass < 12; pass++) {
+      let moved = false;
+      for (const box of boxes) {
+        if (!going()) return;
+        if (!box.checked || box.disabled) continue;
+        box.click(); moved = true;
+        await new Promise(done => setTimeout(done, pause));
+      }
+      if (!moved) break;
+    }
   }
   // What a review's answer carries of what the selection page reads of its plan to hold Submit back and to show
   // its notes (`review`). Here: a reviewed plan with a check and nothing to say, unless the scenario carries the
@@ -677,6 +709,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
   }, true);
   const $ = id => document.getElementById(id);
   function show(next) {
+    choosing += 1;      // a choice the replay was making for the frame shown before is dropped
     index = Math.max(0, Math.min(frames.length - 1, next));
     $("demo-seek").value = String(index + 1);
     $("demo-frame").textContent = T("frame {n} of {total} · {at} s", {n: index + 1, total: frames.length, at: frames[index].at.toFixed(1)});
@@ -687,10 +720,14 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
     clearTimeout(timer);
     $("demo-play").textContent = T(playing ? "Pause" : "Play");
     if (!playing) return;
-    // A frame in which the run waits for its owner's Submit is held for nine seconds: a real run stays there until
-    // its owner acts, and the overview page first shows its map and then lays it flat as the tree to choose from.
+    // A frame in which the run waits for its owner's Submit is held for eleven seconds: a real run stays there until
+    // its owner acts, and the overview page first shows its map, then lays it flat as the tree to choose from, and
+    // (where the page that is played has such a part: `demoSelect`) the replay makes the choice the recorded run
+    // submitted, so that what the next frame keeps is seen to be chosen.
     const focus = (frames[index].view.flow || {}).focus || {}, asks = focus.state === "attention" && focus.what === "submit";
-    const wait = (asks ? 9 : Math.max(0.08, Math.min(2.5, frames[index + 1].at - frames[index].at))) / Number($("demo-speed").value);
+    const speed = Number($("demo-speed").value) || 1;
+    const wait = (asks ? 11 : Math.max(0.08, Math.min(2.5, frames[index + 1].at - frames[index].at))) / speed;
+    if (asks && typeof demoSelect === "function") { const mine = choosing; setTimeout(() => { if (mine === choosing && playing) demoSelect(() => mine === choosing && playing, speed); }, 5600 / speed); }
     timer = setTimeout(() => { show(index + 1); play(true); }, wait * 1000);
   }
   const reload = change => { const next = new URLSearchParams(location.search); for (const [key, value] of Object.entries(change)) next.set(key, value); location.search = next.toString(); };
@@ -714,9 +751,9 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
     $("demo-next").addEventListener("click", () => { play(false); show(index + 1); });
     $("demo-play").addEventListener("click", () => { if (!playing && index >= frames.length - 1) show(0); play(!playing); });
     $("demo-speed").addEventListener("change", () => play(playing));
-    // ?frame=N in the address opens the Nth frame and stays on it.
+    // ?frame=N in the address opens the Nth frame and stays on it (&autoplay=1: plays on from it).
     show((Number(params.get("frame")) || 1) - 1);
-    play(params.get("autoplay") !== "0" && !params.has("frame"));
+    play(params.get("autoplay") === "1" || (params.get("autoplay") !== "0" && !params.has("frame")));
   });
 })();
 

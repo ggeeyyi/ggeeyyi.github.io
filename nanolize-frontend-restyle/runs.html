@@ -943,7 +943,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
      "页面不预先画任何流程。阶段、角色及其层级、工具的名字来自 /api/catalog，步骤来自 job 的 journal，所以新增工具、阶段或 agent 不需要改页面。"]];
   ZH["What this page shows"] = "这页展示什么";
   const T = (text, values) => (lang === "zh-CN" && ZH[text] || text).replace(/\{(\w+)\}/g, (slot, key) => values && key in values ? String(values[key]) : slot);
-  let frames = [], graphs = [], index = 0, playing = false, timer = null;
+  let frames = [], graphs = [], index = 0, playing = false, timer = null, choosing = 0;
   async function inflate(data) {
     const bytes = Uint8Array.from(atob(data), char => char.charCodeAt(0));
     return JSON.parse(await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"))).text());
@@ -973,6 +973,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
   }, true);
   const $ = id => document.getElementById(id);
   function show(next) {
+    choosing += 1;      // a choice the replay was making for the frame shown before is dropped
     index = Math.max(0, Math.min(frames.length - 1, next));
     $("demo-seek").value = String(index + 1);
     $("demo-frame").textContent = T("frame {n} of {total} · {at} s", {n: index + 1, total: frames.length, at: frames[index].at.toFixed(1)});
@@ -983,10 +984,14 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
     clearTimeout(timer);
     $("demo-play").textContent = T(playing ? "Pause" : "Play");
     if (!playing) return;
-    // A frame in which the run waits for its owner's Submit is held for nine seconds: a real run stays there until
-    // its owner acts, and the overview page first shows its map and then lays it flat as the tree to choose from.
+    // A frame in which the run waits for its owner's Submit is held for eleven seconds: a real run stays there until
+    // its owner acts, and the overview page first shows its map, then lays it flat as the tree to choose from, and
+    // (where the page that is played has such a part: `demoSelect`) the replay makes the choice the recorded run
+    // submitted, so that what the next frame keeps is seen to be chosen.
     const focus = (frames[index].view.flow || {}).focus || {}, asks = focus.state === "attention" && focus.what === "submit";
-    const wait = (asks ? 9 : Math.max(0.08, Math.min(2.5, frames[index + 1].at - frames[index].at))) / Number($("demo-speed").value);
+    const speed = Number($("demo-speed").value) || 1;
+    const wait = (asks ? 11 : Math.max(0.08, Math.min(2.5, frames[index + 1].at - frames[index].at))) / speed;
+    if (asks && typeof demoSelect === "function") { const mine = choosing; setTimeout(() => { if (mine === choosing && playing) demoSelect(() => mine === choosing && playing, speed); }, 5600 / speed); }
     timer = setTimeout(() => { show(index + 1); play(true); }, wait * 1000);
   }
   const reload = change => { const next = new URLSearchParams(location.search); for (const [key, value] of Object.entries(change)) next.set(key, value); location.search = next.toString(); };
