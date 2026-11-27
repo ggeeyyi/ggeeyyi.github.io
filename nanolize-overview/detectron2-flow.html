@@ -117,6 +117,11 @@ body.ov { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-ro
 .ov-title { margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink);
   font-family: var(--serif); font-weight: var(--serif-display-weight); font-size: var(--text-8); letter-spacing: var(--tracking-display);
   font-variation-settings: "opsz" var(--serif-display-opsz); }
+.ov-time { flex: none; font-family: var(--mono); font-size: var(--text-2); letter-spacing: var(--tracking-small); white-space: nowrap; color: var(--ink-3);
+  font-variant-numeric: tabular-nums; }
+.ov-time:empty { display: none; }
+.ov-time i { font-style: normal; }
+.ov-time b { font-weight: 400; color: var(--ink-2); }
 .ov-grow { flex: 1; }
 .pill { display: inline-flex; align-items: center; gap: 7px; flex: none; padding: 3px 11px; border-radius: var(--radius-pill);
   font-family: var(--mono); font-size: var(--text-2); font-weight: 500; letter-spacing: var(--tracking-small); white-space: nowrap;
@@ -147,10 +152,29 @@ body.ov { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-ro
 
 /* The scene's one line: in the middle while the repository is mapped, at the foot of the sky otherwise. */
 .ov-line { position: absolute; left: 50%; bottom: 20px; z-index: 2; transform: translateX(-50%); margin: 0; width: max-content; max-width: min(92%, 780px);
-  text-align: center; pointer-events: none; font-family: var(--mono); font-size: var(--text-2); letter-spacing: var(--tracking-small); color: var(--ink-3); }
+  text-align: center; pointer-events: none; font-family: var(--mono); font-size: var(--text-4); line-height: 1.5; letter-spacing: var(--tracking-small); color: var(--ink-2); }
+/* How long what the line says has been going on, written after the sentence (the page keeps it out of the line's text). */
+.ov-line > span[data-time]::after { content: attr(data-time); color: var(--ink-3); font-variant-numeric: tabular-nums; }
+/* While the repository is mapped: a mark for each step of the discovery under the sentence, and the run's time under them. */
+.ov-steps { display: flex; justify-content: center; gap: 10px; margin: 18px 0 0; padding: 0; list-style: none; }
+.ov-steps li { width: 26px; height: 3px; border-radius: 2px; background: var(--gray-a5); }
+.ov-steps li.s-done { background: var(--gray-11); }
+.ov-steps li.s-skipped { background: var(--gray-8); }
+.ov-steps li.s-failed { background: var(--bad); }
+.ov-steps li.s-active { background: var(--info); animation: ov-step 1.6s ease-in-out infinite; }
+@keyframes ov-step { 50% { opacity: .35; } }
+.ov-line.s-mapping[data-time]::after { content: attr(data-time); display: block; margin-top: 12px; font-family: var(--mono); font-size: var(--text-2);
+  letter-spacing: var(--tracking-small); color: var(--ink-3); font-variant-numeric: tabular-nums; }
 .ov-line.s-mapping { top: 50%; bottom: auto; transform: translate(-50%, -50%); font-family: var(--serif); font-size: var(--text-7);
   letter-spacing: var(--tracking-tight); color: var(--ink-2); }
 .ov-line.s-done { font-family: var(--sans); font-size: var(--text-5); letter-spacing: 0; color: var(--ink); }
+.ov-facts { position: absolute; left: 50%; bottom: 64px; z-index: 2; transform: translateX(-50%); display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 36px;
+  width: max-content; max-width: min(94%, 900px); pointer-events: none; }
+.ov-facts[hidden] { display: none; }
+.ov-fact { display: flex; flex-direction: column; align-items: center; gap: 3px; text-align: center; }
+.ov-fact i { font-style: normal; font-family: var(--mono); font-size: var(--text-1); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--ink-3); }
+.ov-fact b { font-weight: 500; font-size: var(--text-5); color: var(--ink); font-variant-numeric: tabular-nums; }
+.listing .ov-facts { visibility: hidden; }
 .ov-line.t-ok span { color: var(--ok-text); }
 .ov-line.t-warn span { color: var(--warn-text); }
 .ov-line.t-bad span { color: var(--bad-text); }
@@ -331,26 +355,33 @@ body[data-scene="select"] .ov-foot { background: linear-gradient(to top, var(--b
 .ov-foot { grid-column: 1; grid-row: foot; position: relative; z-index: 2; padding: 22px 28px 10px;
   background: linear-gradient(to top, color-mix(in srgb, var(--bg) 90%, transparent) 55%, transparent); }
 .ov-foot-row { display: flex; align-items: baseline; gap: 4px 24px; }
-.ov-stage-line { flex: none; font-family: var(--mono); font-size: var(--text-2); letter-spacing: var(--tracking-small); color: var(--ink-2); }
+.ov-stage-line { flex: none; font-family: var(--mono); font-size: var(--text-4); font-weight: 500; letter-spacing: var(--tracking-small); color: var(--ink); }
 .ov-percent { flex: none; font-family: var(--serif); font-weight: var(--serif-display-weight); font-size: var(--text-9); line-height: 1;
   letter-spacing: var(--tracking-display); font-variant-numeric: tabular-nums; color: var(--ink); }
-.ov-counts { display: flex; flex: 1 1 auto; flex-wrap: wrap; justify-content: flex-end; gap: 2px 20px; min-width: 0; min-height: 1.5em; margin: 0; font-family: var(--mono); font-size: var(--text-2);
+.ov-counts { display: flex; flex: 1 1 auto; flex-wrap: wrap; justify-content: flex-end; gap: 2px 20px; min-width: 0; min-height: 1.5em; margin: 0; font-family: var(--mono); font-size: var(--text-3);
   letter-spacing: var(--tracking-small); color: var(--ink-2); }
 .ov-counts span { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
+/* A count that can be pointed at lights the capabilities it counts in the sky; clicked, it keeps them lit. */
+.ov-counts span[data-key] { margin: -3px -8px; padding: 3px 8px; border-radius: var(--radius-pill); cursor: pointer; transition: background .15s, color .15s; }
+.ov-counts span[data-key]:hover, .ov-counts span[data-key].on { color: var(--ink); background: var(--gray-a4); }
+.ov-counts span[data-key][aria-pressed="true"] { box-shadow: inset 0 0 0 1px var(--gray-8); }
+.ov-counts span[data-key]:focus-visible { outline: 2px solid var(--info-line); outline-offset: 1px; }
 .ov-counts .t-gap .ov-dot { box-shadow: 0 0 0 2px var(--bg), 0 0 0 3px var(--warn); }
 .ov-counts .c-bad { color: var(--bad-text); }
 .ov-counts .c-warn { color: var(--warn-text); }
-.ov-bar { position: relative; height: 3px; margin: 9px 0 7px; border-radius: 2px; background: var(--gray-a4); }
-.ov-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; border-radius: 2px; background: var(--info); transition: width .6s ease; }
+.ov-bar { position: relative; height: 5px; margin: 10px 0 8px; border-radius: 3px; background: var(--gray-a4); }
+/* The part of the bar that is the stage the run is in: a lighter track under the fill. */
+.ov-bar::before { content: ""; position: absolute; top: 0; bottom: 0; left: var(--now-left, 0%); width: var(--now-width, 0%); background: var(--gray-a6); }
+.ov-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; border-radius: 3px; background: var(--info); transition: width .6s ease; }
 .ov-bar.tone-ok .ov-fill { background: var(--ok); }
 .ov-bar.tone-warn .ov-fill { background: var(--warn); }
 .ov-bar.tone-bad .ov-fill { background: var(--bad); }
 .ov-tick { position: absolute; top: -3px; bottom: -3px; width: 1px; background: var(--gray-8); }
 .ov-stages { display: flex; }
-.ov-stage-name { display: flex; flex: none; justify-content: center; box-sizing: border-box; white-space: nowrap; font-family: var(--mono); font-size: var(--text-1);
+.ov-stage-name { display: flex; flex: none; justify-content: center; box-sizing: border-box; white-space: nowrap; font-family: var(--mono); font-size: var(--text-2);
   letter-spacing: var(--tracking-small); color: var(--gray-9); }
 .ov-stage-name.done { color: var(--ink-3); }
-.ov-stage-name.now { color: var(--ink); }
+.ov-stage-name.now { color: var(--ink); font-weight: 600; }
 
 /* ----- a narrow window: the names of the stages give way (the line above the bar says the stage) ----- */
 @media (max-width: 900px) {
@@ -367,6 +398,8 @@ body[data-scene="select"] .ov-foot { background: linear-gradient(to top, var(--b
   #state { grid-area: state; }
   .ov-grow { display: none; }
   .ov-actions { grid-area: ways; justify-content: flex-end; }
+  .ov-time { grid-area: ways; justify-self: start; align-self: center; }
+  .ov-time i { display: none; }                  /* the time alone: the two ways out stand beside it */
   .ov-actions .button { padding: 5px 12px; }
   .ov-select { padding: 8px 12px 8px; }
   .ov-select-bar { gap: 6px 8px; }
@@ -383,11 +416,16 @@ body[data-scene="select"] .ov-foot { background: linear-gradient(to top, var(--b
   .ov-table tbody tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; padding: 8px 2px 9px calc(2px + 10px * var(--depth, 0)); border-bottom: 1px solid var(--line-2); }
   .ov-table tbody th, .ov-table tbody td { display: block; padding: 0; border: 0; }
   .ov-table tbody th { grid-column: 1 / -1; font-size: var(--text-4); }
-  .ov-list-state { grid-column: 1; font-size: var(--text-2); }
+  .ov-list-state { grid-column: 1; min-width: 0; font-size: var(--text-2); white-space: normal; overflow-wrap: anywhere; }
   .ov-list-tests { grid-column: 2; font-family: var(--mono); font-size: var(--text-2); text-align: right; color: var(--ink-3); }
   .ov-list-now { grid-column: 1 / -1; font-size: var(--text-2); color: var(--info-text); }
   .ov-list-tests.none, .ov-list-now.none { display: none; }
   .ov-notice { left: 12px; right: 12px; transform: none; flex-direction: column; align-items: flex-start; gap: 9px; width: auto; max-width: none; }
+  .ov-line { font-size: var(--text-3); }
+  .ov-steps { gap: 7px; }
+  .ov-steps li { width: 20px; }
+  .ov-facts { gap: 6px 22px; }
+  .ov-fact b { font-size: var(--text-4); }
   .ov-line.s-mapping { font-size: var(--text-6); }
   .ov-line.s-done { font-size: var(--text-3); }
   .ov-link { display: inline-block; }
@@ -452,6 +490,7 @@ body.ov .demo-bar select { min-width: 0; max-width: 100%; }
   <span class="nz-mark"><i class="nz-sym" aria-hidden="true"></i>Nanolize</span>
   <h1 class="ov-title" id="title">nanolize run</h1>
   <span class="pill" id="state" role="status"></span>
+  <span class="ov-time" id="time"></span>
   <span class="ov-grow"></span>
   <div class="ov-actions">
     <button type="button" class="button quiet" id="list-toggle" aria-pressed="false" aria-controls="list">Capability list</button>
@@ -464,6 +503,7 @@ body.ov .demo-bar select { min-width: 0; max-width: 100%; }
     <div class="ov-rows" id="rows"></div>
   </div>
   <button type="button" class="ov-more" id="more" hidden></button>
+  <div class="ov-facts" id="facts" hidden></div>
   <p class="ov-line" id="line" aria-live="polite" hidden></p>
   <p class="ov-void" id="void" role="status" hidden></p>
   <div class="ov-notice" id="notice" role="status" hidden></div>
@@ -2425,7 +2465,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
     "{n} done": "{n} 项已完成", "{n} skipped": "{n} 项已跳过", "Recorded values": "记录的数值",
     "Installation check": "安装检查", "a folder next to the project's own": "与项目目录同级的文件夹", "Report": "报告", "Open the report": "打开报告", ", ": "、",
     "Nothing failed. Not checked, because nothing is configured for it: {names}.": "没有失败。未检查（因为没有配置）：{names}。",
-    "Not shown to hold: {names}.": "未能确认成立：{names}。",
+    "Acceptance criteria not confirmed: {names}.": "还没确认的验收条件：{names}。",
     "Recorded by the delivery as a gap: {names}.": "交付记录为缺口的：{names}。",
     "Something recorded in a form the page cannot read": "以本页面读不出的形式记录的缺口",
     "A desktop notice when the run needs you or has ended": "运行需要你处理或已结束时，发一条桌面通知",
@@ -3441,7 +3481,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
     if (!short.length && !other.length)
       return {quiet: true, text: T("Nothing failed. Not checked, because nothing is configured for it: {names}.", {names: names(idle, true)})};
     // A gap's words say what is missing ("… not passed"), a criterion's what should hold: each in a sentence of its own.
-    return {quiet: false, text: [short.length ? T("Not shown to hold: {names}.", {names: names(short)}) : "",
+    return {quiet: false, text: [short.length ? T("Acceptance criteria not confirmed: {names}.", {names: names(short)}) : "",
       other.length ? T("Recorded by the delivery as a gap: {names}.", {names: other.join(T(", "))}) : ""].filter(Boolean).join(" ")};
   }
 
@@ -7959,6 +7999,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
      shorter clock on each record, so a state can change without the scene moving. */
   const DUR = 1.4, LOOK_DUR = .7, SPIN = .07, ROT0 = .55, TILT = 17 * Math.PI / 180, EYE = 3.1, REACH = 22, CEL = 2.6;
   const WX = 0, WY = 1, WZ = 2, FX = 3, FY = 4, IN = 5, SH = 6, LIFE = 7, CHANNELS = 8;
+  const FAINT = .16;      // how much is left of a capability the page does not point at, while it points at others
   const RADIUS = [2.5, 3.5, 6], DUSTS = 190;          // a leaf, a group, the root (px at the usual scale); background specks
   const GLOW = [36, 46, 56], TINY = 20, TINY_TILT = 16;   // the widest glow of each, px (a lone star is not a floodlight); up to where a tree is tiny, and how much higher the camera stands over a handful (degrees)
   const WIDTHS = [.55, .8, 1.25, 4.5, 1.9, 2.7];      // a hairline, a twig, a limb, a band of glow, a bough, the trunk (px)
@@ -8014,6 +8055,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
     let T = 0, step = 0, phase = 0, dragged = 0, spin = 0, scroll = 0, scrollMax = 0, flatTall = 0;
     let geo = {t0: 0, dur: 0}, m0 = 0, m1 = 0, fit0 = {s: 1, cx: 0, cy: 0, crowd: 1}, fit1 = fit0, shape = null, geoKey = "", begun = false;
     let hovered = null, pinned = false, pointer = null, drag = null, cel = null, raf = 0, running = false, lastMs = 0, moveKey = 0, dead = false, plan = null;
+    let lit = null;      // the capabilities the page points at (emphasize), or null: every other one is drawn faint
 
     const calm = () => opt.reduced != null ? !!opt.reduced
       : !!(typeof win.matchMedia === "function" && win.matchMedia("(prefers-reduced-motion: reduce)").matches);
@@ -8350,7 +8392,11 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
         rec.e = e; rec.cx = xr; rec.cy = yt; rec.cz = zt; rec.px = px; rec.py = py; rec.k = k; rec.inn = inn;
         rec.x = px + (ox + v0[FX] + (v1[FX] - v0[FX]) * e - px) * m; rec.y = py + (oy + v0[FY] + (v1[FY] - v0[FY]) * e - py) * m;
         rec.vx = zr * S * k * drift; rec.vy = -xr * st * S * k * drift;      // how fast the turning carries it across the stage, px a second
-        rec.vis = life * (1 - m * (1 - sh));
+        /* Where the page points at some capabilities (emphasize: the ones a count under the bar counts), every other
+           one goes faint, with its lines, its small stars and its name, and takes no pointer; it comes back as fast. */
+        const want = !lit || lit.has(rec.id) ? 1 : FAINT;
+        rec.em = rec.em === undefined || !(step > 0) ? want : rec.em + (want - rec.em) * Math.min(1, step * 9);
+        rec.vis = life * (1 - m * (1 - sh)) * rec.em;
         rec.near = clamp(.5 + zt * .5, 0, 1);
         rec.b = 1 + (depthOf(rec.near) - 1) * deep;                     // by its distance alone (a look shows a part of it): far, half as bright; near, a fifth brighter
         rec.r = RADIUS[rec.kind] * unit * (1 + (k - 1) * SIZE) * (.38 + .62 * inn);
@@ -8827,6 +8873,15 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
       off(name, fn) { if (heard[name]) heard[name] = heard[name].filter(one => one !== fn); return view; },
       // Marks a capability as the one in hand from outside the canvas (a row of the page's list that has the focus).
       focus(id) { pinned = id != null && !!recOf[id]; hover(pinned ? id : null); refresh(); return view; },
+      /* Points at some capabilities: `ids` (a set, a list) are drawn as they are and every other one faint, until
+         emphasize(null). Nothing of the layout, the looks or the turning changes; an empty set points at nothing. */
+      emphasize(ids) {
+        const next = ids == null ? null : new Set(ids);
+        lit = next && next.size ? next : null;
+        if (hovered !== null && lit && !lit.has(hovered)) hover(null);
+        refresh();
+        return view;
+      },
       // The flat tree's scroll: scroll(y) sets it (kept within what there is), scroll() tells it.
       scroll(y) { if (y !== undefined) { scrollTo(y); refresh(); } return scroll; },
       // One wave of light out from the root along the lines, when every kept capability passes; `at`: when, on the view's clock.
@@ -8853,7 +8908,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
       state() {
         return {mode: scene.mode, morph: lerp(m0, m1, whole()), time: T, running, moving: geo.dur > 0, width: W, height: H, capabilities: recs.filter(rec => !rec.gone).length,
           kept: recs.filter(rec => !rec.gone && rec.v1[IN] > .5).length, stars: recs.reduce((sum, rec) => sum + (rec.gone ? 0 : rec.n1), 0), scroll, scrollMax,
-          hovered, celebrating: !!cel, collapsed: plan && scene.mode === "2d" && Array.isArray(plan.collapsed) ? plan.collapsed.slice() : []};
+          hovered, celebrating: !!cel, emphasized: lit ? lit.size : 0, collapsed: plan && scene.mode === "2d" && Array.isArray(plan.collapsed) ? plan.collapsed.slice() : []};
       },
       resize() { if (!dead && measure()) { geoKey = ""; arrange(true); refresh(); } return view; },
       destroy() { dead = true; halt(); for (const off of offs.splice(0)) off(); if (watcher) watcher.disconnect(); heard.hover = []; heard.choose = []; heard.move = []; }
@@ -8957,6 +9012,10 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
     "{gap} of {leaves} capabilities cannot be fully verified.": "{leaves} 个能力中有 {gap} 个无法完整验证。",
     " ({n} of {of} verified by nothing)": "（{of} 个里有 {n} 个没有被任何检查验证）",
     "The capability map is complete: {n} capabilities": "功能图分析完成：共 {n} 个能力",
+    "Holds": "包含", "{n} capabilities": "{n} 个能力", "{n} capabilities: {parts}": "{n} 个能力：{parts}", ", ": "、",
+    "{n} passing": "{n} 个通过", "{n} failing": "{n} 个失败", "{n} written": "{n} 个已写", "{n} tests ready": "{n} 个测试就绪",
+    "{n} not started": "{n} 个未开始", "{n} cannot be verified": "{n} 个无法验证", "Code, with all under it": "代码（含下属）",
+    "Time": "用时", "Point at a count to light the capabilities it counts; click to keep them lit": "指向一个计数，星空里只点亮它数的那些能力；点击可保持点亮",
     "This run's function graph cannot be read right now, so there is nothing to draw. The detailed page shows the run step by step.":
       "现在读不到这次运行的功能图，所以这里没有可画的内容。详细页按步骤显示这次运行。",
     "{fail} of {leaves} capabilities fail their tests.": "{leaves} 个能力中有 {fail} 个未通过测试。",
@@ -9167,7 +9226,8 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
      are selected, of how many where some were left out, and of those how many have their tests ready, are written and pass), with how many fail and
      how many cannot be verified where there are any. Before a job there is nothing to count but the capabilities
      of the plan and the public classes and callables round them. `dots`: the look of each count's dot, which is
-     the look of a capability in that state in the sky, so the counts are the sky's legend. */
+     the look of a capability in that state in the sky, so the counts are the sky's legend. `keys`: what each
+     count counts (ready, wrote, pass, fail, gap), which the page lights in the sky when the count is pointed at. */
   function barWords(progress, view, plan, given, catalog) {
     const m = modules(given), stage = record(progress.stage);
     const c = Object.fromEntries(["leaves", "all", "ready", "wrote", "pass", "fail", "gap"].map(key => [key, whole(record(progress.counts)[key])]));
@@ -9179,7 +9239,9 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
       : known ? [mapped(list(plan.capabilities).length), ...(stars ? [declared(stars)] : [])] : [];
     const tones = c.leaves ? ["", "", "", "", ...(c.fail ? ["bad"] : []), ...(c.gap ? ["warn"] : [])] : counts.map(() => "");
     const dots = c.leaves ? ["dim", "ready", "wrote", "pass", ...(c.fail ? ["fail"] : []), ...(c.gap ? ["gap"] : [])] : ["cloud", "small"].slice(0, counts.length);
-    return {stage: T("Stage {n} / {of} · {title}", {n: whole(stage.n) || 1, of: whole(stage.of) || 6, title: stageTitle(view, whole(stage.n) || 1, stage.id, m, catalog)}),
+    // What each count counts, for the page that lights those capabilities in the sky ("": nothing to pick out).
+    const keys = c.leaves ? ["", "ready", "wrote", "pass", ...(c.fail ? ["fail"] : []), ...(c.gap ? ["gap"] : [])] : counts.map(() => "");
+    return {keys, stage: T("Stage {n} / {of} · {title}", {n: whole(stage.n) || 1, of: whole(stage.of) || 6, title: stageTitle(view, whole(stage.n) || 1, stage.id, m, catalog)}),
       percent: whole(progress.percent) + "%", counts, tones, dots};
   }
 
@@ -9197,6 +9259,21 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
       if (draft.state === "active" && words(draft.text)) return words(draft.text);
     }
     return words(record(attempt(() => m.flow.sentence(v, flow, catalog, m.dashboard.pauseText, undefined, undefined, m.dashboard.endedText), null)).text);
+  }
+
+  /* Since when what nowText says has been so (the run page's `since` of the same sentence), as a time in ms, or null. */
+  function nowSince(view, given, catalog) {
+    const m = modules(given), v = record(view), flow = record(v.flow);
+    if (!m.flow || typeof m.flow.sentence !== "function") return null;
+    const step = record(list(flow.steps)[record(flow.focus).step]);
+    let since = null;
+    if (step.tool === "import_draft" && step.state === "active" && typeof m.flow.draftSentence === "function") {
+      const draft = record(attempt(() => m.flow.draftSentence(v, catalog), null));
+      if (draft.state === "active" && words(draft.text)) since = draft.since;
+    }
+    if (since == null) since = record(attempt(() => m.flow.sentence(v, flow, catalog, m.dashboard.pauseText, undefined, undefined, m.dashboard.endedText), null)).since;
+    const at = typeof since === "string" ? Date.parse(since) : NaN;
+    return Number.isFinite(at) ? at : null;
   }
 
   /* The one line a scene says over the sky, or null: {text, tone, link: {href, text}}. */
@@ -9238,7 +9315,12 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
       const at = Math.max(-1, ...steps.filter(step => step.status === "active").map(step => known.findIndex(item => item.id === step.id)));
       // No step of the discovery runs (it is done and the review has not opened, or the host agent is away): the
       // run page's sentence says what the run waits for.
-      return {tone: "", link: null, text: at < 0 ? (whole(stage.n) > 1 && nowText(view, given, catalog)) || T("Mapping the repository")
+      /* The discovery's steps, each with how far it is (done, skipped, active, failed, pending: the records list a
+         step once it began), for the row of marks under the line. Only while the discovery is at work. */
+      const far = id => { const found = steps.find(step => step.id === id), status = found ? words(found.status) : "";
+        return ["done", "skipped", "active", "failed"].includes(status) ? status : "pending"; };
+      const marks = at < 0 ? null : known.map(step => ({label: m.dashboard.T(step.label), status: far(step.id)}));
+      return {tone: "", link: null, steps: marks, text: at < 0 ? (whole(stage.n) > 1 && nowText(view, given, catalog)) || T("Mapping the repository")
         : T("Mapping the repository · step {n} of {of}: {step}", {n: at + 1, of: known.length, step: m.dashboard.T(known[at].label)})};
     }
     /* A job at work: what it does now. A job that waits for its owner says so in the notice instead. */
@@ -9307,11 +9389,38 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
       const look = m.progress.liveLook(entry.live);
       if (look && words(look.words)) out.now = look.words;
     }
-    const files = typeof cap.files === "number" ? whole(cap.files) : list(node.files).length;
-    const code = [files === 1 ? T("1 file") : files ? T("{n} files", {n: count(files)}) : "",
-      typeof cap.tokens === "number" ? T("{n} tokens", {n: count(cap.tokens)}) : ""].filter(Boolean);
-    if (code.length) out.rows.push([T("Code"), code.join(" · ")]);
-    const stars = whole(cap.interface_total) || list(cap.interface).length;
+    /* A group has little code of its own: its card counts what stands under it, every capability once (how many,
+       and once a job exists how far they are; their files, tokens and interface names added up). */
+    const source = at.caps && at.caps.size ? at.caps : at.nodes, kids = new Map();
+    if (source && typeof source.values === "function") for (const item of source.values()) {
+      const parent = record(item).parent;
+      if (parent != null && parent !== record(item).id) { if (!kids.has(parent)) kids.set(parent, []); kids.get(parent).push(item); }
+    }
+    const below = [], seen = new Set([id]);
+    for (const stack = [...(kids.get(id) || [])]; stack.length;) {
+      const item = stack.pop();
+      if (seen.has(item.id)) continue;
+      seen.add(item.id); below.push(item); stack.push(...(kids.get(item.id) || []));
+    }
+    const group = below.length > 0, all = group ? [source.get(id) || cap, ...below] : [];
+    if (group) {
+      const leaves = below.filter(item => !(kids.get(item.id) || []).length);
+      const entries = at.states && typeof at.states.get === "function" && at.scene !== "select" ? leaves.map(item => at.states.get(item.id)).filter(item => item && item.state !== "out") : null;
+      if (entries && entries.length && entries.some(item => item.leaf)) {
+        const n = state => entries.filter(item => item.state === state).length, gaps = entries.filter(item => item.gap).length;
+        const parts = [n("pass") ? T("{n} passing", {n: n("pass")}) : "", n("fail") ? T("{n} failing", {n: n("fail")}) : "", n("wrote") ? T("{n} written", {n: n("wrote")}) : "",
+          n("ready") ? T("{n} tests ready", {n: n("ready")}) : "", n("dim") ? T("{n} not started", {n: n("dim")}) : "", gaps ? T("{n} cannot be verified", {n: gaps}) : ""].filter(Boolean);
+        out.rows.unshift([T("Holds"), T("{n} capabilities: {parts}", {n: entries.length, parts: parts.join(T(", "))})]);
+      } else out.rows.unshift([T("Holds"), T("{n} capabilities", {n: leaves.length})]);
+    }
+    const filesOf = item => typeof record(item).files === "number" ? whole(item.files) : list(record(item).files).length;
+    const files = group ? all.reduce((sum, item) => sum + filesOf(item), 0) : typeof cap.files === "number" ? whole(cap.files) : list(node.files).length;
+    const measured = group ? all.some(item => typeof record(item).tokens === "number") : typeof cap.tokens === "number";
+    const tokens = group ? all.reduce((sum, item) => sum + (typeof record(item).tokens === "number" ? whole(item.tokens) : 0), 0) : cap.tokens;
+    const code = [files === 1 ? T("1 file") : files ? T("{n} files", {n: count(files)}) : "", measured ? T("{n} tokens", {n: count(tokens)}) : ""].filter(Boolean);
+    if (code.length) out.rows.push([group ? T("Code, with all under it") : T("Code"), code.join(" · ")]);
+    const stars = group ? all.reduce((sum, item) => sum + (whole(record(item).interface_total) || list(record(item).interface).length), 0)
+      : whole(cap.interface_total) || list(cap.interface).length;
     if (stars) out.rows.push([T("Interface"), declared(stars)]);
     const needs = list(Array.isArray(cap.depends_on) ? cap.depends_on : node.depends_on).filter(other => typeof other === "string");
     if (needs.length) out.rows.push([T("Depends on"), [...needs.slice(0, 3).map(name), needs.length > 3 ? T("+{n} more", {n: needs.length - 3}) : ""].filter(Boolean).join(", ")]);
@@ -9394,6 +9503,9 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
     let shown = "", skyKey = "", states = null, choice = null, choiceOf = null, controller = null, said = "";
     let celebrated = null, cardId = null, listKey = "", tabKind = null;
     let opening = 0, openingTimer = 0;   // the selection's opening: 0 not begun, 1 the map is shown, 2 over
+    let countsKey = "", pointed = null, stuck = null, litKey = "";   // the legend: the count under the pointer, the one clicked, what the sky is told
+    // The page's clock: a replay answers for the moment it shows (as on the run page).
+    const clock = () => typeof win.NANOLIZE_CLOCK === "function" ? win.NANOLIZE_CLOCK() : Date.now();
     const rows = new Map();
 
     /* The tree the sky draws: the plan's capabilities (they carry the names of their interfaces, which are the
@@ -9436,7 +9548,10 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
        that was ticked stay free. */
     function cardPlace(id, x, y, w, t) {
       const g = geometry(), select = shown === "select", row = select ? laid.get(id) || null : null, head = select ? whole($("select").offsetHeight) : 0;
-      const top0 = head + 8, low = Math.max(top0, g.tall - t - 8);
+      // (In space the card stands clear of the line at the foot of the sky, and of a delivery's facts over it: what
+      // the run does now, and what it came to, stay readable.)
+      const foot = select ? 0 : (!$("line").hidden ? whole($("line").offsetHeight) + 28 : 0) + (!$("facts").hidden ? whole($("facts").offsetHeight) + 16 : 0);
+      const top0 = head + 8, low = Math.max(top0, g.tall - t - 8 - foot);
       if (select && g.wide >= SIDE.least) {
         const panel = choice ? record(choice.head).panel : null, over = panel && !panel.hidden && !gateShown(panel) ? whole(panel.offsetHeight) + 10 : 0;
         return {docked: true, sheet: false, left: g.wide - SIDE.edge - SIDE.width, top: top0 + over};
@@ -9447,7 +9562,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
       }
       const clear = (attempt(() => sky.places()[id].r, 0) || 6) + 23, sx = x - g.dx, sy = y - g.dy;
       const left = sx > g.wide / 2 ? sx - clear - w : sx + clear;
-      return {docked: false, sheet: false, left: Math.round(clamp(left, 8, Math.max(8, g.wide - w - 8))), top: Math.round(clamp(sy - 20, 8, Math.max(8, g.tall - t - 8)))};
+      return {docked: false, sheet: false, left: Math.round(clamp(left, 8, Math.max(8, g.wide - w - 8))), top: Math.round(clamp(sy - 20, 8, Math.max(8, g.tall - t - 8 - foot)))};
     }
     /* Shows the card of a capability, or of none: the card then goes, but for the column at the side of the flat
        tree, which is never empty: it says what it is for. */
@@ -9475,7 +9590,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
       card.style.maxHeight = at.docked ? Math.max(60, geometry().tall - at.top - 8) + "px" : "";
     }
     sky.on("hover", told => showCard(told && told.id, record(told).x || 0, record(told).y || 0));
-    doc.addEventListener("keydown", event => { if (event.key === "Escape") { sky.focus(null); showCard(null); } });
+    doc.addEventListener("keydown", event => { if (event.key === "Escape") { sky.focus(null); showCard(null); if (stuck) { stuck = null; light(); } } });
 
     /* ---- The selection scene: the flat tree's rows, written over the canvas from the layout's row boxes ---- */
     /* The groups shut in the flat tree. Until the owner opens or shuts one the layout folds what it must for the
@@ -9781,6 +9896,45 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
     }
     $("list-toggle").addEventListener("click", () => { listOpen = !listOpen; renderList(); });
 
+    /* ---- The legend lights the sky ---- */
+    /* The capabilities a count counts, with the groups over them (so the lines to them stay), or null: nothing to
+       pick out (no such count, none of them, a scene without states). */
+    function counted(key) {
+      if (!key || !states || !trees.tree) return null;
+      const is = {ready: entry => entry.ready === true, wrote: entry => entry.wrote === true, pass: entry => entry.state === "pass",
+        fail: entry => entry.state === "fail", gap: entry => entry.gap === true}[key];
+      if (!is) return null;
+      const out = new Set();
+      for (const [id, entry] of states) if (entry && entry.leaf && entry.state !== "out" && is(entry)) out.add(id);
+      if (!out.size) return null;
+      for (const id of [...out]) for (let up = record(trees.tree.byId[id]).parent, steps = 0; up != null && steps < 64; up = record(trees.tree.byId[up]).parent, steps++) out.add(up);
+      if (trees.tree.root != null) out.add(trees.tree.root);
+      return out;
+    }
+    function light() {
+      const key = pointed || stuck, lit = (shown === "kept" || shown === "done") ? counted(key) : null;
+      for (const item of list($("counts").children)) {
+        const mine = record(item.dataset).key;
+        if (!mine) continue;
+        item.classList.toggle("on", Boolean(lit) && mine === key);
+        item.setAttribute("aria-pressed", String(Boolean(lit) && mine === stuck));
+      }
+      const next = lit ? key + ":" + [...lit].sort().join(",") : "";
+      if (next === litKey) return;
+      litKey = next;
+      if (typeof sky.emphasize === "function") sky.emphasize(lit);
+    }
+    const keyOf = event => { for (let node = event && event.target, steps = 0; node && steps < 4; node = node.parentNode, steps++) { const key = record(node.dataset).key; if (key) return key; } return null; };
+    $("counts").addEventListener("pointerover", event => { pointed = keyOf(event); light(); });
+    $("counts").addEventListener("pointerout", () => { pointed = null; light(); });
+    $("counts").addEventListener("focusin", event => { pointed = keyOf(event); light(); });
+    $("counts").addEventListener("focusout", () => { pointed = null; light(); });
+    $("counts").addEventListener("click", event => { const key = keyOf(event); if (key) { stuck = stuck === key ? null : key; light(); } });
+    $("counts").addEventListener("keydown", event => {
+      const key = keyOf(event);
+      if (key && (event.key === "Enter" || event.key === " " || event.key === "Spacebar")) { if (typeof event.preventDefault === "function") event.preventDefault(); stuck = stuck === key ? null : key; light(); }
+    });
+
     /* ---- One picture of the run ---- */
     function draw() {
       if (!view) return;
@@ -9830,9 +9984,33 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
       bar.className = "ov-bar tone-" + (words(progress.tone) || "run");
       bar.setAttribute("aria-valuenow", String(whole(progress.percent)));
       bar.setAttribute("aria-valuetext", told.stage + " · " + told.percent);
-      // Each count carries the dot of its state as the sky draws it: the counts are the legend.
-      $("counts").replaceChildren(...told.counts.map((text, at) => h("span", ["t-" + told.dots[at], told.tones[at] ? "c-" + told.tones[at] : ""].filter(Boolean).join(" "), h("i", "ov-dot"), text)));
+      /* Each count carries the dot of its state as the sky draws it: the counts are the legend. A count that
+         counts some of the kept capabilities (ready, written, passing, failing, cannot be verified) can be pointed
+         at: the sky then keeps those lit and lets the others go faint, so "which two are not ready" is answered by
+         looking; a click keeps them lit until the next click or Escape. The counts are written again only when they
+         change, so the one under the pointer or with the focus stays the element it was. */
+      const usable = name === "kept" || name === "done";
+      const signature = JSON.stringify([told.counts, told.dots, told.tones, usable ? told.keys : null, locale]);
+      if (signature !== countsKey) {
+        countsKey = signature;
+        $("counts").replaceChildren(...told.counts.map((text, at) => {
+          const item = h("span", ["t-" + told.dots[at], told.tones[at] ? "c-" + told.tones[at] : ""].filter(Boolean).join(" "), h("i", "ov-dot"), text);
+          const key = usable ? told.keys[at] : null;
+          if (key) {
+            item.dataset.key = key; item.tabIndex = 0;
+            item.setAttribute("role", "button");
+            item.title = T("Point at a count to light the capabilities it counts; click to keep them lit");
+          }
+          return item;
+        }));
+      }
+      if (!usable) { pointed = null; stuck = null; }
+      light();
       const at = whole(record(progress.stage).n) || 1;
+      // The bar marks the part that is the stage the run is in (a lighter track under the fill); none once the run ended.
+      const before = P.STAGE_IDS.slice(0, at - 1).reduce((sum, id) => sum + whole(P.WEIGHTS[id]), 0);
+      setVar(bar, "--now-left", before + "%");
+      setVar(bar, "--now-width", (name === "done" ? 0 : whole(P.WEIGHTS[P.STAGE_IDS[at - 1]])) + "%");
       stageNames.forEach((name, i) => {
         name.textContent = stageTitle(view, i + 1, P.STAGE_IDS[i], m, catalog);
         name.className = "ov-stage-name" + (i + 1 < at ? " done" : i + 1 === at ? " now" : "");
@@ -9847,9 +10025,33 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
         caption.className = "ov-line s-" + name + (line.tone ? " t-" + line.tone : "");
         const link = line.link ? h("a", "ov-link", line.link.text) : null;
         if (link) link.href = line.link.href;
-        fillWith(caption, h("span", "", line.text), link);
+        // While the repository is mapped: a mark for each of the discovery's steps, under the sentence.
+        const marks = list(line.steps).length ? h("ol", "ov-steps", ...line.steps.map(step => { const mark = h("li", "s-" + step.status); mark.title = step.label; return mark; })) : null;
+        if (marks) marks.setAttribute("aria-hidden", "true");
+        fillWith(caption, h("span", "", line.text), link, marks);
       }
-      const lineTall = line && name !== "mapping" ? whole(caption.offsetHeight) : 0;
+      /* How long: the whole run beside its state (as the run page says it), and at the line how long what the run
+         does now has been going on; while the repository is mapped, the whole run's time under the steps. The time
+         is no part of the line's text: the page writes it after the sentence (CSS, from the sentence's data-time). */
+      const ran = attempt(() => D.runSpan(view, clock()), null);
+      const total = ran && Number.isFinite(ran.seconds) ? (ran.ended ? D.T("ran {time}", {time: D.span(ran.seconds)}) : D.T("running for {time}", {time: D.span(ran.seconds)})) : "";
+      // (The words around the time are an element of their own: a phone shows the time alone, beside the two ways out.)
+      const around = total ? (ran.ended ? D.T("ran {time}", {time: "\u0001"}) : D.T("running for {time}", {time: "\u0001"})).split("\u0001") : [];
+      fillWith($("time"), around[0] ? h("i", "", around[0]) : null, total ? h("b", "", D.span(ran.seconds)) : null, around[1] ? h("i", "", around[1]) : null);
+      const since = line && name === "kept" && !scene.attention && !opens ? nowSince(view, m, catalog) : null;
+      const going = since != null && clock() >= since ? D.span((clock() - since) / 1000) : "";
+      if (line && name === "mapping" && total && list(line.steps).length) caption.dataset.time = total; else delete caption.dataset.time;
+      if (line && going && caption.children[0]) caption.children[0].dataset.time = " · " + going;      // on the sentence itself: the page writes it after it
+      /* What a delivery has to show for it, over its line: its size against the original and the behavior checks of
+         what it delivered (the run page's own facts, in its words), and the time it took. */
+      const facts = $("facts"), shown3 = name === "done" ? list(attempt(() => D.resultFacts(view), [])).filter(fact => fact && !fact.note && !fact.href && words(fact.value)).slice(0, 2) : [];
+      if (shown3.length && ran) shown3.push({label: T("Time"), value: D.span(ran.seconds)});
+      facts.hidden = !shown3.length;
+      if (shown3.length) {
+        fillWith(facts, ...shown3.map(fact => h("span", "ov-fact", h("i", "", words(fact.label)), h("b", "", words(fact.value)))));
+        facts.style.bottom = (20 + (line ? whole(caption.offsetHeight) : 0) + 16) + "px";
+      }
+      const lineTall = (line && name !== "mapping" ? whole(caption.offsetHeight) : 0) + (shown3.length ? whole(facts.offsetHeight) + 16 : 0);
 
       // The sky.
       $("select").hidden = name !== "select";
@@ -10016,7 +10218,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
   }
 
   return {ZH, OPENING_MS, STATE_WORDS, EXECUTION_WORDS, EXECUTION_PARTS, GATE_WORDS, GATE_TAIL, PLAN_NOTES, STAGE_TITLES, setLocale, T, plannerPlan, selectable, chooser, gateOf, notesOf,
-    lockWords, barWords, sceneLine, nowText, noticeText, cardOf, plannedStates, start};
+    lockWords, barWords, sceneLine, nowText, nowSince, noticeText, cardOf, plannedStates, start};
 });
 
 </script>

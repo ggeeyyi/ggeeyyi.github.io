@@ -981,7 +981,7 @@ window.fetch = async function (url, options) {
     "{n} done": "{n} 项已完成", "{n} skipped": "{n} 项已跳过", "Recorded values": "记录的数值",
     "Installation check": "安装检查", "a folder next to the project's own": "与项目目录同级的文件夹", "Report": "报告", "Open the report": "打开报告", ", ": "、",
     "Nothing failed. Not checked, because nothing is configured for it: {names}.": "没有失败。未检查（因为没有配置）：{names}。",
-    "Not shown to hold: {names}.": "未能确认成立：{names}。",
+    "Acceptance criteria not confirmed: {names}.": "还没确认的验收条件：{names}。",
     "Recorded by the delivery as a gap: {names}.": "交付记录为缺口的：{names}。",
     "Something recorded in a form the page cannot read": "以本页面读不出的形式记录的缺口",
     "A desktop notice when the run needs you or has ended": "运行需要你处理或已结束时，发一条桌面通知",
@@ -1997,7 +1997,7 @@ window.fetch = async function (url, options) {
     if (!short.length && !other.length)
       return {quiet: true, text: T("Nothing failed. Not checked, because nothing is configured for it: {names}.", {names: names(idle, true)})};
     // A gap's words say what is missing ("… not passed"), a criterion's what should hold: each in a sentence of its own.
-    return {quiet: false, text: [short.length ? T("Not shown to hold: {names}.", {names: names(short)}) : "",
+    return {quiet: false, text: [short.length ? T("Acceptance criteria not confirmed: {names}.", {names: names(short)}) : "",
       other.length ? T("Recorded by the delivery as a gap: {names}.", {names: other.join(T(", "))}) : ""].filter(Boolean).join(" ")};
   }
 
