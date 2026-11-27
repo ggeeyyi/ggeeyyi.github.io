@@ -3444,24 +3444,26 @@ def loads(s: str, /, *, parse_float: ParseFloat = float) -> dict[str, Any]:
        FB: t, the seconds since F0; c, how far the frame has closed on the folder (FC); v, f: how far the
        pill is on its way back, by the clock and eased (FL); x, y, w, h: the frame; mx, dy: how far the
        folder's row (its mark, at the pill's left end) has moved with it; lx, ly, sc: where the folder's name stands (its left end, its
-       middle line) and its size against a chip's; ph, pw: the pill round the folder's row. */
-    const FB = { on: false, t: 0, c: 0, v: 0, f: 0, x: 0, y: 0, w: 0, h: 0, mx: 0, dy: 0, lx: 0, ly: 0, sc: 1, ph: 0, pw: 0 };
+       middle line) and its size against a chip's; ph, pw: the pill round the folder's row; top: how far the frame's head has come down. */
+    const FB = { on: false, t: 0, c: 0, v: 0, f: 0, x: 0, y: 0, w: 0, h: 0, mx: 0, dy: 0, lx: 0, ly: 0, sc: 1, ph: 0, pw: 0, top: 0 };
     const foldAt = tt => { block(REPO, sx1 - sx0 - FT.w > 116 * cw + 36);
       const c = FB.c = ease(seg(tt, FC[0], FC[1])), f = FB.f = ease(FB.v = seg(tt, FL[0], FL[1])), m = WL.rows[WL.mid], rows = NANO[REPO.name].rows, M = rows.length, Y0 = FT.mid - (M - 1) / 2 * FT.pitch, nx = FT.x + FT.fs * 1.65;
       const vx = Math.max(3, sx0 - 12), vr = Math.min(W - 3, sx1 + 8), vy = Math.min(Y0 - FT.pitch / 2 - 10, NY - 1.8 * nlh - 4), vb = Math.max(Y0 + (M - .5) * FT.pitch + 10, NY + NR * nlh + 8);      // the view: the stage's width, the height of the tree or of the code, whichever is more
       const px = Math.max(3, FT.x - 11), pw = FB.pw = nx - px + rows[0].n.length * FT.ch * 1.09 + 14, ph = FB.ph = m.h;      // the pill round the folder's own row: as tall as a chip
       FB.t = tt; FB.dy = (m.y - Y0) * f; FB.lx = nx + (WL.stop + WL.nl - nx) * f; FB.ly = Y0 + .5 * (1 - f) + FB.dy; FB.sc = lerp(FT.fs * 1.09 / m.size, 1, f);      // the name: the opening's flight the other way
       const xa = lerp(vx, px, c), ya = lerp(vy, Y0 - ph / 2, c), l = Math.max(3, FB.lx - lerp(nx - px, WL.nl * FB.sc, ease(seg(FB.v, 0, .4)))), r = FB.lx + lerp(px + pw - nx, (WL.cw - WL.nl) * FB.sc, ease(seg(FB.v, .25, .65)));      // l, r: the pill's ends on its way: it makes room at the left for the mark and the owner before they come up, and draws in at the right as the name loses its ending
-      FB.mx = l - px; FB.x = xa + FB.mx; FB.y = ya + FB.dy; FB.w = lerp(vr, px + pw, c) - xa + r - l - pw; FB.h = lerp(vb, Y0 + ph / 2, c) - ya; };      // the frame: from the view to the folder's pill (c), and the pill to the chip's place and width (f); the two may overlap
+      FB.mx = l - px; FB.x = xa + FB.mx; FB.y = ya + FB.dy; FB.w = lerp(vr, px + pw, c) - xa + r - l - pw; FB.h = lerp(vb, Y0 + ph / 2, c) - ya; FB.top = ya - vy; };      // the frame: from the view to the folder's pill (c), and the pill to the chip's place and width (f); the two may overlap
     const fold = t => { FB.on = true; foldAt(t - F0); };
     /* the frame's outline: rounder as it closes, a pill when it is one row tall. into(): what follows is seen only inside it, and has moved as far as the folder has */
     const hull = () => { const x = FB.x + .5, y = FB.y + .5, w = FB.w - 1, h = FB.h - 1, r = Math.min(h / 2, lerp(14, h / 2, FB.c)); ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); };
     const into = () => { ctx.save(); hull(); ctx.clip(); ctx.translate(FB.mx, FB.dy); };
     /* the closing edges are soft: what the frame's foot and its right side are about to pass fades towards them (a row and a half of the code, eight characters),
-       so that no line is cut through by a hairline; nothing of it when the frame stands (c = 0) or is the folder's pill */
-    const hem = () => { const k = clamp01(FB.c * 6), bh = Math.min(30, FB.h - FB.ph - 2), bw = Math.min(64, FB.w - FB.pw - 2), x1 = FB.x + FB.w, y1 = FB.y + FB.h; if (k <= 0) return; ctx.save(); hull(); ctx.clip(); ctx.globalCompositeOperation = 'destination-out';
+       so that no line is cut through by a hairline; nothing of it when the frame stands (c = 0) or is the folder's pill. Where the code stands higher than the
+       tree (a short tree, a tall window) the frame's head comes down through its first lines: they fade towards it too, over the code only, never the folder's row (the last check) */
+    const hem = () => { const k = clamp01(FB.c * 6), bh = Math.min(30, FB.h - FB.ph - 2), bw = Math.min(64, FB.w - FB.pw - 2), bt = Math.min(1.5 * nlh, FB.top, FB.h - FB.ph - 2), x1 = FB.x + FB.w, y1 = FB.y + FB.h; if (k <= 0) return; ctx.save(); hull(); ctx.clip(); ctx.globalCompositeOperation = 'destination-out';
       if (bh > 1) { const g = ctx.createLinearGradient(0, y1 - bh, 0, y1); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, `rgba(0,0,0,${k})`); ctx.fillStyle = g; ctx.fillRect(FB.x, y1 - bh, FB.w, bh); }
       if (bw > 1) { const g = ctx.createLinearGradient(x1 - bw, 0, x1, 0); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, `rgba(0,0,0,${k})`); ctx.fillStyle = g; ctx.fillRect(x1 - bw, FB.y, bw, FB.h); }
+      if (bt > 1) { const cx = sx0 + FT.w - 2 + FB.mx, g = ctx.createLinearGradient(0, FB.y, 0, FB.y + bt); g.addColorStop(0, `rgba(0,0,0,${k})`); g.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = g; ctx.fillRect(cx, FB.y, x1 - cx, bt); }
       ctx.restore(); };
     /* the frame: a hairline in the nano tree's green with a breath of light in it; it comes up in the first fifth of a second and, once it lies on
        the chip, gives way to the chip's own outline (wallBack(): the same line, the page's) */
@@ -3835,7 +3837,7 @@ def loads(s: str, /, *, parse_float: ParseFloat = float) -> dict[str, Any]:
       WL.el.style.opacity = 1;
       for (const r of WL.rows) { r.x = r === m ? wrap(WL.stop - m.off[WL.at], m.L) : rowX(r, r.v * (lap * W_SPAN + W_BACK + tt) + r.sg * lap); r.el.style.transform = `translate3d(${r.x.toFixed(1)}px,0,0)`; r.el.style.opacity = (r.al * ease(seg(tt, r.s + .06, r.s + .34))).toFixed(3); }
       if (WL.cool) { for (const o of WL.old) fresh(o, 0); WL.cool = 0; }
-      const name = ease(seg(v, .56, .7)), mono = 1 - ease(seg(v, .48, .62)), on = ease(seg(v, .32, .78)).toFixed(3);      // on the way back the label loses its ending (-nano/) first, then it is the chip's name in the chip's own face (the one going as the other comes, a tenth of a second, never two strong names on each other), and the mark and the owner come up before it (the folder's mark, on the canvas, has gone by then)
+      const name = ease(seg(v, .51, .65)), mono = 1 - ease(seg(v, .48, .62)), on = ease(seg(v, .32, .78)).toFixed(3);      // on the way back the label loses its ending (-nano/) first, then it is the chip's name in the chip's own face (the one going as the other comes, a tenth of a second, never two strong names on each other, and never less than two thirds of a name between them: the last check found it all but out for two frames), and the mark and the owner come up before it (the folder's mark, on the canvas, has gone by then)
       WL.fly.style.transform = `translate3d(${(FB.lx - WL.nl).toFixed(1)}px,${(FB.ly - m.y).toFixed(1)}px,0) scale(${FB.sc.toFixed(4)})`; WL.fly.style.opacity = ease(seg(tt, 0, .12)).toFixed(3);
       for (const e of WL.part) e.style.opacity = on; WL.nm.style.opacity = name.toFixed(3); WL.mn[0].style.opacity = 0; WL.mn[1].style.opacity = mono.toFixed(3); WL.end.style.opacity = (1 - ease(seg(v, 0, .35))).toFixed(3); WL.nm.style.textDecorationColor = 'transparent';
       fresh(WL.fc, ease(seg(tt, FL[1], FL[1] + .2))); WL.nm.style.color = `rgb(${G12})`; WL.cur.style.opacity = WL.ring.style.opacity = 0; };
