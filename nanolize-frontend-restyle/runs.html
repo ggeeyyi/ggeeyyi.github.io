@@ -111,7 +111,7 @@ body::before {
 * { box-sizing: border-box; }
 html, body { margin: 0; }
 body { font-size: var(--text-4); line-height: 1.5; }
-.wrap { max-width: 1320px; margin: 0 auto; padding: 0 24px 72px; }
+.wrap { --wrap: 1328px; max-width: var(--wrap); margin: 0 auto; padding: 0 28px 72px; }  /* the gutter of the overview's bars */
 code, .mono { font-family: var(--mono); font-size: var(--text-2); letter-spacing: 0; }
 a { color: var(--ink); text-decoration-color: var(--line-strong); text-underline-offset: 3px; }
 a:hover { text-decoration-color: currentColor; }
@@ -121,15 +121,18 @@ h2 { font-size: var(--text-8); line-height: 1.2; letter-spacing: var(--tracking-
 .role-verifier { --role-icon: var(--icon-check); }
 .role-implementer { --role-icon: var(--icon-write); }
 
-/* The mark and what this page is, then the run's name and its state. */
-.masthead { display: flex; align-items: center; gap: 14px; height: 64px; }
-.masthead-tag { display: inline-flex; align-items: center; gap: 8px; padding-left: 14px; border-left: 1px solid var(--line);
-  font-family: var(--mono); font-size: var(--text-1); letter-spacing: var(--label-tracking); text-transform: uppercase; color: var(--ink-3); }
-.masthead-tag::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: var(--green-9); }
-/* The way back to the overview of the run: quiet, at the far end of the mark's row. */
-.masthead-back { margin-left: auto; padding: 4px 2px; font-size: var(--text-3); color: var(--ink-3);
-  text-decoration: underline; text-decoration-color: var(--gray-7); text-underline-offset: 3px; }
-.masthead-back:hover { color: var(--ink); text-decoration-color: currentColor; }
+/* The mark and what this page is, then the run's name and its state. The mark's row is the top bar of the
+   overview page (the page the run's link opens): as high, spaced alike, and as wide as the window, so that the
+   mark and the way to the other page stand where they stand there; in a window wider than the page's column the
+   row reaches out of the column by half the difference on each side. A test holds the two rows alike. */
+.masthead { display: flex; align-items: center; gap: 16px; height: 60px; margin: 0 min(0px, (var(--wrap) - 100vw) / 2); }
+.masthead .nz-mark { flex: none; }
+.masthead-tag { display: inline-flex; align-items: center; gap: 8px; min-width: 0; overflow: hidden; padding-left: 16px; border-left: 1px solid var(--line);
+  font-family: var(--mono); font-size: var(--text-1); letter-spacing: var(--label-tracking); text-transform: uppercase; white-space: nowrap; color: var(--ink-3); }
+.masthead-tag::before { content: ""; flex: none; width: 5px; height: 5px; border-radius: 50%; background: var(--green-9); }
+/* The way back to the overview of the run, at the far end of the mark's row: a button (.button, below) of the
+   make of the overview's way here, in the same place. */
+.masthead-back { flex: none; margin-left: auto; white-space: nowrap; }
 .top { display: flex; flex-wrap: wrap; gap: 14px 32px; align-items: flex-end; justify-content: space-between; padding: 20px 0 6px; }
 h1 { margin: 0; font-size: clamp(30px, 3.4vw, 44px); line-height: 1.08; overflow-wrap: anywhere; }
 .top > .jobmeta { margin-left: auto; }
@@ -276,6 +279,12 @@ h3.sub { margin: 20px 0 8px; font-family: var(--mono); font-size: var(--text-1);
 
 .footnote { color: var(--ink-3); font-size: var(--text-2); margin-top: 22px; max-width: 78ch; }
 
+@media (max-width: 640px) {   /* as on the overview: the symbol alone (the word is cut off, not shrunk), a smaller button */
+  .masthead { gap: 12px; }
+  .masthead .nz-mark { width: 1.3em; overflow: hidden; }
+  .masthead-tag { padding-left: 12px; }
+  .masthead .masthead-back { padding: 5px 12px; }
+}
 @media (max-width: 560px) {
   .wrap { padding: 0 16px 48px; }
   .masthead { height: 56px; }
@@ -322,13 +331,12 @@ h3.sub { margin: 20px 0 8px; font-family: var(--mono); font-size: var(--text-1);
 .fgraph .fg-tab small { color: var(--ink-2); font-size: 11.5px; font-weight: 400; }
 .fgraph .fg-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 10px 0 12px; color: var(--ink-2); font-size: 12.5px; }
 .fgraph .fg-legend > span { display: inline-flex; align-items: center; gap: 6px; }
-.fgraph .fg-tree { overflow-x: auto; padding-bottom: 4px; }
+.fgraph .fg-tree { overflow-x: auto; margin: -3px -3px 0; padding: 3px 3px 4px; }  /* room for the ring of a card at its edge */
 .fgraph .fg-rootrow { display: flex; justify-content: center; margin-bottom: 12px; }
 .fgraph .fg-rootcard { min-width: min(280px, 100%); max-width: 440px; }
-.fgraph .fg-cols { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; align-items: start; }
 .fgraph .fg-col { min-width: 0; padding: 6px; border: 1px solid var(--line-2); border-radius: 12px; background: var(--gray-a2); }
 .fgraph .fg-col.out { opacity: .62; }
-.fgraph .fg-node { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 1px 8px; width: 100%;
+.fgraph .fg-node { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; align-content: start; gap: 1px 8px; width: 100%;
   padding: 7px 9px; border: 1px solid var(--line-2); border-radius: 8px; background: var(--panel-2); color: var(--ink);
   font: inherit; text-align: left; cursor: pointer; }
 .fgraph .fg-node:hover { border-color: var(--line-strong); }
@@ -358,6 +366,40 @@ h3.sub { margin: 20px 0 8px; font-family: var(--mono); font-size: var(--text-1);
 .fgraph .fg-node.feature { padding: 2px 6px; border-color: transparent; background: transparent; font-size: 12.5px; }
 .fgraph .fg-node.feature .nm { font-weight: 400; color: var(--ink-2); }
 .fgraph .fg-list { display: grid; gap: 5px; margin: 5px 0 0; padding: 0 0 0 10px; border-left: 1px solid var(--line); list-style: none; }
+/* How the capabilities use the panel's width; no script lays them out. The top row is two blocks (run-graph.js):
+   the capabilities with none under them, as cards in a grid (.fg-plain), then the groups (.fg-cols). A capability
+   with capabilities under it is a group, at the top (.fg-col, framed) and at any depth (a li whose list holds
+   cards). Groups stand in rows that wrap. A group asks for the width of as many columns of cards as make it about
+   as wide as it is tall (from four capabilities in a list under it two columns, from nine three, from sixteen four;
+   one that holds groups, two at least) and takes its share of what its row has left in the same measure, so every
+   row is full; one that holds a group of four or more takes a row to itself. Under a group whose capabilities
+   have none of their own the cards are a grid: as many columns as fit, none narrower than 200px, the cards of a
+   row of one height.
+   The widths asked for: k columns of cards, 6px apart, are k x 206 - 6 wide; a framed group adds 25 (its frame and
+   the rule its cards hang from), a group inside a group 11 (the rule). The conditions stand in :where(), so that
+   of two rules the later one holds. No name of this sheet is read here: the trajectory page holds these styles
+   without it. */
+.fgraph .fg-cols, .fgraph .fg-list:has(> li > .fg-list > li > .fg-node.leaf) { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px; }
+.fgraph .fg-list:has(> li > .fg-list > li > .fg-node.leaf) { gap: 8px 6px; }
+.fgraph .fg-cols + .fg-cols { margin-top: 10px; }
+.fgraph .fg-col { flex: 1 1 226px; }
+.fgraph .fg-col:where(:has(li:nth-child(4 of :not(.fg-trow, .fg-feat))), :has(> .fg-list > li > .fg-list > li > .fg-node.leaf)) { flex: 2 1 432px; }
+.fgraph .fg-col:where(:has(li:nth-child(9 of :not(.fg-trow, .fg-feat)))) { flex: 3 1 638px; }
+.fgraph .fg-col:where(:has(li:nth-child(16 of :not(.fg-trow, .fg-feat)))) { flex: 4 1 844px; }
+.fgraph .fg-col:where(:has(> .fg-list > li > .fg-list > li:nth-child(4 of :not(.fg-trow, .fg-feat)))) { flex-basis: 100%; }
+.fgraph .fg-list > li:where(:has(> .fg-node.leaf)) { display: flex; flex-direction: column; min-width: 0; flex: 1 1 212px; }
+.fgraph .fg-list > li:where(:has(li:nth-child(4 of :not(.fg-trow, .fg-feat))), :has(> .fg-list > li > .fg-list > li > .fg-node.leaf)) { flex: 2 1 418px; }
+.fgraph .fg-list > li:where(:has(li:nth-child(9 of :not(.fg-trow, .fg-feat)))) { flex: 3 1 624px; }
+.fgraph .fg-list > li:where(:has(li:nth-child(16 of :not(.fg-trow, .fg-feat)))) { flex: 4 1 830px; }
+.fgraph .fg-list > li:where(:has(> .fg-list > li > .fg-list > li:nth-child(4 of :not(.fg-trow, .fg-feat)))) { flex-basis: 100%; }
+/* The capabilities with none under them. At the top: cards, unframed, in a grid. Beside groups in a list: near a card's width. */
+.fgraph .fg-plain { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); align-items: stretch; gap: 6px; }
+.fgraph .fg-plain > .fg-col { display: flex; flex-direction: column; padding: 0; border: 0; border-radius: 0; background: none; }
+.fgraph .fg-list:has(> li > .fg-list > li > .fg-node.leaf) > li:has(> .fg-node.leaf):not(:has(> .fg-list > li > .fg-node.leaf)) { max-width: 340px; }
+.fgraph .fg-list:has(> li > .fg-node.leaf):not(:has(> li > .fg-list > li > .fg-node.leaf)) { grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); gap: 6px; }
+.fgraph .fg-list:has(> li > .fg-node.leaf) > :is(.fg-trow, .fg-feat) { grid-column: 1 / -1; flex: 0 0 100%; }  /* a group's own tests and behaviors: a row each */
+/* A card fills its place in the row, where no card of the row's list has anything under it (its tests, when they are shown). */
+.fgraph .fg-plain:not(:has(> .fg-col > .fg-list)) > .fg-col > .fg-node, .fgraph .fg-list:not(:has(> li > .fg-list)) > li > .fg-node.leaf { flex: 1 0 auto; }
 /* A capability's tests in the tree: one line each, its result and its name read as words. */
 .fgraph .fg-trow { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 6px; padding: 1px 6px; font-size: 12.5px; }
 .fgraph .fg-trow .sd { width: 15px; height: 15px; font-size: 10px; margin-top: 1px; }
@@ -407,7 +449,6 @@ h3.sub { margin: 20px 0 8px; font-family: var(--mono); font-size: var(--text-1);
   .fgraph .fg-t-id { grid-column: 2 / -1; grid-row: 2; }
 }
 @media (max-width: 560px) {
-  .fgraph .fg-cols { grid-template-columns: 1fr; }
   .fgraph .fg-tests { padding-left: 4px; }
 }
 /* A table of the stage's detail, closed as the page opens (run-dashboard.js fold): its summary reads as the headings do. */
@@ -807,7 +848,7 @@ h3.sub { margin: 20px 0 8px; font-family: var(--mono); font-size: var(--text-1);
   <div class="masthead">
     <span class="nz-mark"><i class="nz-sym" aria-hidden="true"></i>Nanolize</span>
     <span class="masthead-tag" data-i18n>Detailed progress</span>
-    <a class="masthead-back" href="/" title="Back to the overview of this run" data-i18n-attr="title" data-i18n>Overview</a>
+    <a class="button masthead-back" href="/" title="Back to the overview of this run" data-i18n-attr="title" data-i18n>Overview</a>
   </div>
   <header class="top">
     <h1 id="title" data-i18n>nanolize run</h1>
@@ -5899,16 +5940,18 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
       const tree = h("div", "fg-tree");
       const single = index.roots.length === 1 && visible(index.roots[0]) ? index.roots[0] : null;
       if (single) tree.append(h("div", "fg-rootrow", h("div", "fg-rootcard", nodeButton(single, "root"), branch(single, 40))));
-      const columns = h("div", "fg-cols"), later = [];
+      // The top row in two blocks, each in the plan's order: the capabilities with none under them (cards in a grid:
+      // "fg-plain"), then the groups, which share the panel's width (run-dashboard.css). Drawn among the groups, a
+      // capability of one card stood beside a group of twenty and left the height under it empty. Branches entirely
+      // out of scope follow the ones being kept, in the same two blocks.
+      const blocks = [[], [], [], []];
       for (const top of (single ? index.children.get(single.id) : index.roots).filter(visible)) {
         const below = [], stack = [...index.children.get(top.id).filter(visible)];
         while (stack.length) { const node = stack.pop(); below.push(node); stack.push(...index.children.get(node.id).filter(visible)); }
         const out = [top, ...below].every(node => states.get(node.id).status === "retired");
-        const column = h("div", "fg-col" + (out ? " out" : ""), nodeButton(top, "group"), branch(top, 1));
-        if (out) later.push(column); else columns.append(column);
+        blocks[(out ? 2 : 0) + (below.length ? 1 : 0)].push(h("div", "fg-col" + (out ? " out" : ""), nodeButton(top, "group"), branch(top, 1)));
       }
-      columns.append(...later);  // branches entirely out of scope follow the ones being kept
-      tree.append(columns);
+      blocks.forEach((columns, at) => { if (columns.length) tree.append(h("div", "fg-cols" + (at % 2 ? "" : " fg-plain"), ...columns)); });
       parts.push(tree, detail(index, statusOf, finished, round, source, label, shown, view));
       box.replaceChildren(...parts);
       tree.scrollLeft = scroll;

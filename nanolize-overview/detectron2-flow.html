@@ -141,6 +141,20 @@ body.ov { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-ro
 .button:disabled { opacity: .55; cursor: default; }
 /* The two ways out of the sky stand together and are of one make: the list is the quieter of the two. */
 .ov-actions { display: flex; align-items: center; gap: 8px; flex: none; }
+/* Finding a capability: a box among the ways out of the sky, with how many it found. */
+.ov-finder { display: inline-flex; align-items: center; gap: 8px; flex: none; }
+.ov-finder[hidden] { display: none; }
+.ov-find { width: 170px; padding: 6px 13px; border-radius: var(--radius-pill); border: 1px solid var(--line); background: var(--gray-a2); color: var(--ink);
+  font: inherit; font-size: var(--text-3); outline: none; transition: width .2s ease, border-color .15s; }
+.ov-find::placeholder { color: var(--ink-3); }
+.ov-find:hover { border-color: var(--gray-9); }
+.ov-find:focus { width: 230px; border-color: var(--info-line); background: var(--gray-a3); }
+.ov-found { order: -1; font-family: var(--mono); font-size: var(--text-2); letter-spacing: var(--tracking-small); white-space: nowrap; color: var(--ink-3); }
+.ov-found:empty { display: none; }
+/* The way back to the whole tree, while the sky is zoomed or frames a part of it. */
+.button.ov-whole { position: absolute; left: 28px; top: 6px; z-index: 3; pointer-events: auto; background: color-mix(in srgb, var(--bg) 70%, transparent); }
+.button.ov-whole[hidden] { display: none; }
+.listing .ov-whole, body[data-scene="select"] .ov-whole { display: none; }
 .button.quiet { font-weight: 500; color: var(--ink-2); border-color: var(--line); }
 .button.quiet:hover { color: var(--ink); }
 .button.quiet[aria-pressed="true"] { color: var(--ink); background: var(--gray-a3); border-color: var(--line-strong); }
@@ -202,6 +216,17 @@ body.ov { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-ro
 body[data-scene="select"] .ov-top { background: var(--bg); }
 body[data-scene="select"] .ov-foot { background: linear-gradient(to top, var(--bg) 78%, transparent); }
 .ov-select-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; }
+/* On a wide stage the bar is one row whose middle gives way: the presets, how much is kept, the counts (which wrap in
+   their own place), and Submit at its end, where it stays. */
+@media (min-width: 641px) {
+  .ov-select-bar { display: grid; grid-auto-flow: column; grid-template-columns: auto auto minmax(0, 1fr); grid-auto-columns: auto; }
+  .ov-select-bar .ov-grow { display: none; }
+  .ov-select-bar .ov-submit { justify-self: end; }
+}
+.ov-under { display: flex; align-items: baseline; gap: 16px; min-height: 0; }
+.ov-under .ov-said { flex: 1 1 auto; min-width: 0; }
+.ov-under .ov-key { margin-left: auto; }
+.ov-key[hidden] { display: none; }
 .ov-presets { display: inline-flex; gap: 6px; }
 .ov-chip { padding: 5px 13px; border-radius: var(--radius-pill); cursor: pointer; font: inherit; font-size: var(--text-3); font-weight: 500;
   background: color-mix(in srgb, var(--bg) 70%, transparent); color: var(--ink-2); border: 1px solid var(--line-strong); }
@@ -209,6 +234,15 @@ body[data-scene="select"] .ov-foot { background: linear-gradient(to top, var(--b
 .ov-chip[aria-pressed="true"] { background: var(--ok-soft); color: var(--ok-text); border-color: var(--ok-line); }
 .ov-kept { font-family: var(--mono); font-size: var(--text-2); letter-spacing: var(--tracking-small); color: var(--ink-2); }
 .ov-kept span { white-space: nowrap; }
+/* How much of the code the selection keeps: the number an owner chooses by, as a bar and a share that move with every tick. */
+.ov-meter { display: inline-flex; align-items: center; gap: 10px; flex: none; }
+.ov-meter[hidden] { display: none; }
+.ov-meter-bar { position: relative; width: 132px; height: 6px; border-radius: 3px; background: var(--gray-a4); overflow: hidden; }
+.ov-meter-bar i { position: absolute; left: 0; top: 0; bottom: 0; width: 100%; border-radius: 3px; background: var(--ok); transition: width .3s ease; }
+.ov-meter b { font-weight: 600; font-size: var(--text-4); color: var(--ink); white-space: nowrap; font-variant-numeric: tabular-nums; }
+/* What a lock on a row means. */
+.ov-key { display: inline-flex; align-items: center; gap: 7px; flex: none; font-size: var(--text-2); color: var(--ink-3); white-space: nowrap; }
+.ov-key .ov-lock { display: inline-block; margin-left: 0; }
 /* How many notes the selection page shows before Submit, and the way to them; yellow where one of them holds a submission back. */
 .ov-notes { padding: 2px 10px; border-radius: var(--radius-pill); font-family: var(--mono); font-size: var(--text-2); text-decoration: none; white-space: nowrap;
   background: var(--panel-2); color: var(--ink-2); border: 1px solid var(--line-strong); }
@@ -261,6 +295,8 @@ body[data-scene="select"] .ov-foot { background: linear-gradient(to top, var(--b
 .ov-row.top .ov-name { font-size: calc(var(--type, 12px) + .5px); }
 .ov-row.root .ov-name { font-weight: 700; font-size: calc(var(--type, 12px) + 2px); }
 .ov-row.out .ov-name { color: var(--ink-3); }
+.ov-row.miss { opacity: .32; }
+.ov-row.hit .ov-name { color: var(--ink); text-decoration: underline; text-decoration-color: var(--info); text-underline-offset: 3px; }
 .ov-box { appearance: none; -webkit-appearance: none; display: grid; place-content: center; flex: none; width: var(--box, 14px); height: var(--box, 14px); margin: 0 8px 0 0; cursor: pointer;
   border-radius: 4px; background: var(--bg); border: 1px solid var(--gray-8); }
 .ov-row:hover .ov-box { border-color: var(--gray-11); }
@@ -318,7 +354,8 @@ body[data-scene="select"] .ov-foot { background: linear-gradient(to top, var(--b
 .t-ready .ov-dot { background: var(--gray-12); box-shadow: 0 0 7px var(--gray-a10); }
 .t-wrote .ov-dot, .t-picked .ov-dot { background: var(--green-8); }
 .t-pass .ov-dot { background: var(--green-10); box-shadow: 0 0 8px var(--green-9); }
-.t-fail .ov-dot { background: var(--bad); }
+.t-fail .ov-dot { width: 9px; height: 9px; border-radius: 0; background: var(--bad);
+  clip-path: polygon(18% 0, 50% 32%, 82% 0, 100% 18%, 68% 50%, 100% 82%, 82% 100%, 50% 68%, 18% 100%, 0 82%, 32% 50%, 0 18%); }
 .t-gap .ov-dot { background: var(--green-8); box-shadow: 0 0 0 2px var(--panel), 0 0 0 3px var(--warn); }
 .t-out .ov-dot { background: transparent; box-shadow: inset 0 0 0 1px var(--gray-8); }
 .ov-card-rows { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 3px 14px; margin: 10px 0 0; font-size: var(--text-2); }
@@ -384,8 +421,14 @@ body[data-scene="select"] .ov-foot { background: linear-gradient(to top, var(--b
 .ov-stage-name.now { color: var(--ink); font-weight: 600; }
 
 /* ----- a narrow window: the names of the stages give way (the line above the bar says the stage) ----- */
+@media (max-width: 1100px) {
+  .ov-key { display: none; }
+  .ov-find { width: 130px; }
+  .ov-find:focus { width: 170px; }
+}
 @media (max-width: 900px) {
   .ov-stages { display: none; }
+  .ov-meter-bar { width: 84px; }
   .ov-foot { padding-bottom: 14px; }
 }
 /* ----- a phone: the head is two rows that keep their places (the mark, the project and the state; the two ways
@@ -400,6 +443,10 @@ body[data-scene="select"] .ov-foot { background: linear-gradient(to top, var(--b
   .ov-actions { grid-area: ways; justify-content: flex-end; }
   .ov-time { grid-area: ways; justify-self: start; align-self: center; }
   .ov-time i { display: none; }                  /* the time alone: the two ways out stand beside it */
+  .ov-finder { display: none; }                  /* no room for a box: the list of capabilities is the way to find one */
+  .button.ov-whole { left: 12px; }
+  .ov-meter { order: 4; }
+  .ov-meter-bar { width: 96px; }
   .ov-actions .button { padding: 5px 12px; }
   .ov-select { padding: 8px 12px 8px; }
   .ov-select-bar { gap: 6px 8px; }
@@ -493,6 +540,7 @@ body.ov .demo-bar select { min-width: 0; max-width: 100%; }
   <span class="ov-time" id="time"></span>
   <span class="ov-grow"></span>
   <div class="ov-actions">
+    <label class="ov-finder" id="finder" hidden><input type="search" class="ov-find" id="find" placeholder="Find a capability" aria-label="Find a capability" autocomplete="off" spellcheck="false"><span class="ov-found" id="found" aria-live="polite"></span></label>
     <button type="button" class="button quiet" id="list-toggle" aria-pressed="false" aria-controls="list">Capability list</button>
     <a class="button" id="detail-link" href="/detail">Detailed progress</a>
   </div>
@@ -503,6 +551,7 @@ body.ov .demo-bar select { min-width: 0; max-width: 100%; }
     <div class="ov-rows" id="rows"></div>
   </div>
   <button type="button" class="ov-more" id="more" hidden></button>
+  <button type="button" class="button quiet ov-whole" id="whole" hidden>Whole tree</button>
   <div class="ov-facts" id="facts" hidden></div>
   <p class="ov-line" id="line" aria-live="polite" hidden></p>
   <p class="ov-void" id="void" role="status" hidden></p>
@@ -7848,14 +7897,25 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
     };
     /* The groups folded in the first view: while the outline does not fit its stage, fold one more of the open
        groups that hide nothing but single rows: the deepest, and of those the one with the most rows under it.
-       What room is left goes back to the groups folded last. */
+       What the owner must keep stays open longest, since that is the core a scope is chosen round: of those
+       groups, the ones that hold no required capability are folded first, then the ones that hold some, and one
+       all of whose capabilities are required only when no other is left to fold. A tree that marks nothing as
+       required (or everything) folds by depth and size alone. What room is left goes back to the groups folded
+       last, so to the required ones first. */
+    const need = bare();                      // 0: no required capability under the group, 1: some, 2: every one
+    for (let i = order.length - 1, asked = bare(), held = bare(); i >= 0; i--) {
+      const id = order[i], mine = group(id);
+      asked[id] = mine ? kids[id].reduce((sum, kid) => sum + asked[kid], 0) : byId[id].required === true ? 1 : 0;
+      held[id] = mine ? kids[id].reduce((sum, kid) => sum + held[kid], 0) : 1;
+      need[id] = !asked[id] ? 0 : asked[id] < held[id] ? 1 : 2;
+    }
     const suggested = () => {
       const folded = new Set(), fits = () => fill(unitsFor(folded), budget * 2).cols.length <= most;
       while (!fits()) {
         let best = null, score = -1;
         for (const id of order) {
           if (id === rootId || !group(id) || folded.has(id) || kids[id].some(kid => group(kid) && !folded.has(kid))) continue;
-          const mine = depth[id] * 1e6 + kids[id].length;
+          const mine = (2 - need[id]) * 1e9 + depth[id] * 1e6 + kids[id].length;
           if (mine >= score) { best = id; score = mine; }
         }
         if (best === null) break;
@@ -7989,16 +8049,33 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
   }
 
   /* THE VIEW. What it draws is a list of records, one for each capability it has ever been given and not yet
-     dropped. A record holds where the capability comes from and where it goes (v0, v1) in eight channels: its
+     dropped. A record holds where the capability comes from and where it goes (v0, v1) in nine channels: its
      place in space (WX, WY, WZ, in extents), its place in the flat tree (FX, FY, px), whether it is part of the
-     graph or dust (IN), whether the flat tree shows it (SH: nothing under a collapsed group), and whether it
-     exists at all (LIFE: one that left the tree fades and is dropped). set() notes what is shown at that moment
+     graph or dust (IN), whether the flat tree shows it (SH: nothing under a collapsed group), whether it
+     exists at all (LIFE: one that left the tree fades and is dropped), and whether it is shown as a ghost (GH:
+     one the selection left out, drawn where it stood as a faint ring). set() notes what is shown at that moment
      as the new start and the new scene as the new end, and one clock (geo) carries every record across, the
      root's first. The mode is one more number (0 space, 1 flat): the camera loses its tilt and its perspective
      with it while each point slides from where space puts it to its place in the tree. A look has its own,
-     shorter clock on each record, so a state can change without the scene moving. */
+     shorter clock on each record, so a state can change without the scene moving. Over all of that lies the
+     visitor's view of space (the lens): how much the fitted scene is magnified and where it is held, by the
+     wheel, two fingers, zoom() or frameOn(); it has a clock of its own too. */
   const DUR = 1.4, LOOK_DUR = .7, SPIN = .07, ROT0 = .55, TILT = 17 * Math.PI / 180, EYE = 3.1, REACH = 22, CEL = 2.6;
-  const WX = 0, WY = 1, WZ = 2, FX = 3, FY = 4, IN = 5, SH = 6, LIFE = 7, CHANNELS = 8;
+  const WX = 0, WY = 1, WZ = 2, FX = 3, FY = 4, IN = 5, SH = 6, LIFE = 7, GH = 8, CHANNELS = 9;
+  /* The lens. most: how far the fitted scene is magnified at most; star: the power of the zoom a star grows by
+     (at five times the distances it is not five times as large, so a dense tree opens up); dust: the share of
+     the zoom the far specks take, which leaves them behind the tree; wheel, pinch: the zoom's rate by a pixel of
+     the wheel and of a trackpad's pinch; step, move: the seconds a step of the wheel and a move the page asks for
+     take; edge: the room kept free round a framed subtree, px; turns: the sides it is measured from; leaf: the
+     least a framed leaf is magnified; tap: two taps this near in time (ms) and place (px) are a double tap. */
+  const ZOOM = {most: 5, star: .35, dust: .4, wheel: .0016, pinch: .01, step: .16, move: .6, edge: 30, turns: 24, leaf: 1.5, tap: [350, 32]};
+  /* A ghost: its ring's radius in a star's (and the least, px), the ring's strength and its line's (fainter in a
+     crowded sky, as the tree's own lines are). Both are well under what a "selected" capability shows, so the
+     kept tree still reads as the tree. */
+  const GHOST = {size: .85, least: 1.9, ring: .5, line: .12};
+  /* The mark of a failing capability, for a reader who cannot tell red from green: its half size in the star's
+     radius and the least, px; the stroke's width and the dark edge on each side of it, px. */
+  const MARK = {size: 1.2, least: 3.6, wide: 1.5, edge: 1.1};
   const FAINT = .16;      // how much is left of a capability the page does not point at, while it points at others
   const RADIUS = [2.5, 3.5, 6], DUSTS = 190;          // a leaf, a group, the root (px at the usual scale); background specks
   const GLOW = [36, 46, 56], TINY = 20, TINY_TILT = 16;   // the widest glow of each, px (a lone star is not a floodlight); up to where a tree is tiny, and how much higher the camera stands over a handful (degrees)
@@ -8010,8 +8087,12 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
      them, px (farther out it would read as a leaf's name); gap, beside: the least room between two names' boxes, one above the other and side by side, px, for a name that
      takes a place and for one that keeps its place (a name is 11 px tall in a box of 15: 7 px between boxes is a
      line and a half); fade: how fast a name goes and comes, a second; ahead: the seconds on at which a place taken
-     in a turning sky must still be free; rest: the frames one without a place waits before it looks again. */
-  const NAMES = {long: 46, short: 30, tight: 20, most: 20, tuft: 84, gap: [7, 4], beside: [10, 6], fade: [12, 7], ahead: [.8, 1.6, 2.4], rest: 5};
+     in a turning sky must still be free; rest: the frames one without a place waits before it looks again;
+     leaves: up to how many stars in view the leaves are named too, and in a magnified view, where that number
+     changes as the sky turns, up to how many they stay named once they are (both times the root of the zoom);
+     more: the names a magnified view adds for each time the scene is magnified again; held: and for a framed
+     subtree, so that the groups round it keep some. */
+  const NAMES = {long: 46, short: 30, tight: 20, most: 20, tuft: 84, gap: [7, 4], beside: [10, 6], fade: [12, 7], ahead: [.8, 1.6, 2.4], rest: 5, leaves: [40, 46], more: 3, held: 6};
   const LOTS = [[0, 0], [1, 0], [0, 1], [0, 2], [1, 2], [2, 0]];     // the lots of seats: [where (0 beside the point, 1 outside its tuft, 2 along its limb), what the name may lie over (0 nothing, 1 its own lines, 2 any line)]
   const TRIES = [[0, 0], [0, 1], [1, 0], [1, 1], [2, 0], [2, 1], [0, 2], [1, 2], [2, 2], [3, 1], [3, 2], [4, 1], [4, 2], [5, 1], [5, 2]];     // the order a name looks for a place in: [lot, form (0 long, 1 short, 2 tight)]
   const SEATS = 10;                                   // the seats in a lot (the lots along a limb use six of them)
@@ -8038,11 +8119,14 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
      visitor's prefers-reduced-motion); auto (false: no loop until play()); spin (radians a second; .07); cap (small
      stars in all; 1,200); names (false: no names in space); layout3d, layout2d (functions to use instead of this
      file's, same shape); measure ((text, px) -> width, for the flat tree's names instead of an estimate). The loop starts with the first scene. The view sets the canvas's size in pixels (the
-     device's ratio, 2 at most) from the size the page's sheet gives it, and looks after its own resizing. */
+     device's ratio, 2 at most) from the size the page's sheet gives it, and looks after its own resizing.
+     On the canvas the visitor points at a capability and clicks or taps it (hover, choose), drags to turn the
+     sky or to scroll the flat tree, and in space zooms with the wheel or two fingers and returns to the whole
+     scene with a double click on empty sky; the page does the same through zoom() and frameOn(). */
   function mount(canvas, options) {
     const opt = options || {}, ctx = canvas && typeof canvas.getContext === "function" ? canvas.getContext("2d") : null;
     const doc = (canvas && canvas.ownerDocument) || root.document || null, win = (doc && doc.defaultView) || root;
-    const heard = {hover: [], choose: [], move: []}, offs = [], sprites = bare(), recOf = bare(), pens = new Map(), cache = bare();
+    const heard = {hover: [], choose: [], move: [], view: []}, offs = [], sprites = bare(), recOf = bare(), pens = new Map(), cache = bare();
     const dust = new Float32Array(4 * DUSTS);
     // The dust: specks round and beyond the cloud, each a place in space and how bright; the same in every view.
     for (let i = 0, r = dice(7); i < dust.length; i += 4) {
@@ -8056,6 +8140,14 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
     let geo = {t0: 0, dur: 0}, m0 = 0, m1 = 0, fit0 = {s: 1, cx: 0, cy: 0, crowd: 1}, fit1 = fit0, shape = null, geoKey = "", begun = false;
     let hovered = null, pinned = false, pointer = null, drag = null, cel = null, raf = 0, running = false, lastMs = 0, moveKey = 0, dead = false, plan = null;
     let lit = null;      // the capabilities the page points at (emphasize), or null: every other one is drawn faint
+    /* The lens: every point of the fitted picture p is drawn at z * p + (x, y). zoomTo and panTo are where it is
+       going while nothing is framed; framed is the capability frameOn() holds, and follow says how (the point of
+       space kept at the stage's middle, or the record of a leaf; off: how far from the middle the visitor moved it;
+       fit: the zoom that frames it; ids: what it frames). cam is what was drawn when the move began and its clock,
+       lens what the last frame drew. said: what the page was last told. */
+    let zoomTo = 1, panTo = [0, 0], framed = null, follow = null, cam = {t0: 0, dur: 0, z: 1, x: 0, y: 0}, lens = {z: 1, x: 0, y: 0}, said = {zoom: 1, framed: null}, viewTree = null;
+    let ghostly = false, marks = 0, leafy = false, pinch = null, tap = null;      // ghosts(true); the marks of failure last drawn; whether a magnified view names leaves; two fingers on the sky; the last tap on empty sky
+    const fingers = new Map();
 
     const calm = () => opt.reduced != null ? !!opt.reduced
       : !!(typeof win.matchMedia === "function" && win.matchMedia("(prefers-reduced-motion: reduce)").matches);
@@ -8211,12 +8303,124 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
       for (let j = n; j < room; j++) rec.so1[3 * j] = rec.so1[3 * j + 1] = rec.so1[3 * j + 2] = 0;      // one that goes falls into its capability
       rec.n1 = n;
     }
+    /* How a selection's layout is scaled against the whole tree's, for placing the ghosts: both are scaled to
+       their own extent, and a kept leaf's limb is as long in the one as in the other but for that (a group's may
+       have been shortened), so the middle one of those ratios is the scale. */
+    function scaleOf(full, lay, kin) {
+      const ef = full.extent > 0 ? full.extent : 1, ek = lay.extent > 0 ? lay.extent : 1, leaves = [], limbs = [];
+      for (const id of kin.ids) {
+        const above = kin.up[id], a = lay.pos[id], b = above != null && lay.pos[above], c = full.pos[id], d = above != null && full.pos[above];
+        if (!a || !b || !c || !d) continue;
+        const whole = far3(c, d) / ef;
+        if (whole > 1e-9) (kin.kids[id].length ? limbs : leaves).push(far3(a, b) / ek / whole);
+      }
+      const from = (leaves.length ? leaves : limbs).sort((p, q) => p - q);
+      return from.length ? from[from.length >> 1] : 1;
+    }
+
+    /* THE LENS. The stage's middle and its room; the pan a zoom may have (a magnified view never shows what lies
+       beyond the fitted picture, so zoom 1 can only be the fitted scene itself). */
+    const stage = () => { const aw = Math.max(40, W - pad.left - pad.right), ah = Math.max(40, H - pad.top - pad.bottom); return {aw, ah, x: pad.left + aw / 2, y: pad.top + ah / 2}; };
+    const within = (z, x, y) => [clamp(x, W * (1 - z), 0), clamp(y, H * (1 - z), 0)];
+    // Tells the page that the zoom or the framing changed: once for each change, not for each frame of the move.
+    function tell() {
+      if (zoomTo === said.zoom && framed === said.framed) return;
+      said = {zoom: zoomTo, framed};
+      emit("view", {zoom: zoomTo, framed});
+    }
+    // Starts a move of the lens from what is drawn now. With no loop running, and for a visitor who asked for less motion, it is there at once.
+    function glide(seconds) { cam = {t0: T, dur: !running || calm() ? 0 : Math.max(0, finite(seconds, 0)), z: lens.z, x: lens.x, y: lens.y}; }
+    function release() { framed = null; follow = null; zoomTo = 1; panTo = [0, 0]; }
+    /* What frameOn(id) holds: the capability and everything under it that is in the picture. The view is sized
+       by what those reach from their middle over a whole turn of the sky, so it does not pump as the sky turns,
+       and that middle is then kept at the stage's middle. A leaf is followed itself, at the size its parent's
+       subtree asks or a little more: a single star fills nothing. Under a kept capability only what is kept
+       counts, so ghosts that come and go do not move the view; a ghost is framed with the ghosts under it.
+       null: the capability is not in the picture, or it holds all of it (the root: the fitted scene shows that). */
+    function framing(id) {
+      const here = one => !!one && !one.gone && (one.v1[IN] > .5 || one.v1[GH] > .5), rec = recOf[id], byId = scene.tree.byId;
+      if (m1 !== 0 || !here(rec)) return null;
+      const ghost = rec.v1[IN] <= .5;
+      const under = top => {
+        const list = [], todo = [top];
+        while (todo.length) {
+          const node = byId[todo.pop()], one = node ? recOf[node.id] : null;
+          if (!node) continue;
+          if (here(one) && (ghost || one.v1[IN] > .5)) list.push(one);
+          for (const kid of node.children || []) todo.push(kid);
+        }
+        return list;
+      };
+      let members = under(id);
+      const leaf = members.length < 2;
+      if (leaf) {
+        let above = rec.node.parent;
+        while (above != null && !here(recOf[above])) above = byId[above] ? byId[above].parent : null;
+        if (above == null) return null;
+        members = under(above);
+      } else if (!ghost && members.length >= recs.reduce((sum, one) => sum + (here(one) && one.v1[IN] > .5 ? 1 : 0), 0)) return null;
+      const low = [Infinity, Infinity, Infinity], high = [-Infinity, -Infinity, -Infinity];
+      for (const one of members) for (let c = 0; c < 3; c++) { low[c] = Math.min(low[c], one.v1[c]); high[c] = Math.max(high[c], one.v1[c]); }
+      const point = [(low[0] + high[0]) / 2, (low[1] + high[1]) / 2, (low[2] + high[2]) / 2], ct = Math.cos(tilt), st = Math.sin(tilt);
+      const halo = members.map(one => { let far = 0; for (let j = 0; j < one.n1; j++) far = Math.max(far, Math.hypot(one.so1[3 * j], one.so1[3 * j + 1], one.so1[3 * j + 2])); return far; });
+      /* The middle starts as the middle of the members' box in space. Seen from the eye that is not the middle
+         of what they cover on the stage (what is near is drawn larger and lower), so it is moved, twice, by what
+         the picture's own middle is off on average over the turn; the third round measures how far the members
+         reach from it to either side (wide) and up or down (tall) at their widest turn. */
+      let wide = 1e-6, tall = 1e-6;
+      for (let round = 0; round < 3; round++) {
+        let offX = 0, offZ = 0, offY = 0;
+        wide = 1e-6; tall = 1e-6;
+        for (let turn = 0; turn < ZOOM.turns; turn++) {
+          const a = turn * TAU / ZOOM.turns, c = Math.cos(a), s = Math.sin(a);
+          const zr0 = -point[0] * s + point[2] * c, k0 = EYE / (EYE - Math.min(2.2, point[1] * st + zr0 * ct)), x0 = (point[0] * c + point[2] * s) * k0, y0 = (point[1] * ct - zr0 * st) * k0;
+          let left = Infinity, right = -Infinity, top = -Infinity, foot = Infinity;
+          for (let i = 0; i < members.length; i++) {
+            const v = members[i].v1, zr = -v[WX] * s + v[WZ] * c, k = EYE / (EYE - Math.min(2.2, v[WY] * st + zr * ct)), x = (v[WX] * c + v[WZ] * s) * k, y = (v[WY] * ct - zr * st) * k, h = halo[i] * k;
+            left = Math.min(left, x - h); right = Math.max(right, x + h); foot = Math.min(foot, y - h); top = Math.max(top, y + h);
+          }
+          wide = Math.max(wide, right - x0, x0 - left); tall = Math.max(tall, top - y0, y0 - foot);
+          offX += ((left + right) / 2 - x0) * c / k0; offZ += ((left + right) / 2 - x0) * s / k0; offY += ((foot + top) / 2 - y0) / k0;
+        }
+        if (round === 2) break;
+        point[0] += 2 * offX / ZOOM.turns; point[2] += 2 * offZ / ZOOM.turns; point[1] += offY / ZOOM.turns / ct;
+      }
+      const at = stage(), fit = Math.min((at.aw / 2 - ZOOM.edge) / (fit1.s * wide), (at.ah / 2 - ZOOM.edge) / (fit1.s * tall));
+      return {id, rec: leaf ? rec : null, point, off: [0, 0], fit: clamp(leaf ? Math.max(fit, ZOOM.leaf) : fit, 1, ZOOM.most), ids: new Set(members.map(one => one.id))};
+    }
+    // Frames a capability (see framing), or with none, or one that cannot be framed, returns to the fitted scene.
+    function frameOn(id, seconds) {
+      const next = id == null ? null : framing(String(id));
+      if (!next && framed === null && zoomTo === 1) return;
+      if (next) { framed = next.id; follow = next; zoomTo = next.fit; } else release();
+      glide(seconds); tell(); refresh();
+    }
+    // Moves the view by that much across the canvas (two fingers that travel together); what is framed stays on the stage.
+    function nudge(dx, dy) {
+      const at = stage();
+      if (follow) follow.off = [clamp(follow.off[0] + dx, -.4 * at.aw, .4 * at.aw), clamp(follow.off[1] + dy, -.4 * at.ah, .4 * at.ah)];
+      else panTo = within(zoomTo, panTo[0] + dx, panTo[1] + dy);
+    }
+    /* Zooms to k (kept between the fitted scene and ZOOM.most) about a place on the canvas: what is drawn there
+       stays there, at that moment (the sky turns on). What is framed stays framed, nearer or farther. At 1 the
+       view is the fitted scene again and holds nothing. true: the zoom changed. */
+    function zoomAbout(k, x, y, seconds) {
+      const asked = clamp(finite(k, zoomTo), 1, ZOOM.most), z = asked <= 1.0005 ? 1 : asked, r = z / zoomTo;
+      if (m1 !== 0 || z === zoomTo || !recs.length) return false;
+      if (z === 1) release();
+      else if (follow) { const at = stage(); follow.off = [(x - at.x) * (1 - r) + follow.off[0] * r, (y - at.y) * (1 - r) + follow.off[1] * r]; zoomTo = z; nudge(0, 0); }
+      else { panTo = within(z, x * (1 - r) + panTo[0] * r, y * (1 - r) + panTo[1] * r); zoomTo = z; }
+      glide(seconds); tell(); refresh();
+      return true;
+    }
 
     /* The scene's geometry: lay out what changed, and send every record from what is shown now to its new place.
        It does nothing when the tree, the selection, the mode, the collapsed groups and the stage are what they were. */
     function arrange(instant) {
-      const t = scene.tree, keep = keptSet(), three = scene.mode !== "2d";
-      const key = [sign(t), String(scene.seed), scene.mode, keyOf(keep), three ? "" : keyOf(scene.collapsed), W, H, pad.top, pad.right, pad.bottom, pad.left].join("\n");
+      const t = scene.tree, keep = keptSet(), three = scene.mode !== "2d", keptKey = keyOf(keep);
+      // Ghosts are what a selection left out of a run's tree, in space: no selection, no states or the flat tree, and there are none.
+      const ghosts = ghostly && three && !!scene.states && !!keep;
+      const key = [sign(t), String(scene.seed), scene.mode, keptKey, three ? "" : keyOf(scene.collapsed), W, H, pad.top, pad.right, pad.bottom, pad.left, ghosts ? "ghosts" : ""].join("\n");
       if (key === geoKey) return false;
       geoKey = key;
       const first = !begun, eg = whole(), mNow = lerp(m0, m1, eg), lay3 = opt.layout3d || api.layout3d, lay2 = opt.layout2d || api.layout2d;
@@ -8231,10 +8435,11 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
       const aw = Math.max(40, W - pad.left - pad.right), ah = Math.max(40, H - pad.top - pad.bottom), aspect = Math.round(clamp(aw / ah, .3, 3) * 20) / 20;
       const treeKey = sign(t) + "\n" + scene.seed + "\n" + aspect, full = cached("full", treeKey, () => lay3(t, {seed: scene.seed, aspect, cap: opt.cap}));
       const kin = family(t, three ? keep : null), flatUp = bare();
-      let flat = null;
+      let flat = null, scale = 1;
       if (three) {
-        const lay = keep ? cached("kept", treeKey + "\n" + keyOf(keep), () => lay3(t, {seed: scene.seed, keep, aspect, cap: opt.cap})) : full;
+        const lay = keep ? cached("kept", treeKey + "\n" + keptKey, () => lay3(t, {seed: scene.seed, keep, aspect, cap: opt.cap})) : full;
         shape = {lay, ids: kin.ids, key: treeKey};
+        if (ghosts) scale = cached("scale", treeKey + "\n" + keptKey, () => scaleOf(full, lay, kin)) / (full.extent > 0 ? full.extent : 1);
       } else {
         if (!shape || shape.key !== treeKey) shape = {lay: full, ids: t.nodes.map(node => node.id), key: treeKey};
         flat = lay2(t, {width: Math.max(40, W - pad.left - pad.right), height: Math.max(0, H - pad.top - pad.bottom), collapsed: scene.collapsed, measure: opt.measure});
@@ -8252,7 +8457,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
         let rec = recOf[id];
         const fresh = !rec;
         if (fresh) rec = recOf[id] = {id, v0: new Float32Array(CHANNELS), v1: new Float32Array(CHANNELS), so0: new Float32Array(0), so1: new Float32Array(0), n0: 0, n1: 0,
-          lookA: "", lookB: "", lt: -1e9, ld: LOOK_DUR, gap0: 0, gap1: 0, live0: 0, live1: 0, beat: (seedOf(id) % 628) / 100, name: 0, tw: -1, form: 0, rest: 0, old: null, hub: false, falls: false, heft: 1, vx: 0, vy: 0, gd: 0, x: 0, y: 0, r: 0, room: 0};
+          lookA: "", lookB: "", lt: -1e9, ld: LOOK_DUR, gap0: 0, gap1: 0, live0: 0, live1: 0, beat: (seedOf(id) % 628) / 100, name: 0, tw: -1, form: 0, rest: 0, old: null, hub: false, falls: false, heft: 1, vx: 0, vy: 0, gd: 0, x: 0, y: 0, r: 0, room: 0, via: null, gh: 0, mark: 0};
         rec.node = node; rec.kind = id === t.root ? 2 : node.leaf ? 0 : 1; rec.gone = false; rec.fresh = fresh;
         // Its line to its parent: bowed a little, always the same way; as broad as what hangs from it (a twig, a limb,
         // a bough, the trunk); and a twig among very many is fainter, so two hundred of them are not a fan of light.
@@ -8264,16 +8469,23 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
         rec.heft = kin.weight[id] || 1;                // the leaves it holds in what is drawn
         const v1 = rec.v1, p = three && (!keep || keep.has(id)) ? shape.lay.pos[id] : null;
         if (three) {
+          /* What is kept stands where the selection's layout puts it. What is not falls to dust, out past where
+             it stood, or is a ghost: then it stands where the whole tree's layout has it, counted from its parent
+             (which came before it in the list and has its place: kept, or a ghost itself), so that the ghosts hang
+             on the kept tree as they hung on the whole one. */
+          const above = !p && ghosts && node.parent != null ? recOf[node.parent] : null, q = above ? full.pos[id] : null, qa = above ? full.pos[node.parent] : null;
           if (p) { v1[WX] = p[0] / ext; v1[WY] = p[1] / ext; v1[WZ] = p[2] / ext; shell(rec, shape.lay, id, share[id] || 0); }
+          else if (q && qa) { v1[WX] = above.v1[WX] + (q[0] - qa[0]) * scale; v1[WY] = above.v1[WY] + (q[1] - qa[1]) * scale; v1[WZ] = above.v1[WZ] + (q[2] - qa[2]) * scale; shell(rec, full, id, 0); }
           else { dustPlace(full, id, v1); shell(rec, full, id, 0); }
-          v1[IN] = p ? 1 : 0;
+          v1[IN] = p ? 1 : 0; v1[GH] = !p && q && qa ? 1 : 0;
           rec.up = kin.up[id] == null ? null : kin.up[id];
+          rec.via = !p && node.parent != null && t.byId[node.parent] ? node.parent : null;      // where a ghost's hairline goes: its parent in the tree
         } else {
           if (fresh) { const q = shape.lay.pos[id]; if (q) { v1[WX] = q[0] / ext; v1[WY] = q[1] / ext; v1[WZ] = q[2] / ext; } else dustPlace(full, id, v1); }
           let at = flat.pos[id], seat = node;
           for (let steps = 0; !at && seat && seat.parent != null && steps < t.nodes.length; steps++) { seat = t.byId[seat.parent]; at = seat && flat.pos[seat.id]; }
-          v1[FX] = at ? at[0] : 0; v1[FY] = at ? at[1] : 0; v1[SH] = flat.pos[id] ? 1 : 0; v1[IN] = 1;
-          rec.up = flatUp[id] != null ? flatUp[id] : node.parent;
+          v1[FX] = at ? at[0] : 0; v1[FY] = at ? at[1] : 0; v1[SH] = flat.pos[id] ? 1 : 0; v1[IN] = 1; v1[GH] = 0;
+          rec.up = flatUp[id] != null ? flatUp[id] : node.parent; rec.via = null;
         }
         v1[LIFE] = 1;
         if (fresh) { rec.v0.set(v1); rec.v0[LIFE] = first ? 1 : 0; rec.so0.set(rec.so1); rec.n0 = rec.n1; }
@@ -8310,6 +8522,18 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
       m0 = mNow; m1 = three ? 0 : 1; cel = null;
       geo = {t0: T, dur: instant || first || calm() ? 0 : DUR};
       if (!geo.dur) { fit0 = fit1; m0 = m1; }
+      /* The lens goes with the scene. Another tree, or the flat tree: it lets go of what it held and of its zoom.
+         The same tree laid out again (another selection, another stage): what is framed is measured again, at the
+         zoom the visitor had against its fit, and let go when it is no longer in the picture. */
+      const was = follow;
+      if (!three || viewTree !== sign(t)) release();
+      else if (was) {
+        const next = framing(framed);
+        if (next) { next.off = was.off; if (Math.abs(next.fit - was.fit) > 1e-6) zoomTo = clamp(next.fit * zoomTo / was.fit, 1, ZOOM.most); follow = next; } else release();
+      } else panTo = within(zoomTo, panTo[0], panTo[1]);
+      viewTree = sign(t);
+      if (was || zoomTo !== said.zoom) cam = {t0: T, dur: geo.dur, z: lens.z, x: lens.x, y: lens.y};
+      tell();
       if (hovered !== null && (!recOf[hovered] || recOf[hovered].gone)) hover(null);
       return true;
     }
@@ -8353,7 +8577,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
     function settle() {
       for (const rec of recs) { rec.v0.set(rec.v1); rec.so0.set(rec.so1.subarray(0, rec.so0.length)); rec.n0 = rec.n1; rec.lag = 0; rec.lt = -1e9; if (rec.gone) delete recOf[rec.id]; }
       recs = recs.filter(rec => !rec.gone); order = recs.slice();
-      fit0 = fit1; m0 = m1; geo = {t0: T, dur: 0};
+      fit0 = fit1; m0 = m1; geo = {t0: T, dur: 0}; cam.dur = 0;
       refresh();
       return view;
     }
@@ -8363,35 +8587,58 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
       if (!ctx || W < 2 || H < 2) return;
       if (geo.dur > 0 && T - geo.t0 > geo.dur + .4) { const keepT = T; settleQuiet(); T = keepT; }
       const still = calm(), eg = whole(), m = lerp(m0, m1, eg), deep = 1 - m;
-      const S = lerp(fit0.s, fit1.s, eg), CX = lerp(fit0.cx, fit1.cx, eg), CY = lerp(fit0.cy, fit1.cy, eg);
-      const unit = clamp(S / 330, .75, 1.4) * lerp(lerp(fit0.crowd, fit1.crowd, eg), 1, m);       // what a star's size is counted in
+      const S0 = lerp(fit0.s, fit1.s, eg), X0 = lerp(fit0.cx, fit1.cx, eg), Y0 = lerp(fit0.cy, fit1.cy, eg);      // the scene as fitted
       const turn = ROT0 + phase + dragged, cr = Math.cos(turn), sr = Math.sin(turn), ct = Math.cos(tilt * deep), st = Math.sin(tilt * deep);
+      const drift = step > 0 ? spin * deep : 0, mid = stage();
+      /* The lens: where the view is going (the zoom and the pan the visitor chose, or the pan that keeps what is
+         framed at the stage's middle in this frame, wherever the turning has carried it), and how far it has come
+         from what was drawn when that move began. Every point of the fitted picture p is then drawn at
+         Z * p + (LX, LY). (driftX, driftY: how fast the turning would carry what is framed across the stage if
+         the view did not follow it; the names count with what is left.) */
+      let toX = panTo[0], toY = panTo[1], driftX = 0, driftY = 0;
+      if (follow) {
+        const one = follow.rec, e = one ? progress(one) : 1;
+        const x = one ? one.v0[WX] + (one.v1[WX] - one.v0[WX]) * e : follow.point[0], y = one ? one.v0[WY] + (one.v1[WY] - one.v0[WY]) * e : follow.point[1], z = one ? one.v0[WZ] + (one.v1[WZ] - one.v0[WZ]) * e : follow.point[2];
+        const xr = x * cr + z * sr, zr = -x * sr + z * cr, k = 1 + (EYE / (EYE - Math.min(2.2, y * st + zr * ct)) - 1) * deep;
+        toX = mid.x + follow.off[0] - zoomTo * (X0 + xr * S0 * k); toY = mid.y + follow.off[1] - zoomTo * (Y0 - (y * ct - zr * st) * S0 * k);
+        driftX = zr * S0 * zoomTo * k * drift; driftY = -xr * st * S0 * zoomTo * k * drift;
+      }
+      const glided = cam.dur > 0 ? ease(clamp((T - cam.t0) / cam.dur, 0, 1)) : 1;
+      if (glided >= 1) cam.dur = 0;
+      const Z = lerp(cam.z, zoomTo, glided), LX = lerp(cam.x, toX, glided), LY = lerp(cam.y, toY, glided);
+      const lensed = Z > 1.001 || Math.abs(LX) > .5 || Math.abs(LY) > .5;      // the view is not the fitted scene: some of the picture may lie off the canvas
+      lens.z = Z; lens.x = LX; lens.y = LY;
+      const S = S0 * Z, CX = X0 * Z + LX, CY = Y0 * Z + LY;
+      const unit = clamp(S0 / 330, .75, 1.4) * lerp(lerp(fit0.crowd, fit1.crowd, eg), 1, m) * Math.pow(Z, ZOOM.star);       // what a star's size is counted in
       const ox = pad.left, oy = pad.top - scroll, thin = lerp(clamp(lerp(fit0.crowd, fit1.crowd, eg), .68, 1), 1, m);    // a crowded sky's lines are fainter, as its stars are smaller
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.globalCompositeOperation = "source-over"; ctx.globalAlpha = 1;
       ctx.clearRect(0, 0, W, H); ctx.globalCompositeOperation = "lighter";
 
-      // The dust: far specks that turn with the scene, three strengths, each lot one fill.
+      // The dust: far specks that turn with the scene, three strengths, each lot one fill. They take a part of the
+      // zoom only, about the same point of the picture as the tree, so they stay behind it as the view goes in.
+      const dustZ = 1 + (Z - 1) * ZOOM.dust, dustS = S0 * dustZ, dustX = X0 * dustZ + mid.x - dustZ * (mid.x - LX) / Z, dustY = Y0 * dustZ + mid.y - dustZ * (mid.y - LY) / Z;
       for (let lot = 0; lot < 3; lot++) {
         ctx.fillStyle = "rgba(" + LIGHT.dim + "," + (.1 + .09 * lot) + ")"; ctx.beginPath();
         for (let i = lot * 4; i < dust.length; i += 12) {
           const x = dust[i], y = dust[i + 1], z = dust[i + 2], xr = x * cr + z * sr, zr = -x * sr + z * cr, yt = y * ct - zr * st, zt = y * st + zr * ct;
           const k = 1 + (EYE / (EYE - Math.min(2.2, zt)) - 1) * deep, size = (.8 + .9 * dust[i + 3]) * Math.min(1.6, Math.sqrt(k));
-          ctx.rect(CX + xr * S * k - size / 2, CY - yt * S * k - size / 2, size, size);
+          ctx.rect(dustX + xr * dustS * k - size / 2, dustY - yt * dustS * k - size / 2, size, size);
         }
         ctx.fill();
       }
 
       // Every capability: where it is on the stage, how near, how much of it there is.
-      const wave = cel && !still ? (T - cel.t0) / CEL * 1.2 : -1, drift = step > 0 ? spin * deep : 0;
+      const wave = cel && !still ? (T - cel.t0) / CEL * 1.2 : -1;
       for (const rec of recs) {
         const e = progress(rec), v0 = rec.v0, v1 = rec.v1;
         const x = v0[WX] + (v1[WX] - v0[WX]) * e, y = v0[WY] + (v1[WY] - v0[WY]) * e, z = v0[WZ] + (v1[WZ] - v0[WZ]) * e;
         const xr = x * cr + z * sr, zr = -x * sr + z * cr, yt = y * ct - zr * st, zt = y * st + zr * ct;
         const k = 1 + (EYE / (EYE - Math.min(2.2, zt)) - 1) * deep, px = CX + xr * S * k, py = CY - yt * S * k;
         const inn = v0[IN] + (v1[IN] - v0[IN]) * e, sh = v0[SH] + (v1[SH] - v0[SH]) * e, life = v0[LIFE] + (v1[LIFE] - v0[LIFE]) * e;
-        rec.e = e; rec.cx = xr; rec.cy = yt; rec.cz = zt; rec.px = px; rec.py = py; rec.k = k; rec.inn = inn;
+        const gh = (v0[GH] + (v1[GH] - v0[GH]) * e) * (1 - inn) * deep;      // how much of a ghost it is: only what is not kept, only in space
+        rec.e = e; rec.cx = xr; rec.cy = yt; rec.cz = zt; rec.px = px; rec.py = py; rec.k = k; rec.inn = inn; rec.gh = gh;
         rec.x = px + (ox + v0[FX] + (v1[FX] - v0[FX]) * e - px) * m; rec.y = py + (oy + v0[FY] + (v1[FY] - v0[FY]) * e - py) * m;
-        rec.vx = zr * S * k * drift; rec.vy = -xr * st * S * k * drift;      // how fast the turning carries it across the stage, px a second
+        rec.vx = zr * S * k * drift - driftX * glided; rec.vy = -xr * st * S * k * drift - driftY * glided;      // how fast the turning carries it across the stage, px a second
         /* Where the page points at some capabilities (emphasize: the ones a count under the bar counts), every other
            one goes faint, with its lines, its small stars and its name, and takes no pointer; it comes back as fast. */
         const want = !lit || lit.has(rec.id) ? 1 : FAINT;
@@ -8399,8 +8646,9 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
         rec.vis = life * (1 - m * (1 - sh)) * rec.em;
         rec.near = clamp(.5 + zt * .5, 0, 1);
         rec.b = 1 + (depthOf(rec.near) - 1) * deep;                     // by its distance alone (a look shows a part of it): far, half as bright; near, a fifth brighter
-        rec.r = RADIUS[rec.kind] * unit * (1 + (k - 1) * SIZE) * (.38 + .62 * inn);
-        rec.shown = !rec.gone && v1[IN] > .5 && inn > .5 && rec.vis > .5;
+        rec.r = Math.max(GHOST.least * gh, RADIUS[rec.kind] * unit * (1 + (k - 1) * SIZE) * lerp(.38 + .62 * inn, GHOST.size, gh));
+        rec.shown = !rec.gone && rec.vis > .5 && (v1[IN] > .5 ? inn > .5 : v1[GH] > .5 && gh > .5);      // part of the picture: kept, or a ghost
+        rec.off = lensed && (rec.x < -24 || rec.x > W + 24 || rec.y < -24 || rec.y > H + 24);      // a magnified view leaves some of it off the canvas
         rec.mix = mixOf(rec);
         const s = wave - rec.gd;
         rec.flash = wave < 0 || s <= 0 ? 0 : (1 - Math.exp(-s / .02)) * Math.exp(-s / .28);
@@ -8420,6 +8668,12 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
          layout's hairlines (below); a layout that gives none gets a curve from each parent to each child. */
       const hairs = plan && Array.isArray(plan.lines) ? plan.lines : null;
       for (const rec of recs) {
+        // A ghost has a hairline to its parent in the tree (kept, or a ghost itself), bowed as its limb was.
+        const host = rec.gh > .03 && rec.via != null ? recOf[rec.via] : null;
+        if (host) {
+          const d = pen("dim", GHOST.line * thin * rec.gh * rec.vis * host.vis * Math.max(host.inn, host.gh) * (.7 + .3 * rec.near), 0), bow = rec.bow * deep;
+          if (d) d.push(3, host.x, host.y, (host.x + rec.x) / 2 - (rec.y - host.y) * bow, (host.y + rec.y) / 2 + (rec.x - host.x) * bow, rec.x, rec.y);
+        }
         const parent = rec.up != null ? recOf[rec.up] : null;
         if (!parent) continue;
         const sh = rec.v0[SH] + (rec.v1[SH] - rec.v0[SH]) * rec.e, base = Math.min(rec.inn, parent.inn) * rec.vis * parent.vis * (1 - m * (1 - sh));
@@ -8468,6 +8722,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
           const q = 3 * j, dx = a[q] + (b[q] - a[q]) * e, dy = a[q + 1] + (b[q + 1] - a[q + 1]) * e, dz = a[q + 2] + (b[q + 2] - a[q + 2]) * e;
           const xr = rec.cx + dx * cr + dz * sr, zr = -dx * sr + dz * cr, yt = rec.cy + dy * ct - zr * st, zt = rec.cz + dy * st + zr * ct;
           const k = 1 + (EYE / (EYE - Math.min(2.2, zt)) - 1) * deep, sx = rec.x + CX + xr * S * k - rec.px, sy = rec.y + CY - yt * S * k - rec.py;
+          if (lensed && (sx < -12 || sx > W + 12 || sy < -12 || sy > H + 12)) continue;      // off the canvas of a magnified view
           const twinkle = still ? 1 : 1 + .2 * Math.sin(T * (1.1 + (j % 7) * .17) + j * 2.4 + rec.beat);     // each small star flickers a little, at its own pace
           const size = (j % 3 ? 4.6 : 6) * unit * k, strength = base * fade * twinkle;
           for (let side = 0; side < 2; side++) {
@@ -8482,10 +8737,12 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
       }
 
       // The rings: a thin yellow one round a leaf that cannot be verified (a group does not repeat its leaves'), a
-      // white one round the capability under the pointer.
+      // white one round the capability under the pointer; and a ghost is nothing but a small faint ring: no light,
+      // no small stars, so what the selection left out is seen and the kept tree still reads as the tree.
       for (const rec of recs) {
         const gap = lerp(rec.gap0, rec.gap1, rec.mix) * rec.inn * rec.vis;
         if (gap > .03 && rec.kind === 0) { const d = pen("ring", .5 * gap, 0); if (d) d.push(4, rec.x, rec.y, rec.r + 3 * Math.min(1.3, unit)); }
+        if (rec.gh > .03) { const d = pen("dim", GHOST.ring * rec.gh * rec.vis * (.7 + .3 * rec.near), 0); if (d) d.push(4, rec.x, rec.y, rec.r); }
         if (rec.id === hovered && rec.shown) { const d = pen("star", .55, 1); if (d) d.push(4, rec.x, rec.y, rec.r + 7 * Math.min(1.3, unit)); }
       }
       stroke();
@@ -8494,8 +8751,15 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
       // one. A glow is narrower where there are many capabilities, so that three hundred do not melt into one patch.
       if (deep > .02) order.sort((p, q) => (p.lookB === "fail") - (q.lookB === "fail") || p.cz - q.cz);
       const slim = lerp(clamp(Math.pow(150 / Math.max(1, recs.length), .3), .62, 1), 1, m), few = recs.length <= 80;
+      const crosses = [];
+      marks = 0;
       for (const rec of order) {
-        if (rec.vis < .01) continue;
+        rec.mark = 0;
+        if (rec.vis < .01 || (lensed && (rec.x < -170 || rec.x > W + 170 || rec.y < -170 || rec.y > H + 170))) continue;      // (too far off the canvas for any of its light to reach it)
+        /* A failing capability carries a mark as well as its color: a reader who cannot tell red from green finds
+           it by its shape. Only in space; it comes and goes with the look. */
+        const failing = ((rec.lookB === "fail" ? rec.mix : 0) + (rec.lookA === "fail" ? 1 - rec.mix : 0)) * rec.inn * rec.vis * deep;
+        if (failing > .05) { rec.mark = Math.max(MARK.least, rec.r * MARK.size); crosses.push(rec.x, rec.y, rec.mark, failing); marks++; }
         const live = still ? 0 : lerp(rec.live0, rec.live1, rec.mix), beat = live ? .5 + .5 * Math.sin(T * TAU / 2.6 + rec.beat) : 0;
         // On a small tree the stars are large: a glow reaches no farther than the nearest other capability, so two that
         // pass each other as the sky turns do not burn into one patch.
@@ -8506,7 +8770,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
           const weight = side ? rec.mix : 1 - rec.mix, name = side ? rec.lookB : rec.lookA, look = LOOKS[name];
           if (weight < .01 || !look) continue;
           const spot = name === "pass" && rec.kind === 2 ? "crown" : look.spot;
-          const alpha = lerp(.24, look.a * shade(look, rec.b), rec.inn) * rec.vis * weight * (1 + live * (.5 * beat - .2)), wide = half * lerp(.6, look.g, rec.inn) * (1 + live * .18 * beat);
+          const alpha = lerp(.24, look.a * shade(look, rec.b), rec.inn) * rec.vis * weight * (1 + live * (.5 * beat - .2)) * (1 - rec.gh), wide = half * lerp(.6, look.g, rec.inn) * (1 + live * .18 * beat);
           stamp(spot, rec.x, rec.y, wide, alpha);
           if (rec.kind && rec.inn > .5) stamp(spot, rec.x, rec.y, wide * .5, alpha * .7);       // a group and the root have a fuller heart
           else if (rec.inn > .5) stamp(spot, rec.x, rec.y, rec.r * HEART[0], alpha * HEART[1] * deep, true);     // and a leaf, in space, a firm one: the one point of its tuft that is no small star
@@ -8514,6 +8778,30 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
         }
         if (rec.flash > .02) stamp("hot", rec.x, rec.y, half * (1.3 + 1.2 * rec.flash), rec.flash * rec.vis);
         if (rec.id === hovered && rec.shown) stamp("star", rec.x, rec.y, half * 1.4, .22);
+      }
+      /* The marks of failure, over the stars: two short crossing strokes in the color of a failure, a little
+         larger than the star's heart and never smaller than a few pixels, so they are read on a dense tree too.
+         They are drawn as ink, not as light: first what lies under each stroke is taken away (its dark edge, which
+         keeps it apart from its own glow), then the stroke is laid on; so a mark is crisp and no ring. */
+      if (crosses.length) {
+        const hair = dpr < 1.5 ? 1.2 : 1;
+        for (let pass = 0; pass < 2; pass++) {
+          ctx.globalCompositeOperation = pass ? "source-over" : "destination-out";
+          ctx.strokeStyle = pass ? "rgb(" + LIGHT.fail + ")" : "#000"; ctx.lineWidth = (MARK.wide + (pass ? 0 : 2 * MARK.edge)) * hair; ctx.lineCap = pass ? "butt" : "round";
+          for (let solid = 1; solid >= 0; solid--) {
+            // those fully there in one path; one that comes or goes on its own, at its strength
+            if (solid) { ctx.globalAlpha = 1; ctx.beginPath(); }
+            for (let i = 0; i < crosses.length; i += 4) {
+              const x = crosses[i], y = crosses[i + 1], h = crosses[i + 2], a = crosses[i + 3];
+              if ((a >= .97) !== !!solid) continue;
+              if (!solid) { ctx.globalAlpha = a; ctx.beginPath(); }
+              ctx.moveTo(x - h, y - h); ctx.lineTo(x + h, y + h); ctx.moveTo(x + h, y - h); ctx.lineTo(x - h, y + h);
+              if (!solid) ctx.stroke();
+            }
+            if (solid) ctx.stroke();
+          }
+        }
+        ctx.lineCap = "butt"; ctx.globalCompositeOperation = "lighter";
       }
 
       /* The names: the root's always; then those of the groups that hang from the root, the heaviest first, so that
@@ -8529,16 +8817,25 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
          while it comes in at its new place; and no name comes in where another is still to be seen. So names
          neither jump nor flicker between their two forms, and no faint name is ever squeezed between two others. */
       if (deep > .02 && opt.names !== false) {
-        const stars = recs.filter(rec => rec.shown), count = stars.length, leaves = Math.max(1, stars.reduce((sum, rec) => sum + (rec.kind === 0 ? 1 : 0), 0));
-        const narrow = W < 600, most = count <= 7 ? count : narrow ? 5 : Math.min(count <= 40 ? NAMES.most : Math.round(clamp(8 + count / 25, 8, NAMES.most)), Math.round(W / 72));
-        const named = stars.filter(rec => rec.node.label && (rec.kind > 0 || count <= 40)), taken = [], ghosts = [], live = step > 0, tall = fontSize / 2 + 2;
+        /* A magnified view counts the stars it shows, not the whole tree, and a few more for being magnified
+           (they are larger and farther apart): so leaves are named where the whole tree would name its groups
+           only, and a few more names are written for every time the scene is magnified again. The leaves of a
+           framed subtree are named whatever else is in view, and what is framed comes first, before the groups
+           round it. (Leaves once named stay named until clearly more stars are in view: that number changes as
+           the sky turns.) A ghost is never named. */
+        const stars = recs.filter(rec => rec.shown && rec.inn > .5), leaves = Math.max(1, stars.reduce((sum, rec) => sum + (rec.kind === 0 ? 1 : 0), 0));
+        const count = lensed ? stars.reduce((sum, rec) => sum + (rec.off ? 0 : 1), 0) : stars.length, narrow = W < 600;
+        leafy = count <= NAMES.leaves[lensed && leafy ? 1 : 0] * Math.sqrt(Z);
+        const most = (count <= 7 ? count : narrow ? 5 : Math.min(leafy ? NAMES.most : Math.round(clamp(8 + count / 25, 8, NAMES.most)), Math.round(W / 72))) + (count > 7 ? Math.round(NAMES.more * (Z - 1)) + (follow ? NAMES.held : 0) : 0);
+        const reach = NAMES.tuft + 9;      // how far off the canvas a star may be for its name still to stand on it
+        const named = stars.filter(rec => rec.node.label && (rec.kind > 0 || leafy || (follow !== null && follow.ids.has(rec.id))) && !(rec.off && (rec.x < -reach || rec.x > W + reach || rec.y < -reach || rec.y > H + reach))), taken = [], ghosts = [], live = step > 0, tall = fontSize / 2 + 2;
         ctx.font = font; ctx.textBaseline = "middle"; ctx.textAlign = "left";
         try { ctx.letterSpacing = ".03em"; } catch (error) { /* an older canvas has no letter spacing */ }
         for (const rec of named) {
           const up = rec.up != null ? recOf[rec.up] : null;
           rec.seen = rec.name > .03 && rec.lx !== undefined;
-          rec.rank = rec.kind === 2 ? 9 : rec.kind && up && up.kind === 2 ? 6 + rec.heft / leaves
-            : rec.near + (live && rec.seen ? 1 : 0) + (rec.kind ? 3 + .5 * Math.sqrt(rec.heft / leaves) : .3 * Math.min(1, rec.node.sats / 60));
+          rec.rank = rec.kind === 2 ? 20 : rec.id === framed ? 19 : (rec.kind && up && up.kind === 2 ? 6 + rec.heft / leaves
+            : rec.near + (live && rec.seen ? 1 : 0) + (rec.kind ? 3 + .5 * Math.sqrt(rec.heft / leaves) : .3 * Math.min(1, rec.node.sats / 60))) + (follow && follow.ids.has(rec.id) ? 7 : 0);
           rec.tuft = 0;
           rec.hub = rec.kind === 2 || !!(rec.kind && up && up.kind === 2);
           if (rec.tw < 0 || rec.said !== rec.node.label) {
@@ -8582,7 +8879,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
             if (x0 < box[2] + bx + gx && x1 > box[0] + bx - gx && y0 < box[3] + by + gy && y1 > box[1] + by - gy) return false;
           }
           for (const rec of stars) {
-            const r = rec.r + (held ? 0 : 2), x = rec.x + rec.vx * dt - mx, y = rec.y + rec.vy * dt - my;
+            const r = Math.max(rec.r, rec.mark) + (held ? 0 : 2), x = rec.x + rec.vx * dt - mx, y = rec.y + rec.vy * dt - my;      // (a mark of failure reaches past its star)
             if (x > x0 - r && x < x1 + r && y > y0 - r && y < y1 + r) return false;
             const parent = over < 2 && rec.up != null ? recOf[rec.up] : null;
             if (parent && parent.shown && !(rec.kind === 0 && held) && !(over && (parent === self || rec === self)) && cuts(parent.x + parent.vx * dt - mx, parent.y + parent.vy * dt - my, x, y, x0, y0, x1, y1)) return false;
@@ -8667,7 +8964,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
               if (found < 0 && live) rec.rest = NAMES.rest + Math.round(rec.beat) % 3;
             }
           }
-          if (found < 0 && root) {      // the root is always named: where nothing is free, as near its point as the stage allows
+          if (found < 0 && root && !rec.off) {      // the root is always named while it is in view: where nothing is free, as near its point as the stage allows
             found = 0; form = 1; kept = seen; rec.falls = false;
             lx = clamp(rec.x + rec.r + 7, 4 + inset.left, Math.max(4 + inset.left, W - 4 - inset.right - rec.tws[form]));
             ly = clamp(rec.y - rec.r - 2, inset.top + tall + 4, Math.max(inset.top + tall + 4, H - inset.bottom - tall - 4));
@@ -8720,7 +9017,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
       raf = 0;
       if (!running || dead || (doc && doc.hidden)) return;
       step = lastMs ? clamp((ms - lastMs) / 1000, 0, .1) : 0; lastMs = ms;
-      const still = calm(), held = still || hovered !== null || !!drag || m1 > 0;
+      const still = calm(), held = still || hovered !== null || !!drag || !!pinch || m1 > 0;
       spin += ((held ? 0 : finite(opt.spin, SPIN)) - spin) * (lastMs && step ? 1 - Math.exp(-step / (held ? .14 : .6)) : still ? 1 : 0);     // quick to rest, slow to start again
       phase += spin * step;
       draw(T + step);
@@ -8755,23 +9052,46 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
       target.addEventListener(type, fn, how);
       offs.push(() => target.removeEventListener(type, fn, how));
     };
+    // Two fingers on the sky: how far apart they are and where their middle is.
+    const span = () => { const [a, b] = Array.from(fingers.values()); return {far: Math.max(24, Math.hypot(a[0] - b[0], a[1] - b[1])), x: (a[0] + b[0]) / 2, y: (a[1] + b[1]) / 2}; };
     listen(canvas, "pointerdown", event => {
       if (event.button > 0) return;
-      const [x, y] = spot(event);
-      drag = {x, y, turn: dragged, scroll, moved: false, touch: event.pointerType === "touch"};
+      const [x, y] = spot(event), touch = event.pointerType === "touch";
+      if (touch) {
+        if (event.isPrimary === true) { fingers.clear(); pinch = null; }      // the first finger of a touch: none is left from before
+        if (fingers.size >= 2) return;
+        fingers.set(event.pointerId, [x, y]);
+        try { canvas.setPointerCapture(event.pointerId); } catch (error) { /* as below */ }
+        // A second finger in space: the two pinch the view. The first one's drag is over and chooses nothing.
+        if (fingers.size === 2 && m1 === 0) { pinch = span(); drag = null; tap = null; return; }
+        if (fingers.size === 2) return;
+      }
+      drag = {x, y, turn: dragged, scroll, moved: false, touch};
       if (drag.touch) pointer = null;
       try { canvas.setPointerCapture(event.pointerId); } catch (error) { /* a pointer that cannot be held still drags while it is over the canvas */ }
     });
     listen(canvas, "pointermove", event => {
       const [x, y] = spot(event);
-      if (drag) {
+      if (pinch && fingers.has(event.pointerId)) {
+        // The view goes with the fingers: moved as far as their middle moved, magnified about it as they part.
+        fingers.set(event.pointerId, [x, y]);
+        const now = span();
+        nudge(now.x - pinch.x, now.y - pinch.y);
+        if (!zoomAbout(zoomTo * now.far / pinch.far, now.x, now.y, 0)) glide(0);
+        pinch = now;
+      } else if (drag) {
         if (!drag.moved && Math.hypot(x - drag.x, y - drag.y) > 5) drag.moved = true;
-        if (drag.moved && m1 === 0) dragged = drag.turn + (x - drag.x) * .0075;
+        if (drag.moved && m1 === 0) dragged = drag.turn + (x - drag.x) * .0075 / lens.z;      // (a magnified sky turns as far under the pointer as the fitted one)
         else if (drag.moved) scrollTo(drag.scroll - (y - drag.y));
       } else if (event.pointerType !== "touch") { pointer = {x, y}; pinned = false; hover(pick(x, y)); }
       refresh();
     });
     const lift = event => {
+      if (fingers.delete(event.pointerId)) {
+        try { canvas.releasePointerCapture(event.pointerId); } catch (error) { /* it was not held */ }
+        if (pinch) { pinch = null; refresh(); return; }      // a pinch ends with its first finger to go; the other one does nothing more
+        if (!drag) return;
+      }
       if (!drag) return;
       const was = drag;
       drag = null;
@@ -8782,12 +9102,27 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
         const id = pick(x, y, was.touch ? 30 : REACH);
         if (was.touch) { pinned = id !== null; hover(id); }
         emit("choose", told(id));
+        // A finger has no double click: two taps on empty sky, close in time and place, return to the whole scene.
+        if (was.touch && id === null && m1 === 0) {
+          const now = finite(event.timeStamp, 0) || Date.now();
+          if (tap && now - tap.t < ZOOM.tap[0] && Math.hypot(x - tap.x, y - tap.y) < ZOOM.tap[1]) { tap = null; frameOn(null, ZOOM.move); } else tap = {t: now, x, y};
+        } else tap = null;
       }
       refresh();
     };
     listen(canvas, "pointerup", lift); listen(canvas, "pointercancel", lift);
     listen(canvas, "pointerleave", () => { pointer = null; if (!drag && !pinned) hover(null); refresh(); });
+    // A double click on empty sky returns to the whole scene.
+    listen(canvas, "dblclick", event => { const [x, y] = spot(event); if (m1 === 0 && pick(x, y) === null) frameOn(null, ZOOM.move); });
+    /* The wheel scrolls the flat tree. In space it zooms about the pointer, a trackpad's pinch faster for its small
+       steps; the page below is not scrolled by a wheel that zoomed, nor by one that asks for more than there is. */
     listen(canvas, "wheel", event => {
+      if (m1 === 0 && recs.length) {
+        const [x, y] = spot(event), by = clamp(finite(event.deltaY, 0) * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? 400 : 1), -240, 240);
+        const changed = zoomAbout(zoomTo * Math.exp(-by * (event.ctrlKey ? ZOOM.pinch : ZOOM.wheel)), x, y, ZOOM.step);
+        if ((changed || by < 0) && typeof event.preventDefault === "function") event.preventDefault();
+        return;
+      }
       if (m1 !== 1 || scrollMax <= 0) return;
       const before = scroll;
       scrollTo(scroll + event.deltaY * (event.deltaMode === 1 ? 16 : 1));
@@ -8811,7 +9146,9 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
          right, bottom, left}: how much of each edge of the canvas lies under a bar of the page, where the sky is
          still drawn and no name is written). The first scene, a scene set on a view that has no loop running,
          and any scene for a visitor who asked for less motion are shown at once; instant: true asks for that,
-         instant: false for the move even without a loop (then frame() steps it). */
+         instant: false for the move even without a loop (then frame() steps it). Another tree, and the flat
+         tree, drop the zoom and what was framed; another selection of the same tree keeps them while what was
+         framed is still in the picture. */
       set(next) {
         const n = next && typeof next === "object" ? next : {};
         scene = {
@@ -8848,12 +9185,13 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
       pick,
       /* Where each capability was drawn in the frame last drawn, CSS px from the canvas's corner: its middle, its
          radius, whether it is part of the picture (shown), whether it is on the canvas (inside), in the flat
-         tree how much room its name has to its right (w), and the look it is dressed in (a name of LOOKS). */
+         tree how much room its name has to its right (w), and the look it is dressed in (a name of LOOKS; "out"
+         for a ghost). In a magnified view the places are the magnified ones, and some lie off the canvas. */
       places() {
         const out = bare();
         for (const rec of recs) {
           if (rec.gone) continue;
-          out[rec.id] = {x: rec.x, y: rec.y, r: rec.r, shown: !!rec.shown, inside: rec.x >= 0 && rec.x <= W && rec.y >= 0 && rec.y <= H, w: m1 ? rec.room : 0, look: rec.lookB};
+          out[rec.id] = {x: rec.x, y: rec.y, r: rec.r, shown: !!rec.shown, inside: rec.x >= 0 && rec.x <= W && rec.y >= 0 && rec.y <= H, w: m1 ? rec.room : 0, look: rec.v1[GH] > .5 ? "out" : rec.lookB};
         }
         return out;
       },
@@ -8868,7 +9206,8 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
           collapsed: (plan.collapsed || []).slice(), chosen: plan.chosen === true, row: plan.row || 0, type: plan.type || 0, lead: plan.lead || 0, box: plan.box || 0,
           columns: plan.columns || null, size: plan.size ? plan.size.slice() : [0, 0], x: dx, y: dy};
       },
-      // "hover": {id, x, y} or {id: null}; "choose": the same, on a click or a tap; "move": the places changed.
+      // "hover": {id, x, y} or {id: null}; "choose": the same, on a click or a tap; "move": the places changed;
+      // "view": {zoom, framed}, once whenever the zoom or what is framed changes (by the visitor, the page or a new scene).
       on(name, fn) { if (heard[name] && typeof fn === "function") heard[name].push(fn); return view; },
       off(name, fn) { if (heard[name]) heard[name] = heard[name].filter(one => one !== fn); return view; },
       // Marks a capability as the one in hand from outside the canvas (a row of the page's list that has the focus).
@@ -8884,6 +9223,31 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
       },
       // The flat tree's scroll: scroll(y) sets it (kept within what there is), scroll() tells it.
       scroll(y) { if (y !== undefined) { scrollTo(y); refresh(); } return scroll; },
+      /* The zoom in space: zoom(k) sets it, about the stage's middle (about what is framed, which stays framed),
+         kept between 1, the scene as fitted, and ZOOM.most; zoom(1) is the fitted scene and lets go of what was
+         framed. zoom() tells it: where the view is going, not where the move has come to. The wheel and two
+         fingers do the same about the pointer. Nothing in the flat tree. */
+      zoom(k) {
+        if (k !== undefined && typeof k === "number" && isFinite(k)) {
+          const at = stage();
+          if (k <= 1.0005) frameOn(null, ZOOM.move); else zoomAbout(k, at.x, at.y, ZOOM.move);
+        }
+        return zoomTo;
+      },
+      /* Frames the subtree of a capability: the stage is fitted to it and everything under it that is in the
+         picture, and it is kept there as the sky turns. A leaf is put at the middle with its parent's subtree
+         round it. frameOn(null), an id that is not in the picture, and the root return to the whole scene and to
+         zoom 1; so does a double click (two taps) on empty sky. state().framed tells what is held. */
+      frameOn(id) { frameOn(id, ZOOM.move); return view; },
+      /* What the selection left out: ghosts(true) shows every capability that is not kept where it stood in the
+         whole tree, as a small faint ring on a hairline to its parent; it can be hovered and chosen, places()
+         says look "out" of it, it has no name and does not count for the fit. ghosts(false), the default, lets
+         them fall to dust again. ghosts() tells which. Only in space and only in a scene with states. */
+      ghosts(on) {
+        if (on === undefined) return ghostly;
+        if (!!on !== ghostly) { ghostly = !!on; if (begun) { measure(); const instant = !running; arrange(instant); dress(instant); refresh(); } }
+        return view;
+      },
       // One wave of light out from the root along the lines, when every kept capability passes; `at`: when, on the view's clock.
       celebrate(at) {
         if (calm() || m1 !== 0) return false;
@@ -8908,10 +9272,11 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
       state() {
         return {mode: scene.mode, morph: lerp(m0, m1, whole()), time: T, running, moving: geo.dur > 0, width: W, height: H, capabilities: recs.filter(rec => !rec.gone).length,
           kept: recs.filter(rec => !rec.gone && rec.v1[IN] > .5).length, stars: recs.reduce((sum, rec) => sum + (rec.gone ? 0 : rec.n1), 0), scroll, scrollMax,
-          hovered, celebrating: !!cel, emphasized: lit ? lit.size : 0, collapsed: plan && scene.mode === "2d" && Array.isArray(plan.collapsed) ? plan.collapsed.slice() : []};
+          hovered, celebrating: !!cel, emphasized: lit ? lit.size : 0, collapsed: plan && scene.mode === "2d" && Array.isArray(plan.collapsed) ? plan.collapsed.slice() : [],
+          zoom: zoomTo, framed, ghosts: ghostly, marks};      // the zoom the view is at or going to (1: the fitted scene), what frameOn holds, ghosts(true), the marks of failure in the frame last drawn
       },
       resize() { if (!dead && measure()) { geoKey = ""; arrange(true); refresh(); } return view; },
-      destroy() { dead = true; halt(); for (const off of offs.splice(0)) off(); if (watcher) watcher.disconnect(); heard.hover = []; heard.choose = []; heard.move = []; }
+      destroy() { dead = true; halt(); for (const off of offs.splice(0)) off(); if (watcher) watcher.disconnect(); heard.hover = []; heard.choose = []; heard.move = []; heard.view = []; }
     };
     measure();
     if (opt.auto !== false && typeof win.requestAnimationFrame === "function") { running = true; }
@@ -9015,6 +9380,9 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
     "Holds": "包含", "{n} capabilities": "{n} 个能力", "{n} capabilities: {parts}": "{n} 个能力：{parts}", ", ": "、",
     "{n} passing": "{n} 个通过", "{n} failing": "{n} 个失败", "{n} written": "{n} 个已写", "{n} tests ready": "{n} 个测试就绪",
     "{n} not started": "{n} 个未开始", "{n} cannot be verified": "{n} 个无法验证", "Code, with all under it": "代码（含下属）",
+    "Find a capability": "查找能力", "{n} found": "找到 {n} 个", "none found": "没有找到", "Whole tree": "整棵树",
+    "Point here to see what the selection left out; click to keep it shown": "指向这里可以看到没有保留的部分；点击可保持显示",
+    "Keeps {n}% of the code": "保留 {n}% 的代码", "A lock: the box takes no click. Point at the row to read why.": "带锁的行不能取消勾选，指向它可以看到原因。",
     "Time": "用时", "Point at a count to light the capabilities it counts; click to keep them lit": "指向一个计数，星空里只点亮它数的那些能力；点击可保持点亮",
     "This run's function graph cannot be read right now, so there is nothing to draw. The detailed page shows the run step by step.":
       "现在读不到这次运行的功能图，所以这里没有可画的内容。详细页按步骤显示这次运行。",
@@ -9227,7 +9595,8 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
      how many cannot be verified where there are any. Before a job there is nothing to count but the capabilities
      of the plan and the public classes and callables round them. `dots`: the look of each count's dot, which is
      the look of a capability in that state in the sky, so the counts are the sky's legend. `keys`: what each
-     count counts (ready, wrote, pass, fail, gap), which the page lights in the sky when the count is pointed at. */
+     count counts (ready, wrote, pass, fail, gap), which the page lights in the sky when the count is pointed at; "out" for
+     the first count where the selection left capabilities out, which the page then shows as ghosts. */
   function barWords(progress, view, plan, given, catalog) {
     const m = modules(given), stage = record(progress.stage);
     const c = Object.fromEntries(["leaves", "all", "ready", "wrote", "pass", "fail", "gap"].map(key => [key, whole(record(progress.counts)[key])]));
@@ -9240,7 +9609,8 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
     const tones = c.leaves ? ["", "", "", "", ...(c.fail ? ["bad"] : []), ...(c.gap ? ["warn"] : [])] : counts.map(() => "");
     const dots = c.leaves ? ["dim", "ready", "wrote", "pass", ...(c.fail ? ["fail"] : []), ...(c.gap ? ["gap"] : [])] : ["cloud", "small"].slice(0, counts.length);
     // What each count counts, for the page that lights those capabilities in the sky ("": nothing to pick out).
-    const keys = c.leaves ? ["", "ready", "wrote", "pass", ...(c.fail ? ["fail"] : []), ...(c.gap ? ["gap"] : [])] : counts.map(() => "");
+    // (The first one, where the selection left capabilities out, shows those: "out".)
+    const keys = c.leaves ? [c.all > c.leaves ? "out" : "", "ready", "wrote", "pass", ...(c.fail ? ["fail"] : []), ...(c.gap ? ["gap"] : [])] : counts.map(() => "");
     return {keys, stage: T("Stage {n} / {of} · {title}", {n: whole(stage.n) || 1, of: whole(stage.of) || 6, title: stageTitle(view, whole(stage.n) || 1, stage.id, m, catalog)}),
       percent: whole(progress.percent) + "%", counts, tones, dots};
   }
@@ -9466,6 +9836,9 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
       $("select").setAttribute("aria-label", T("Choose the scope"));
       $("list").setAttribute("aria-label", T("Capabilities"));
       $("bar").setAttribute("aria-label", T("Progress of the run"));
+      $("find").placeholder = T("Find a capability");
+      $("find").setAttribute("aria-label", T("Find a capability"));
+      $("whole").textContent = T("Whole tree");
       doc.title = D.T("nanolize run");
     }
     speak(doc.documentElement.lang);
@@ -9503,6 +9876,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
     let shown = "", skyKey = "", states = null, choice = null, choiceOf = null, controller = null, said = "";
     let celebrated = null, cardId = null, listKey = "", tabKind = null;
     let opening = 0, openingTimer = 0;   // the selection's opening: 0 not begun, 1 the map is shown, 2 over
+    let query = "", hits = [], hitAt = -1, ghostly = false;   // the search: what is looked for, the capabilities found, the one gone to; whether the left-out are shown
     let countsKey = "", pointed = null, stuck = null, litKey = "";   // the legend: the count under the pointer, the one clicked, what the sky is told
     // The page's clock: a replay answers for the moment it shows (as on the run page).
     const clock = () => typeof win.NANOLIZE_CLOCK === "function" ? win.NANOLIZE_CLOCK() : Date.now();
@@ -9590,7 +9964,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
       card.style.maxHeight = at.docked ? Math.max(60, geometry().tall - at.top - 8) + "px" : "";
     }
     sky.on("hover", told => showCard(told && told.id, record(told).x || 0, record(told).y || 0));
-    doc.addEventListener("keydown", event => { if (event.key === "Escape") { sky.focus(null); showCard(null); if (stuck) { stuck = null; light(); } } });
+    doc.addEventListener("keydown", event => { if (event.key === "Escape") { sky.focus(null); showCard(null); if (typeof sky.frameOn === "function") sky.frameOn(null); if (stuck) { stuck = null; light(); } } });
 
     /* ---- The selection scene: the flat tree's rows, written over the canvas from the layout's row boxes ---- */
     /* The groups shut in the flat tree. Until the owner opens or shuts one the layout folds what it must for the
@@ -9719,6 +10093,19 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
         tokens && tokens.all ? T("their own code {kept} of {all} tokens", {kept: count(tokens.kept), all: count(tokens.all)}) : "",
         label === "core" ? T("Core features") : label === "all" ? T("All features") : T("Custom selection")].filter(Boolean);
       fillWith(head.count, ...parts.flatMap((part, at) => [at ? " " : null, h("span", "", part + (at < parts.length - 1 ? " ·" : ""))]));
+      /* How much of the code the selection keeps, where the plan measures it: the number an owner chooses by, as a
+         share and a bar that move with every tick. */
+      const share = tokens && tokens.all ? Math.round(100 * tokens.kept / tokens.all) : null;
+      head.meter.hidden = share === null;
+      if (share !== null) {
+        head.meter.children[0].children[0].style.width = Math.max(0, Math.min(100, share)) + "%";
+        head.meter.children[1].textContent = T("Keeps {n}% of the code", {n: share});
+      }
+      // The rows a search finds, and those it does not.
+      const wanted = query && hits.length ? new Set(hits) : null;
+      for (const [id, row] of rows) { row.el.classList.toggle("hit", Boolean(wanted) && wanted.has(id)); row.el.classList.toggle("miss", Boolean(wanted) && !wanted.has(id)); }
+      // The legend of the lock is there while some row has one.
+      head.key.hidden = ![...rows.values()].some(row => row.box.disabled);
       head.count.title = tokens && tokens.all ? T("The tokens of each kept capability's own files, added up: a file that two capabilities map counts in both, and configuration is not counted. The selection page's estimate for the rewrite is on the detailed page.") : "";
       head.message.textContent = said;
       // The notes the selection page shows before Submit: how many, their first words under the pointer, and the way to them.
@@ -9760,6 +10147,8 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
       };
       const head = {core: chip(T("Core features"), "core", T("Core features and what they depend on are selected.")),
         all: chip(T("All features"), "all", T("All features are selected.")), count: h("span", "ov-kept"), notes: h("a", "ov-notes"),
+        meter: h("span", "ov-meter", h("span", "ov-meter-bar", h("i", "")), h("b", "")),
+        key: h("span", "ov-key", h("i", "ov-lock"), T("A lock: the box takes no click. Point at the row to read why.")),
         message: h("p", "ov-said"), submit: h("button", "button ov-submit", T("Submit & start")), panel: h("div", "ov-panel")};
       head.notes.href = "/detail"; head.notes.hidden = true;
       head.notes.setAttribute("title", T("Notes of the selection page: open the detailed page to read them"));
@@ -9767,8 +10156,10 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
       head.submit.type = "button"; head.submit.id = "submit-button"; head.panel.id = "execution-panel"; head.panel.hidden = true;
       if (watched) attempt(() => watched.observe(head.panel), null);
       choice.head = head;
-      $("select").replaceChildren(h("div", "ov-select-bar", h("div", "ov-presets", head.core, head.all), head.count, head.notes,
-        h("span", "ov-grow"), head.submit), head.message, head.panel);
+      head.meter.hidden = true;
+      // (What a lock means stands at the end of the line under the bar, where what a change did is said.)
+      $("select").replaceChildren(h("div", "ov-select-bar", h("div", "ov-presets", head.core, head.all), head.meter, head.count, head.notes,
+        h("span", "ov-grow"), head.submit), h("div", "ov-under", head.message, head.key), head.panel);
       const made = [];
       for (const node of tree.nodes) {
         if (node.synthetic) continue;
@@ -9911,15 +10302,31 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
       if (trees.tree.root != null) out.add(trees.tree.root);
       return out;
     }
+    /* The capabilities a search finds, with the groups over them, or null (nothing is looked for, or nothing found). */
+    function sought() {
+      if (!query || !hits.length || !trees.tree) return null;
+      const out = new Set(hits);
+      for (const id of hits) for (let up = record(trees.tree.byId[id]).parent, steps = 0; up != null && steps < 64; up = record(trees.tree.byId[up]).parent, steps++) out.add(up);
+      if (trees.tree.root != null) out.add(trees.tree.root);
+      return out;
+    }
+    /* What the sky is told to pick out: what a search finds before what a count counts (the count under the pointer
+       before the one that was clicked). The count of what was selected shows what the selection left out, as ghosts
+       at their places; so does a search that finds a capability that was left out. */
     function light() {
-      const key = pointed || stuck, lit = (shown === "kept" || shown === "done") ? counted(key) : null;
+      const spatial = shown === "kept" || shown === "done" || shown === "cloud", key = pointed || stuck;
+      const found = spatial ? sought() : null, lit = found || (shown === "kept" || shown === "done" ? counted(key) : null);
+      const gone = id => { const entry = states && typeof states.get === "function" ? states.get(id) : null; return Boolean(entry) && entry.state === "out"; };
+      const ghosts = (shown === "kept" || shown === "done") && (key === "out" || (Boolean(found) && hits.some(gone)));
       for (const item of list($("counts").children)) {
         const mine = record(item.dataset).key;
         if (!mine) continue;
-        item.classList.toggle("on", Boolean(lit) && mine === key);
-        item.setAttribute("aria-pressed", String(Boolean(lit) && mine === stuck));
+        const on = mine === key && (mine === "out" ? ghosts : Boolean(lit) && !found);
+        item.classList.toggle("on", on);
+        item.setAttribute("aria-pressed", String(on && mine === stuck));
       }
-      const next = lit ? key + ":" + [...lit].sort().join(",") : "";
+      if (ghosts !== ghostly) { ghostly = ghosts; if (typeof sky.ghosts === "function") sky.ghosts(ghosts); }
+      const next = lit ? (found ? "?" + query : key) + ":" + [...lit].sort().join(",") : "";
       if (next === litKey) return;
       litKey = next;
       if (typeof sky.emphasize === "function") sky.emphasize(lit);
@@ -9933,6 +10340,52 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
     $("counts").addEventListener("keydown", event => {
       const key = keyOf(event);
       if (key && (event.key === "Enter" || event.key === " " || event.key === "Spacebar")) { if (typeof event.preventDefault === "function") event.preventDefault(); stuck = stuck === key ? null : key; light(); }
+    });
+
+    /* ---- Finding a capability ---- */
+    /* A capability is found by a part of its name (or of its id), whatever the case. In space the sky keeps what is
+       found lit and lets the rest go faint; Enter goes to the next one found (Shift+Enter to the one before): the
+       sky frames it and its card opens. In the flat tree the rows that are not found go quiet, the groups over a
+       found row open for as long as the search lasts (the folds the owner left are not changed), and Enter brings
+       the next found row onto the stage. Escape, or an empty box, ends the search and shows the whole tree again. */
+    const finder = $("find");
+    function seek() {
+      const tree = trees.tree, text = query;
+      hits = text && tree ? tree.nodes.filter(node => !node.synthetic && ((words(node.label) || "").toLowerCase().includes(text) || String(node.id).toLowerCase().includes(text))).map(node => node.id) : [];
+      hitAt = -1;
+      $("found").textContent = !text ? "" : hits.length ? T("{n} found", {n: hits.length}) : T("none found");
+      // In the flat tree the first row found is brought onto the stage as the search is typed.
+      if (shown === "select") { skyKey = ""; draw(); if (hits.length) reveal(hits[0]); } else light();
+    }
+    function visit(step) {
+      if (!hits.length) return;
+      hitAt = (hitAt + step + hits.length) % hits.length;
+      const id = hits[hitAt];
+      if (shown === "select") { const row = rows.get(id); reveal(id); if (row) attempt(() => focusOf(row).focus(), null); return; }
+      if (typeof sky.frameOn === "function") sky.frameOn(id);
+      sky.focus(id);
+    }
+    function endSearch() {
+      if (!query && !finder.value) return;
+      query = ""; finder.value = ""; hits = []; hitAt = -1;
+      $("found").textContent = "";
+      if (typeof sky.frameOn === "function") sky.frameOn(null);
+      sky.focus(null);
+      if (shown === "select") { skyKey = ""; draw(); } else light();
+    }
+    finder.addEventListener("input", () => { query = words(finder.value).trim().toLowerCase(); seek(); });
+    finder.addEventListener("keydown", event => {
+      if (event.key === "Enter") { if (typeof event.preventDefault === "function") event.preventDefault(); visit(event.shiftKey ? -1 : 1); }
+      else if (event.key === "Escape") { if (typeof event.stopPropagation === "function") event.stopPropagation(); endSearch(); }
+    });
+    /* The way back to the whole tree: shown while the sky is zoomed or frames a part of the tree (the sky says so). */
+    const whole3 = $("whole");
+    whole3.addEventListener("click", () => { if (typeof sky.frameOn === "function") sky.frameOn(null); });
+    sky.on("view", told => { whole3.hidden = !(record(told).zoom > 1.01 || record(told).framed != null); });
+    // A click on a group in space frames what stands under it; a leaf's click opens its card, as its hover does.
+    sky.on("choose", told => {
+      const node = told && told.id != null && trees.tree ? trees.tree.byId[told.id] : null;
+      if (node && !node.leaf && !node.synthetic && shown !== "select" && typeof sky.frameOn === "function") sky.frameOn(node.id);
     });
 
     /* ---- One picture of the run ---- */
@@ -9999,7 +10452,8 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
           if (key) {
             item.dataset.key = key; item.tabIndex = 0;
             item.setAttribute("role", "button");
-            item.title = T("Point at a count to light the capabilities it counts; click to keep them lit");
+            item.title = key === "out" ? T("Point here to see what the selection left out; click to keep it shown")
+              : T("Point at a count to light the capabilities it counts; click to keep them lit");
           }
           return item;
         }));
@@ -10041,7 +10495,8 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
       const since = line && name === "kept" && !scene.attention && !opens ? nowSince(view, m, catalog) : null;
       const going = since != null && clock() >= since ? D.span((clock() - since) / 1000) : "";
       if (line && name === "mapping" && total && list(line.steps).length) caption.dataset.time = total; else delete caption.dataset.time;
-      if (line && going && caption.children[0]) caption.children[0].dataset.time = " · " + going;      // on the sentence itself: the page writes it after it
+      // On the sentence itself: the page writes it after it. Its words keep together where a narrow stage breaks the line.
+      if (line && going && caption.children[0]) caption.children[0].dataset.time = " ·\u00a0" + going.replace(/ /g, "\u00a0");
       /* What a delivery has to show for it, over its line: its size against the original and the behavior checks of
          what it delivered (the run page's own facts, in its words), and the time it took. */
       const facts = $("facts"), shown3 = name === "done" ? list(attempt(() => D.resultFacts(view), [])).filter(fact => fact && !fact.note && !fact.href && words(fact.value)).slice(0, 2) : [];
@@ -10057,6 +10512,10 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
       $("select").hidden = name !== "select";
       if (name === "select") syncRows();
       const tree = treeNow(), empty = name === "mapping";
+      // The search box is there while there is a tree to search; a search does not outlive its tree.
+      const searchable = !empty && tree.nodes.length > 1;
+      $("finder").hidden = !searchable;
+      if (!searchable && query) { query = ""; finder.value = ""; hits = []; hitAt = -1; $("found").textContent = ""; }
       /* A run past its discovery whose tree cannot be drawn: neither its plan nor its function graph can be read
          (a service that answers /api/run alone, a record that is being written). The sky would be empty with
          nothing to say why: the page says it, and names the page that needs neither. */
@@ -10069,7 +10528,12 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
         fillWith(hollow, h("span", "", T("This run's function graph cannot be read right now, so there is nothing to draw. The detailed page shows the run step by step.")), go);
       }
       // The flat tree's folds: the layout's own (null) until the owner opened or shut a group, then the owner's.
-      const shut = name === "select" && touched && folds ? new Set(folds) : null;
+      /* While a search goes on in the flat tree, the groups over what is found are open, whatever the folds are:
+         the folds themselves (the layout's, or the owner's) are kept as they were for when the search ends. */
+      const seeking = name === "select" && Boolean(query) && hits.length > 0;
+      const over = new Set();
+      if (seeking) for (const id of hits) for (let up = record(tree.byId[id]).parent, steps = 0; up != null && steps < 64; up = record(tree.byId[up]).parent, steps++) over.add(up);
+      const shut = name === "select" && folds && (touched || seeking) ? new Set([...folds].filter(id => !over.has(id))) : null;
       const next = empty ? {tree: null, states: null, mode: "3d", keep: null, collapsed: null}
         : name === "cloud" ? {tree, states: null, mode: "3d", keep: null, collapsed: null}
         : name === "select" ? {tree, states: null, mode: "2d", keep: choice.kept(), collapsed: shut}
@@ -10096,7 +10560,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
         skyKey = key;
         sky.set({...next, pad, inset, seed: record(plan).manifest_sha256 || record(graph).job_id || view.run_id || "nanolize"});
         // What the layout folded by itself is where the owner's own choice starts from.
-        if (name === "select" && !touched) folds = new Set(list(sky.state().collapsed));
+        if (name === "select" && !touched && !seeking) folds = new Set(list(sky.state().collapsed));
       }
       doc.body.dataset.scene = name;
       doc.body.dataset.tone = progress.tone;
