@@ -497,7 +497,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
     "This page replays a run: nothing is running, so the action does nothing.": "这是回放：没有任何东西在运行，这个操作不会生效。",
     "The capability selection page is embedded here in a live run.": "真实运行时，这里嵌入的是能力选择页面。"};
   // What a reader of the proposal should look at, part by part.
-  const ABOUT = [["This is the overview page itself, the page a run's link opens, not a mock-up: its own scripts and styles, fed the frames this file holds. Choose a run and press Play, or drag the slider.", "这就是概览页面本身（打开一次运行的链接时看到的那个页面），不是示意图：用的是它自己的脚本和样式，喂给它的是这个文件里保存的每一帧数据。选一次运行后点播放，或拖动滑块。"], ["The sky: each capability of the repository is a star, and the small stars around it are its public classes and callables. Before a scope is chosen every star is white. Once a job exists the capabilities the selection left out are gone, and each kept one is colored by how far it is: dim while it is only selected, then greener as its tests are ready, as it is written and as its tests pass; red where a test fails, and a yellow ring where it cannot be fully verified. Point at a star for its card; \"Capability list\" shows the same as a table.", "星空：仓库的每个能力是一颗星，周围的小星是它对外的类和函数。选定范围之前，所有的星都是白色。作业开始后，没有保留的能力会消失，保留下来的每个能力按进度上色：只是选中时较暗，测试就绪、代码写完、测试通过后一步步变绿变亮；有测试失败的是红色，无法完整验证的带一个黄圈。鼠标指向一颗星会显示它的卡片；“能力列表”用表格显示同样的内容。"], ["The bar at the bottom: one percentage for the whole run and the stage it is in, and under it how many of the kept capabilities have their tests ready, are written and pass.", "底部的进度条：整次运行的一个百分比和当前所在的阶段，下面是保留的能力里有多少个测试就绪、已写完、已通过。"], ["The runs are the ones the run page's replays hold, frame for frame (run-page-demo.html: real runs; run-page-cases.html: four timelines written by hand). The note above says where the chosen run comes from, and where its plan comes from.", "这里的运行就是 run 页面的两个回放页里的那些，逐帧相同（run-page-demo.html：真实运行；run-page-cases.html：四条手写的时间线）。上面的说明写了当前这次运行的来源，以及它的计划从哪里来。"], ["The plan (what the page asks /api/plan for). A run that carries its own job's plan shows the real capabilities, the real number of names in each interface and the selection the job was submitted with; its function graph, which a trajectory gives as the kept leaves under the project, is answered with every capability of that plan under its parent and with what the selection left out. A run that carries no plan gets one made of its function graph: the capabilities and their parents are the run's, and the number of small stars around each is fixed by its name, not measured.", "计划（页面向 /api/plan 要的内容）。带着自己作业的计划的运行，显示的是真实的能力、每个接口里真实的名字个数，以及作业提交时的选择；轨迹文档给出的功能图只有挂在项目下面的保留叶子，这里按那份计划补成完整的：每个能力挂在它的父节点下面，没有保留的标为范围之外。没有带计划的运行，计划由它的功能图推出：能力和父子关系是这次运行的，每个能力周围小星的个数按名字固定生成，不是实测的。"], ["Choosing the scope: the four timelines written by hand wait for their owner's choice in their second frame. The sky then lies flat as a tree with a tick box on every capability; the tick boxes, the groups that open and shut, \"Core features\" and \"All features\" work as on the live page. Submit starts nothing: opened as a file the page says that the execution service is not available, and served over http the request is told that this is a replay. One of the four (its note says which) has a review that holds Submit back and has notes, to show both.", "选择范围：四条手写的时间线在第 2 帧等 owner 选择范围。这时星空平铺成一棵树，每个能力前有一个勾选框；勾选框、分组的展开和收起、“核心功能”和“全部功能”和真实页面上一样可用。提交不会启动任何东西：直接打开文件时，页面会说执行服务不可用；通过 http 打开时，请求会被告知这是回放。四条里有一条（它的说明里写了是哪条）的审阅会拦下提交并带有说明，用来展示这两样。"], ["This replay holds one page: \"Detailed progress\" and the other links to the detailed page lead nowhere here, and say so. Nothing is running.", "这个回放只包含概览这一个页面：“详细进度”和其他通往详细页面的链接在这里打不开，点了会有提示。没有任何东西在运行。"]];
+  const ABOUT = [["This is the overview page itself, the page a run's link opens, not a mock-up: its own scripts and styles, fed the frames this file holds. Choose a run and press Play, or drag the slider.", "这就是概览页面本身（打开一次运行的链接时看到的那个页面），不是示意图：用的是它自己的脚本和样式，喂给它的是这个文件里保存的每一帧数据。选一次运行后点播放，或拖动滑块。"], ["The sky: each capability of the repository is a star, and the small stars around it are its public classes and callables. Before a scope is chosen every star is white. Once a job exists the capabilities the selection left out are gone, and each kept one is colored by how far it is: dim while it is only selected, then greener as its tests are ready, as it is written and as its tests pass; red where a test fails, and a yellow ring where it cannot be fully verified. Point at a star for its card; \"Capability list\" shows the same as a table.", "星空：仓库的每个能力是一颗星，周围的小星是它对外的类和函数。选定范围之前，所有的星都是白色。作业开始后，没有保留的能力会消失，保留下来的每个能力按进度上色：只是选中时较暗，测试就绪、代码写完、测试通过后一步步变绿变亮；有测试失败的是红色，无法完整验证的带一个黄圈。鼠标指向一颗星会显示它的卡片；“能力列表”用表格显示同样的内容。"], ["The bar at the bottom: one percentage for the whole run and the stage it is in, and under it how many of the kept capabilities have their tests ready, are written and pass.", "底部的进度条：整次运行的一个百分比和当前所在的阶段，下面是保留的能力里有多少个测试就绪、已写完、已通过。"], ["The runs are the ones the run page's replays hold, frame for frame (run-page-demo.html: real runs; run-page-cases.html: four timelines written by hand). The note above says where the chosen run comes from, and where its plan comes from.", "这里的运行就是 run 页面的两个回放页里的那些，逐帧相同（run-page-demo.html：真实运行；run-page-cases.html：四条手写的时间线）。上面的说明写了当前这次运行的来源，以及它的计划从哪里来。"], ["The plan (what the page asks /api/plan for). A run that carries its own job's plan shows the real capabilities, the real number of names in each interface and the selection the job was submitted with; its function graph, which a trajectory gives as the kept leaves under the project, is answered with every capability of that plan under its parent and with what the selection left out. A run that carries no plan gets one made of its function graph: the capabilities and their parents are the run's, and the number of small stars around each is fixed by its name, not measured.", "计划（页面向 /api/plan 要的内容）。带着自己作业的计划的运行，显示的是真实的能力、每个接口里真实的名字个数，以及作业提交时的选择；轨迹文档给出的功能图只有挂在项目下面的保留叶子，这里按那份计划补成完整的：每个能力挂在它的父节点下面，没有保留的标为范围之外。没有带计划的运行，计划由它的功能图推出：能力和父子关系是这次运行的，每个能力周围小星的个数按名字固定生成，不是实测的。"], ["Choosing the scope: the four timelines written by hand wait for their owner's choice in their second frame. The page first shows the map it has just made, every capability as a white star in space, and after a few seconds lays it flat as a tree with a tick box on every capability (step back to frame 1 and on to frame 2 to see it again; frame 3, after the Submit, is back in space with what was kept); the tick boxes, the groups that open and shut, \"Core features\" and \"All features\" work as on the live page. Submit starts nothing: opened as a file the page says that the execution service is not available, and served over http the request is told that this is a replay. One of the four (its note says which) has a review that holds Submit back and has notes, to show both.", "选择范围：四条手写的时间线在第 2 帧等 owner 选择范围。页面先显示刚分析出来的功能图（每个能力是空间里的一颗白色的星），几秒后把它平铺成一棵树，每个能力前有一个勾选框（退回第 1 帧再到第 2 帧可以再看一遍；第 3 帧是提交之后，回到空间里，只剩保留下来的部分）；勾选框、分组的展开和收起、“核心功能”和“全部功能”和真实页面上一样可用。提交不会启动任何东西：直接打开文件时，页面会说执行服务不可用；通过 http 打开时，请求会被告知这是回放。四条里有一条（它的说明里写了是哪条）的审阅会拦下提交并带有说明，用来展示这两样。"], ["This replay holds one page: \"Detailed progress\" and the other links to the detailed page lead nowhere here, and say so. Nothing is running.", "这个回放只包含概览这一个页面：“详细进度”和其他通往详细页面的链接在这里打不开，点了会有提示。没有任何东西在运行。"]];
   ZH["What this page shows"] = "这页展示什么";
   ZH["This replay holds one page, the overview: the detailed page is not in it."] = "这个回放只包含概览这一个页面，没有详细页面。";
   const T = (text, values) => (lang === "zh-CN" && ZH[text] || text).replace(/\{(\w+)\}/g, (slot, key) => values && key in values ? String(values[key]) : slot);
@@ -599,7 +599,10 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
     clearTimeout(timer);
     $("demo-play").textContent = T(playing ? "Pause" : "Play");
     if (!playing) return;
-    const wait = Math.max(0.08, Math.min(2.5, frames[index + 1].at - frames[index].at)) / Number($("demo-speed").value);
+    // A frame in which the run waits for its owner's Submit is held for nine seconds: a real run stays there until
+    // its owner acts, and the overview page first shows its map and then lays it flat as the tree to choose from.
+    const focus = (frames[index].view.flow || {}).focus || {}, asks = focus.state === "attention" && focus.what === "submit";
+    const wait = (asks ? 9 : Math.max(0.08, Math.min(2.5, frames[index + 1].at - frames[index].at))) / Number($("demo-speed").value);
     timer = setTimeout(() => { show(index + 1); play(true); }, wait * 1000);
   }
   const reload = change => { const next = new URLSearchParams(location.search); for (const [key, value] of Object.entries(change)) next.set(key, value); location.search = next.toString(); };
@@ -8953,6 +8956,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
     "Delivered with gaps.": "已交付，但有缺口。",
     "{gap} of {leaves} capabilities cannot be fully verified.": "{leaves} 个能力中有 {gap} 个无法完整验证。",
     " ({n} of {of} verified by nothing)": "（{of} 个里有 {n} 个没有被任何检查验证）",
+    "The capability map is complete: {n} capabilities": "功能图分析完成：共 {n} 个能力",
     "This run's function graph cannot be read right now, so there is nothing to draw. The detailed page shows the run step by step.":
       "现在读不到这次运行的功能图，所以这里没有可画的内容。详细页按步骤显示这次运行。",
     "{fail} of {leaves} capabilities fail their tests.": "{leaves} 个能力中有 {fail} 个未通过测试。",
@@ -9257,6 +9261,9 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
     return T("The run is paused and waits for you. The detailed page says why and how to go on.");
   }
 
+  /* How long the selection's opening shows the map before it is laid flat, in ms: long enough for the cloud to
+     come in and turn a little, short enough not to keep an owner waiting. */
+  const OPENING_MS = 3600;
   const firstSentence = (text, most) => {
     const line = String(text || "").split(/\n/)[0].trim(), cut = line.search(/[.。!?！？](\s|$)/);
     const said = cut >= 0 && cut < most ? line.slice(0, cut + 1) : line;
@@ -9338,6 +9345,9 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
       .map(child => typeof child === "string" ? doc.createTextNode(child) : child));
     const params = attempt(() => new URLSearchParams(record(win.location).search || ""), new URLSearchParams(""));
     const frozen = params.has("freeze") && isFinite(Number(params.get("freeze"))) ? Number(params.get("freeze")) : null;
+    // Whether the sky moves on this page: not where it is drawn still (?freeze), in a window that cannot animate, or for a reader who asked for less motion.
+    const moves = frozen === null && typeof win.requestAnimationFrame === "function"
+      && !attempt(() => win.matchMedia("(prefers-reduced-motion: reduce)").matches === true, false);
     function speak(lang) {
       setLocale(lang);
       D.setLocale(lang);
@@ -9383,6 +9393,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
     let trees = {plan: null, graph: null, from: null, tree: null, caps: new Map(), nodes: new Map()};
     let shown = "", skyKey = "", states = null, choice = null, choiceOf = null, controller = null, said = "";
     let celebrated = null, cardId = null, listKey = "", tabKind = null;
+    let opening = 0, openingTimer = 0;   // the selection's opening: 0 not begun, 1 the map is shown, 2 over
     const rows = new Map();
 
     /* The tree the sky draws: the plan's capabilities (they carry the names of their interfaces, which are the
@@ -9777,8 +9788,22 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
       const graphed = P.index(graph).nodes.size > 0;
       const here = scene.name === "select" && selectable(plan) && attempt(() => { if (choiceOf !== plan || !choice) { dropSelect(); buildSelect(); } return true; }, false);
       // A run that waits for a scope this page cannot take shows the cloud and says where to choose.
-      const name = scene.name === "select" && !here ? "cloud" : scene.name;
-      if (name !== "select" && choice) dropSelect();
+      let name = scene.name === "select" && !here ? "cloud" : scene.name;
+      /* The selection opens on the map it is made of. A review often asks for the scope the moment the plan is
+         there, and a page may be opened while it waits: the white cloud was then never on the stage. The page
+         shows it for a few seconds, says that the map is complete, and then lays it flat, so that the tree is
+         seen to be that cloud. Where the cloud stood on the stage just before, the tree follows it at once. Not
+         on a page whose sky does not move (`moves`): there the tree stands from the start. What the owner chose
+         is kept through the opening. */
+      if (name === "select") {
+        if (opening === 0 && moves && shown !== "select" && shown !== "cloud") {
+          opening = 1;
+          openingTimer = win.setTimeout(() => { if (opening === 1 && !stopped) { opening = 2; draw(); } }, OPENING_MS);
+        } else if (opening === 0) opening = 2;
+        if (opening === 1) name = "cloud";
+      } else if (opening) { opening = 0; win.clearTimeout(openingTimer); }
+      const opens = opening === 1;
+      if (name !== "select" && choice && !opens) dropSelect();
       states = name === "kept" || name === "done" ? (graphed ? P.states(graph, view, live) : record(plan).available === true ? plannedStates(plan, m) : new Map()) : null;
       const progress = P.progress(view, graph, graphed ? states || undefined : undefined, last);
       last = progress;
@@ -9815,7 +9840,8 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
 
       /* The scene's one line, at the foot of the sky. It is written before the scene is fitted: the sky leaves it
          its room, however many lines a narrow window makes of it, and writes no name under it. */
-      const line = sceneLine(scene, view, plan, progress, m, catalog), caption = $("line");
+      const line = opens ? {tone: "", link: null, text: T("The capability map is complete: {n} capabilities", {n: list(record(plan).capabilities).length})}
+        : sceneLine(scene, view, plan, progress, m, catalog), caption = $("line");
       caption.hidden = !line;
       if (line) {
         caption.className = "ov-line s-" + name + (line.tone ? " t-" + line.tone : "");
@@ -9983,13 +10009,13 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
       if (view) draw();
     });
     poll();
-    return {stop: () => { stopped = true; generation += 1; win.clearTimeout(timer); if (watched) attempt(() => watched.disconnect(), null); if (controller) controller.destroy(); sky.destroy(); },
+    return {stop: () => { stopped = true; generation += 1; win.clearTimeout(timer); win.clearTimeout(openingTimer); if (watched) attempt(() => watched.disconnect(), null); if (controller) controller.destroy(); sky.destroy(); },
       // Asks for everything again and draws it; the bar starts from what the records say (a replay may go back).
       refresh: () => { force = true; last = null; win.clearTimeout(timer); return poll(); },
       state: () => ({scene: shown, progress: last, choice, listOpen})};
   }
 
-  return {ZH, STATE_WORDS, EXECUTION_WORDS, EXECUTION_PARTS, GATE_WORDS, GATE_TAIL, PLAN_NOTES, STAGE_TITLES, setLocale, T, plannerPlan, selectable, chooser, gateOf, notesOf,
+  return {ZH, OPENING_MS, STATE_WORDS, EXECUTION_WORDS, EXECUTION_PARTS, GATE_WORDS, GATE_TAIL, PLAN_NOTES, STAGE_TITLES, setLocale, T, plannerPlan, selectable, chooser, gateOf, notesOf,
     lockWords, barWords, sceneLine, nowText, noticeText, cardOf, plannedStates, start};
 });
 
