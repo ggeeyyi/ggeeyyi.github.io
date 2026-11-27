@@ -354,8 +354,7 @@ body[data-scene="select"] .ov-foot { background: linear-gradient(to top, var(--b
 .t-ready .ov-dot { background: var(--gray-12); box-shadow: 0 0 7px var(--gray-a10); }
 .t-wrote .ov-dot, .t-picked .ov-dot { background: var(--green-8); }
 .t-pass .ov-dot { background: var(--green-10); box-shadow: 0 0 8px var(--green-9); }
-.t-fail .ov-dot { width: 9px; height: 9px; border-radius: 0; background: var(--bad);
-  clip-path: polygon(18% 0, 50% 32%, 82% 0, 100% 18%, 68% 50%, 100% 82%, 82% 100%, 50% 68%, 18% 100%, 0 82%, 32% 50%, 0 18%); }
+.t-fail .ov-dot { background: var(--bad); }
 .t-gap .ov-dot { background: var(--green-8); box-shadow: 0 0 0 2px var(--panel), 0 0 0 3px var(--warn); }
 .t-out .ov-dot { background: transparent; box-shadow: inset 0 0 0 1px var(--gray-8); }
 .ov-card-rows { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 3px 14px; margin: 10px 0 0; font-size: var(--text-2); }
@@ -8073,9 +8072,6 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
      crowded sky, as the tree's own lines are). Both are well under what a "selected" capability shows, so the
      kept tree still reads as the tree. */
   const GHOST = {size: .85, least: 1.9, ring: .5, line: .12};
-  /* The mark of a failing capability, for a reader who cannot tell red from green: its half size in the star's
-     radius and the least, px; the stroke's width and the dark edge on each side of it, px. */
-  const MARK = {size: 1.2, least: 3.6, wide: 1.5, edge: 1.1};
   const FAINT = .16;      // how much is left of a capability the page does not point at, while it points at others
   const RADIUS = [2.5, 3.5, 6], DUSTS = 190;          // a leaf, a group, the root (px at the usual scale); background specks
   const GLOW = [36, 46, 56], TINY = 20, TINY_TILT = 16;   // the widest glow of each, px (a lone star is not a floodlight); up to where a tree is tiny, and how much higher the camera stands over a handful (degrees)
@@ -8146,7 +8142,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
        fit: the zoom that frames it; ids: what it frames). cam is what was drawn when the move began and its clock,
        lens what the last frame drew. said: what the page was last told. */
     let zoomTo = 1, panTo = [0, 0], framed = null, follow = null, cam = {t0: 0, dur: 0, z: 1, x: 0, y: 0}, lens = {z: 1, x: 0, y: 0}, said = {zoom: 1, framed: null}, viewTree = null;
-    let ghostly = false, marks = 0, leafy = false, pinch = null, tap = null;      // ghosts(true); the marks of failure last drawn; whether a magnified view names leaves; two fingers on the sky; the last tap on empty sky
+    let ghostly = false, leafy = false, pinch = null, tap = null;      // ghosts(true); whether a magnified view names leaves; two fingers on the sky; the last tap on empty sky
     const fingers = new Map();
 
     const calm = () => opt.reduced != null ? !!opt.reduced
@@ -8751,15 +8747,8 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
       // one. A glow is narrower where there are many capabilities, so that three hundred do not melt into one patch.
       if (deep > .02) order.sort((p, q) => (p.lookB === "fail") - (q.lookB === "fail") || p.cz - q.cz);
       const slim = lerp(clamp(Math.pow(150 / Math.max(1, recs.length), .3), .62, 1), 1, m), few = recs.length <= 80;
-      const crosses = [];
-      marks = 0;
       for (const rec of order) {
-        rec.mark = 0;
         if (rec.vis < .01 || (lensed && (rec.x < -170 || rec.x > W + 170 || rec.y < -170 || rec.y > H + 170))) continue;      // (too far off the canvas for any of its light to reach it)
-        /* A failing capability carries a mark as well as its color: a reader who cannot tell red from green finds
-           it by its shape. Only in space; it comes and goes with the look. */
-        const failing = ((rec.lookB === "fail" ? rec.mix : 0) + (rec.lookA === "fail" ? 1 - rec.mix : 0)) * rec.inn * rec.vis * deep;
-        if (failing > .05) { rec.mark = Math.max(MARK.least, rec.r * MARK.size); crosses.push(rec.x, rec.y, rec.mark, failing); marks++; }
         const live = still ? 0 : lerp(rec.live0, rec.live1, rec.mix), beat = live ? .5 + .5 * Math.sin(T * TAU / 2.6 + rec.beat) : 0;
         // On a small tree the stars are large: a glow reaches no farther than the nearest other capability, so two that
         // pass each other as the sky turns do not burn into one patch.
@@ -8778,30 +8767,6 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
         }
         if (rec.flash > .02) stamp("hot", rec.x, rec.y, half * (1.3 + 1.2 * rec.flash), rec.flash * rec.vis);
         if (rec.id === hovered && rec.shown) stamp("star", rec.x, rec.y, half * 1.4, .22);
-      }
-      /* The marks of failure, over the stars: two short crossing strokes in the color of a failure, a little
-         larger than the star's heart and never smaller than a few pixels, so they are read on a dense tree too.
-         They are drawn as ink, not as light: first what lies under each stroke is taken away (its dark edge, which
-         keeps it apart from its own glow), then the stroke is laid on; so a mark is crisp and no ring. */
-      if (crosses.length) {
-        const hair = dpr < 1.5 ? 1.2 : 1;
-        for (let pass = 0; pass < 2; pass++) {
-          ctx.globalCompositeOperation = pass ? "source-over" : "destination-out";
-          ctx.strokeStyle = pass ? "rgb(" + LIGHT.fail + ")" : "#000"; ctx.lineWidth = (MARK.wide + (pass ? 0 : 2 * MARK.edge)) * hair; ctx.lineCap = pass ? "butt" : "round";
-          for (let solid = 1; solid >= 0; solid--) {
-            // those fully there in one path; one that comes or goes on its own, at its strength
-            if (solid) { ctx.globalAlpha = 1; ctx.beginPath(); }
-            for (let i = 0; i < crosses.length; i += 4) {
-              const x = crosses[i], y = crosses[i + 1], h = crosses[i + 2], a = crosses[i + 3];
-              if ((a >= .97) !== !!solid) continue;
-              if (!solid) { ctx.globalAlpha = a; ctx.beginPath(); }
-              ctx.moveTo(x - h, y - h); ctx.lineTo(x + h, y + h); ctx.moveTo(x + h, y - h); ctx.lineTo(x - h, y + h);
-              if (!solid) ctx.stroke();
-            }
-            if (solid) ctx.stroke();
-          }
-        }
-        ctx.lineCap = "butt"; ctx.globalCompositeOperation = "lighter";
       }
 
       /* The names: the root's always; then those of the groups that hang from the root, the heaviest first, so that
@@ -8879,7 +8844,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
             if (x0 < box[2] + bx + gx && x1 > box[0] + bx - gx && y0 < box[3] + by + gy && y1 > box[1] + by - gy) return false;
           }
           for (const rec of stars) {
-            const r = Math.max(rec.r, rec.mark) + (held ? 0 : 2), x = rec.x + rec.vx * dt - mx, y = rec.y + rec.vy * dt - my;      // (a mark of failure reaches past its star)
+            const r = rec.r + (held ? 0 : 2), x = rec.x + rec.vx * dt - mx, y = rec.y + rec.vy * dt - my;
             if (x > x0 - r && x < x1 + r && y > y0 - r && y < y1 + r) return false;
             const parent = over < 2 && rec.up != null ? recOf[rec.up] : null;
             if (parent && parent.shown && !(rec.kind === 0 && held) && !(over && (parent === self || rec === self)) && cuts(parent.x + parent.vx * dt - mx, parent.y + parent.vy * dt - my, x, y, x0, y0, x1, y1)) return false;
@@ -9273,7 +9238,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
         return {mode: scene.mode, morph: lerp(m0, m1, whole()), time: T, running, moving: geo.dur > 0, width: W, height: H, capabilities: recs.filter(rec => !rec.gone).length,
           kept: recs.filter(rec => !rec.gone && rec.v1[IN] > .5).length, stars: recs.reduce((sum, rec) => sum + (rec.gone ? 0 : rec.n1), 0), scroll, scrollMax,
           hovered, celebrating: !!cel, emphasized: lit ? lit.size : 0, collapsed: plan && scene.mode === "2d" && Array.isArray(plan.collapsed) ? plan.collapsed.slice() : [],
-          zoom: zoomTo, framed, ghosts: ghostly, marks};      // the zoom the view is at or going to (1: the fitted scene), what frameOn holds, ghosts(true), the marks of failure in the frame last drawn
+          zoom: zoomTo, framed, ghosts: ghostly};      // the zoom the view is at or going to (1: the fitted scene), what frameOn holds, ghosts(true)
       },
       resize() { if (!dead && measure()) { geoKey = ""; arrange(true); refresh(); } return view; },
       destroy() { dead = true; halt(); for (const off of offs.splice(0)) off(); if (watcher) watcher.disconnect(); heard.hover = []; heard.choose = []; heard.move = []; heard.view = []; }
