@@ -154,6 +154,12 @@ body.ov { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-ro
 .ov-line.t-ok span { color: var(--ok-text); }
 .ov-line.t-warn span { color: var(--warn-text); }
 .ov-line.t-bad span { color: var(--bad-text); }
+/* What the sky says where it has no tree to draw: a job whose plan and function graph cannot be read. */
+.ov-void { position: absolute; left: 50%; top: 44%; z-index: 2; transform: translate(-50%, -50%); margin: 0; width: max-content; max-width: min(88%, 560px);
+  text-align: center; pointer-events: none; font-family: var(--sans); font-size: var(--text-4); line-height: 1.55; color: var(--ink-3); }
+.ov-void span { display: block; }
+.ov-void .ov-link { display: inline-block; margin: 12px 0 0; }
+.listing .ov-void { visibility: hidden; }
 .ov-link { margin-left: 14px; pointer-events: auto; color: var(--ink); text-decoration: underline; text-decoration-color: var(--gray-8); text-underline-offset: 3px; }
 .ov-link:hover { text-decoration-color: currentColor; }
 
@@ -459,6 +465,7 @@ body.ov .demo-bar select { min-width: 0; max-width: 100%; }
   </div>
   <button type="button" class="ov-more" id="more" hidden></button>
   <p class="ov-line" id="line" aria-live="polite" hidden></p>
+  <p class="ov-void" id="void" role="status" hidden></p>
   <div class="ov-notice" id="notice" role="status" hidden></div>
   <section class="ov-select" id="select" hidden></section>
   <section class="ov-list" id="list" hidden></section>
@@ -2279,7 +2286,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
     "A retained check that the delivered candidate fails only as the original fails it without what the selection removes is no criterion of it: no author is asked to repair such a failure, and the delivery carries the check as a gap (original coverage or baseline incomplete), never as a passed check, so it is completed with gaps at best":
       "交付的候选版本如果只是像去掉被排除部分后的原版那样让某项保留检查失败，这项检查就不是它的验收标准：这样的失败不会让作者去修，交付把这项检查记为缺口（原版的覆盖或基线不完整），不算通过的检查，所以最多是“完成但有缺口”",
     "Excluded": "已排除", "Also removed": "随之移除", "Added beyond the core preset": "核心预设之外加选", "none": "无",
-    "Live run": "实时运行", "Overview": "总览", "Back to the overview of this run": "回到本次运行的总览",
+    "Detailed progress": "详细进度", "Overview": "总览", "Back to the overview of this run": "回到本次运行的总览",
 
     "Selection page · this run's owner-configured review. Choose capabilities, then press": "选择页面 · 本次运行由所有者配置的审阅。选好能力后点击",
     ".": "。", "Capability selection": "能力选择",
@@ -4502,7 +4509,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
   }
 
   // Static page text, translated in place: only text nodes change, so markup inside stays.
-  const PAGE_TEXT = ["nanolize run", "Live run", "Overview", "Back to the overview of this run", "Where the run is now", "Run flow", "Flow",
+  const PAGE_TEXT = ["nanolize run", "Detailed progress", "Overview", "Back to the overview of this run", "Where the run is now", "Run flow", "Flow",
     "Each row is one lap: the run starts a new one whenever it goes back to an earlier stage.",
     "Stages", "Understanding / verifier", "Implementer", "Steps", "Done", "Failed or regressed",
     "Not run, with gaps, blocked or waiting", "Running", "Done, no verdict", "Skipped",
@@ -6422,6 +6429,9 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
   /* How much of the bar each stage is, in percent (they add up to 100): the stages that take the run's time
      (freeze, rewrite, verify) share most of it. */
   const WEIGHTS = {discover: 12, scope: 6, freeze: 27, rewrite: 25, verify: 25, deliver: 5};
+  /* How many steps the host agent's discovery has (run-dashboard.js DISCOVER_STEPS). The run's records list a
+     step only once it began, so the share of the discovery is counted of this number, not of the steps listed. */
+  const DISCOVER_STEPS = 9;
   const SCENES = ["mapping", "cloud", "select", "kept", "done"];
   const STATES = ["out", "dim", "ready", "wrote", "pass", "fail"];
   /* How a job that ended reads here. A delivery with failures is "failed": it delivered, and what it
@@ -6587,7 +6597,11 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
      completed (progress.ledger.writes, by the call's step in flow.steps; a call whose step the flow no longer
      lists counts unless it still runs), and of each scope of a layer that is written, as far as a request or
      a step names the scope's capabilities (the page is told at most twenty of a scope). A call that only
-     reviews writes nothing. The draft job's authors are not read here: their work is live, not the main job's. */
+     reviews writes nothing.
+     A pair's draft job writes the first implementation in the main job's place, and the main job imports it
+     whole: what the draft job's authors completed is written (each author of its parallel group that ended
+     completed, each author call of its own that did), while that job goes on or has ended ready. A draft job
+     that failed or was cancelled gives nothing: the main job's own records say what is written then. */
   function written(view, graph) {
     const ix = indexOf(graph), found = new Set();
     if (!jobOf(view) || !ix.leaves.length) return found;
@@ -6622,28 +6636,83 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
     for (const layer of list(ledger.layers)) {
       if (layer && layer.state === "done") for (const scope of list(layer.scopes)) add(scopes.has(scope) ? [...scopes.get(scope)] : []);
     }
+    const draft = record(view.draft);
+    if (!["failed", "cancelled"].includes(draft.status)) {
+      for (const step of list(draft.steps)) {
+        const detail = record(step && step.detail);
+        if (!step || typeof step !== "object" || detail.role === "reviewer") continue;
+        for (const author of list(detail.authors)) if (author && author.state === "ended" && author.status === "completed") add(author.capabilities);
+        if (step.kind === "tool" && step.state === "done" && step.outcome === "completed") add(detail.writes);
+      }
+    }
     return found;
   }
 
   /* ---- Each capability's state ---- */
 
-  /* Whether a leaf's tests are ready, as far as the records go. A leaf the job's records exempt from a leaf test
-     has nothing more to prepare: it is ready. A leaf marked as lacking a valid test or a usable check
-     (leaf_test "missing", uncovered) is not. Any other is ready when every check of it that has a result on the
-     original passed and at least one has: tests a designer added, which wait for their first run on the
-     original, do not take back what was ready. */
-  function readyLeaf(ix, id) {
+  /* Whether a leaf's tests are ready, as far as the records go. A leaf marked as lacking a valid test or a
+     usable check (leaf_test "missing" or "exempted", uncovered) is not: an exempted leaf has no test, and none
+     will come. Any other is ready when every check of it that has a result on the original passed and at least
+     one has: tests a designer added, which wait for their first run on the original, do not take back what was
+     ready. `awaited`: the leaves whose tests are still being designed (designing), which are not ready yet. */
+  function readyLeaf(ix, id, awaited) {
     const node = ix.nodes.get(id);
-    if (!node) return false;
-    if (node.leaf_test === "exempted") return !ix.provisional;      // a graph made of the submitted plan alone holds no record of the job yet
-    if (node.leaf_test || node.uncovered === true) return false;
+    if (!node || node.leaf_test || node.uncovered === true) return false;
+    if (awaited && (awaited === true || awaited.has(id))) return false;
     const seen = nodeAssignment(ix, id).live.map(baselineState).filter(state => state !== "pending");
     return seen.length > 0 && combine(seen) === "passed";
+  }
+  /* The leaves whose tests are still being designed, in a freeze that designs tests and has not sealed its
+     contract: null (none), true (every leaf) or something with `has(id)`.
+     Every leaf from the first baseline until the design names its sessions: which leaves it will write tests
+     for is not known before. While the designers of the first round work, a leaf one of whose listed sessions
+     has not ended; and a leaf with no session listed as well, unless the step says how many sessions the round
+     has and all of them are listed (a session that waits for a free slot is not listed yet: the design then
+     leaves the unlisted leaves alone, and they have what they need). After the designers (the trial, the
+     review), only a leaf whose session is still open. None once the designed tests are recorded, in a later
+     round (it mends what the first wrote, and what was ready stays ready), in a freeze that designs no tests,
+     and once the contract is sealed. So the tree lights up leaf by leaf as the designers end, never says
+     "ready" of a leaf a designer still writes tests for, and takes nothing back. */
+  function designing(view, ix) {
+    const job = jobOf(view), freeze = record(record(record(view).progress).freeze), far = record(record(job).step_progress);
+    if (!job || frozen(view, ix) || record(freeze.designed_tests).recorded === true) return null;
+    const sessions = list(record(freeze.design_sessions).sessions).filter(item => item && typeof item === "object");
+    if (list(freeze.design_calls).some(call => call && call.outcome === "done")) return null;
+    const mine = far.tool === "design_leaf_tests";
+    if (!sessions.length) {
+      // Nothing says that this freeze designs but its own list of steps, or a design call that runs.
+      return list(record(freeze.workspace).freeze_steps).includes("design_leaf_tests") || mine ? true : null;
+    }
+    if (sessions.some(item => Number.isFinite(item.round) && item.round > 1) || (mine && Number.isFinite(far.round) && far.round > 1)) return null;
+    const open = new Set(sessions.filter(item => item.state !== "ended").map(item => item.leaf)), listed = new Set(sessions.map(item => item.leaf));
+    const whole = !(mine && far.stage === "designers") || (Number.isFinite(far.sessions) && sessions.length >= far.sessions);
+    return {has: id => open.has(id) || (!whole && !listed.has(id))};
   }
   /* Whether what a leaf lacks is settled: the contract is sealed (or the job is past that: it holds a candidate
      or a first implementation). Until then the tests are still being designed, and a leaf without a valid one
      is not ready yet, which is no gap. */
   const frozen = (view, ix) => reached(view, "sealed") || reached(view, "candidate") || implemented(view, ix);
+
+  /* The comparison's own conclusion of each capability, where its record names them (round.capabilities), or null. */
+  const verdictsOf = round => round && round.capabilities && typeof round.capabilities === "object" && !Array.isArray(round.capabilities)
+    && Object.keys(round.capabilities).length ? round.capabilities : null;
+  /* What a full comparison says of a leaf that is written: "pass", "fail" or "open" (neither), with the
+     comparison's own word for it (`verdict`, or null) and this page's reading of the leaf's checks (`result`).
+     Where the comparison names its conclusion of each capability, that conclusion decides, not the comparison's
+     status as a whole: a comparison is unverified as a whole as soon as one capability has no criterion, and
+     then says of every other one that it passed. But it also says "passed" of a capability that has no check
+     at all, because nothing of it failed: passing is said here only of a leaf at least one of whose own checks
+     ran and passed in that comparison, and that carries no mark of a missing test (leaf_test, uncovered). A
+     leaf the comparison does not name, and a comparison that names none, are read by the leaf's checks. */
+  function concluded(ix, id, round) {
+    const node = ix.nodes.get(id) || {}, verdicts = verdictsOf(round), result = nodeRound(ix, id, round).status;
+    const verdict = verdicts && typeof verdicts[id] === "string" ? verdicts[id] : null;
+    const marked = Boolean(node.leaf_test) || node.uncovered === true;
+    if (!verdict) return {verdict, result, state: result === "failed" ? "fail" : result === "passed" && !marked ? "pass" : "open"};
+    if (verdict === "regressed" || verdict === "failed") return {verdict, result, state: "fail"};
+    const ran = nodeRound(ix, id, Object.assign({}, round, {status: "checks_passed"})).counts;
+    return {verdict, result, state: verdict === "passed" && !marked && ran.passed > 0 && !ran.failed ? "pass" : "open"};
+  }
 
   /* How many tests a capability's live checks hold and how many of them passed in a round: a check without
      test ids is one; of a check that failed, the tests it named failed and the others passed, and one that
@@ -6670,12 +6739,12 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
        "out"    not in scope (the selection removed it);
        "dim"    selected, nothing more;
        "ready"  its tests are ready and nobody has written it (readyLeaf): every check of it that has a result
-                on the original passed, at least one has, and it carries no mark of a missing test (leaf_test
-                "missing", uncovered); or the job's records exempt it from a leaf test, so that nothing more
-                is to be prepared for it;
-       "wrote"  the main job's author has written it (written) and no full comparison says more;
-       "pass"   written, and in the newest full comparison with results all its checks passed (nodeRound:
-                passed), and it carries no mark of a missing test;
+                on the original passed, at least one has, it carries no mark of a missing test (leaf_test,
+                uncovered), and no designer still writes tests for it (designing);
+       "wrote"  an author has written it (written: the main job's, or its draft job's in a pair) and no full
+                comparison says more;
+       "pass"   written, and in the newest full comparison with results all its checks passed (concluded), and
+                it carries no mark of a missing test;
        "fail"   written, and a check of it failed in that comparison.
      The color follows the newest full comparison: a repair that regresses takes a pass back. A comparison's
      result counts only for a leaf that is written: before that the tree still holds the original's code.
@@ -6688,10 +6757,10 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
      part of its plan (truncated) and lists no check of it is `unlisted` instead: its checks are not known
      here, which is neither a gap nor a pass.
      Where the comparison names its own conclusion of each capability (`round.capabilities`: passed, unverified,
-     regressed), that conclusion decides, not this page's reading of the checks: a comparison is unverified as a
-     whole as soon as one capability has no criterion, and then says of every other one that it passed. Such a
-     leaf is "pass" (also one exempted from a leaf test, if the comparison passed it); one the comparison could
-     not verify stays "wrote" with `gap`; one it found regressed is "fail". `verdict` holds the conclusion.
+     regressed), that conclusion decides (concluded): a leaf it passed, with a check of its own that ran and
+     passed, is "pass"; one it could not verify, and one it passed without any check (a leaf exempted from a
+     leaf test, code carried as it was), stays "wrote" with `gap`; one it found regressed is "fail". `verdict`
+     holds the conclusion.
      `ready`, `wrote`: the two facts by themselves (tests ready; written), whatever the state; a leaf that
      passes is ready, so the counts never say fewer ready than passing. `result`: the
      leaf's status in the newest full comparison, or null. `tests`: the tests of its live checks and how many
@@ -6702,32 +6771,28 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
      some leaf under it has one. `tests`: those of its own checks and of everything under it, each check once.
 
      `live`: what the run's flow says is worked on now (NanolizeRunFlow.liveLeaves(view), passed in as it
-     is): the capability's marks, or null. A pair's draft job writes there first: its marks are live, and the
-     state does not move until the main job imported what it wrote. */
+     is): the capability's marks, or null. */
   const ORDER = ["dim", "ready", "wrote", "pass"];
   function states(graph, view, live) {
     const ix = indexOf(graph), out = new Map();
     if (!ix.nodes.size) return out;
-    const wrote = written(view, graph), round = ix.full, leaves = new Set(ix.leaves), settledNow = frozen(view, ix);
-    // The comparison's own conclusions, where its record names them; its tests are then counted as they ran.
-    const verdicts = round && round.capabilities && typeof round.capabilities === "object" && !Array.isArray(round.capabilities)
-      && Object.keys(round.capabilities).length ? round.capabilities : null;
+    const wrote = written(view, graph), round = ix.full, leaves = new Set(ix.leaves), settledNow = frozen(view, ix), awaited = designing(view, ix);
+    // Where the comparison names its own conclusions, its tests are counted as they ran.
+    const verdicts = verdictsOf(round);
     const counted = verdicts ? Object.assign({}, round, {status: "checks_passed"}) : round;
     const marks = id => { const found = live instanceof Map ? live.get(id) : null; return Array.isArray(found) && found.length ? found : null; };
     for (const [id, node] of ix.nodes) {
       if (node.in_scope === false) { out.set(id, {state: "out", gap: false, live: marks(id), tests: {total: 0, passed: 0}, leaf: false}); continue; }
       if (!leaves.has(id)) continue;
-      const assignment = nodeAssignment(ix, id), result = round ? nodeRound(ix, id, round).status : null;
+      const assignment = nodeAssignment(ix, id), said = round ? concluded(ix, id, round) : {verdict: null, result: null, state: "open"};
+      const result = said.result, verdict = said.verdict;
       const unlisted = ix.truncated && !assignment.live.length;
       const marked = Boolean(node.leaf_test) || node.uncovered === true;
-      const ready = readyLeaf(ix, id), has = wrote.has(id);
-      const verdict = verdicts ? (typeof verdicts[id] === "string" ? verdicts[id] : null) : null;
-      const state = !has ? (ready ? "ready" : "dim")
-        : verdict ? (verdict === "passed" ? "pass" : ["regressed", "failed"].includes(verdict) ? "fail" : "wrote")
-        : result === "failed" ? "fail" : result === "passed" && !marked ? "pass" : "wrote";
+      const ready = readyLeaf(ix, id, awaited), has = wrote.has(id);
+      const state = !has ? (ready ? "ready" : "dim") : said.state === "open" ? "wrote" : said.state;
       const gap = !unlisted && state !== "pass" && (settledNow || node.leaf_test === "exempted")
         && (marked || ["failed", "partial", "untested"].includes(assignment.status)
-          || (has && (verdict ? state === "wrote" : result === "partial" || result === "untested")));
+          || (has && Boolean(round) && (verdict ? state === "wrote" : result === "partial" || result === "untested")));
       // (A leaf that passes had its tests ready: the counts under the bar never say fewer ready than passing.)
       out.set(id, {state, gap, live: marks(id), tests: tally(assignment.live, counted), leaf: true, ready: ready || state === "pass", wrote: has, result, verdict, unlisted});
     }
@@ -6867,14 +6932,15 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
 
   /* How far the run is. `percent`: an integer 0..100, the stages' shares (WEIGHTS) added up, each by how far
      it is:
-       discover  the share of the host agent's steps that are done or skipped; all of it once the repository
-                 is mapped;
+       discover  the share of the host agent's steps (DISCOVER_STEPS of them; the records list a step once it
+                 began) that are done or skipped (a step that runs again after a later one was done still
+                 counts: the share does not go back); all of it once the repository is mapped;
        scope     all of it once a job exists;
        freeze    how far its steps are, by what they report while they run (freezeShare: the first baseline,
                  the designer sessions that ended, the knockouts, the baseline captured again); all of it once
                  the contract is sealed;
-       rewrite   the share of the kept leaves that are written; all of it once the job holds a first
-                 implementation (implemented);
+       rewrite   the share of the kept leaves that are written (in a pair, by the draft job's authors as they
+                 end), short of all of it until the job holds a first implementation (implemented);
        verify    the share of the kept leaves that pass, in the best full comparison so far, not the newest:
                  a repair that regresses does not take the bar back. A comparison that names its own conclusion
                  of each capability is counted by those, as the states are. While the first comparison runs,
@@ -6888,8 +6954,9 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
      short would take it back (the page keeps only the newest groups and rounds): the page passes its last
      answer for the same job, and an answer for another job is not held.
      `stage`: the stage the run is in (model.current), and for a job that failed or was cancelled the stage it
-     stopped in. `counts`: of the kept leaves, how many have their tests ready, are written and pass now
-     (each by itself: a leaf that passes is also written), and `fail`, `gap`, `unlisted`. A page lights the
+     stopped in. `counts`: of the kept leaves (`leaves`; `all`: the leaves of the whole graph, kept or not),
+     how many have their tests ready, are written and pass now (each by itself: a leaf that passes is also
+     written), and `fail`, `gap`, `unlisted`. A page lights the
      whole tree when the tone is "ok" and counts.pass equals counts.leaves.
      `tone`: "run" while the run goes on, "ok" succeeded, "warn" completed with gaps, "bad" failed, cancelled
      or delivered with failures. `job`: the job's id, for `previous`. */
@@ -6898,7 +6965,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
     const ix = indexOf(graph), job = jobOf(view), model = record(view.model);
     const state = known instanceof Map ? known : states(graph, view, null);
     const leaves = ix.leaves, entries = leaves.map(id => state.get(id)).filter(Boolean);
-    const counts = {leaves: leaves.length, ready: entries.filter(item => item.ready).length, wrote: entries.filter(item => item.wrote).length,
+    const counts = {leaves: leaves.length, all: [...ix.nodes.keys()].filter(id => !ix.children.get(id).length).length, ready: entries.filter(item => item.ready).length, wrote: entries.filter(item => item.wrote).length,
       pass: entries.filter(item => item.state === "pass").length, fail: entries.filter(item => item.state === "fail").length,
       gap: entries.filter(item => item.gap).length, unlisted: entries.filter(item => item.unlisted).length};
     const share = count => leaves.length ? Math.min(1, count / leaves.length) : 0;
@@ -6906,24 +6973,23 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
     const accepted = reached(view, "accepted"), done = delivered(view);
     const has = implemented(view, ix), sealed = reached(view, "sealed") || reached(view, "candidate") || has;
     const steps = list(record(record(view.stages).discover).steps).filter(step => step && typeof step === "object");
+    // A step of the discovery that is done or skipped; one that runs again after a later one was done counts as well.
+    const over = step => step.status === "done" || step.status === "skipped";
     const mapped = reached(view, "mapped") || Boolean(view.review);
     let best = 0;
     if (job && !accepted) {
       const wrote = written(view, graph);
       for (const round of ix.rounds) {
         if (!hasResults(round) || round.complete === false) continue;
-        // The comparison's own conclusions, where its record names them (as in states); else this page's reading of its checks.
-        const verdicts = round.capabilities && typeof round.capabilities === "object" && !Array.isArray(round.capabilities) && Object.keys(round.capabilities).length
-          ? round.capabilities : null;
-        best = Math.max(best, leaves.filter(id => wrote.has(id) && (verdicts ? verdicts[id] === "passed"
-          : !ix.nodes.get(id).leaf_test && ix.nodes.get(id).uncovered !== true && nodeRound(ix, id, round).status === "passed")).length);
+        // Each leaf as the states read it (concluded): the comparison's own conclusion where it names one.
+        best = Math.max(best, leaves.filter(id => wrote.has(id) && concluded(ix, id, round).state === "pass").length);
       }
     }
     const parts = {
-      discover: mapped ? 1 : steps.length ? steps.filter(step => step.status === "done" || step.status === "skipped").length / steps.length : 0,
+      discover: mapped ? 1 : steps.length ? steps.filter((step, at) => over(step) || (step.status === "active" && steps.slice(at + 1).some(over))).length / Math.max(steps.length, DISCOVER_STEPS) : 0,
       scope: job ? 1 : 0,
       freeze: !job ? 0 : sealed || accepted || done ? 1 : Math.min(.95, freezeShare(view, ix, share)),
-      rewrite: !job ? 0 : has ? 1 : share(counts.wrote),
+      rewrite: !job ? 0 : has ? 1 : Math.min(.95, share(counts.wrote)),
       verify: !job ? 0 : accepted || outcome === "ok" || outcome === "gaps" ? 1 : Math.max(share(best), .3 * stepShare(job, "compare_behavior")),
       deliver: done ? 1 : 0,
     };
@@ -6946,7 +7012,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
       tone: outcome === "ok" ? "ok" : outcome === "gaps" ? "warn" : outcome || failed ? "bad" : "run", job: id, parts};
   }
 
-  const api = {STAGE_IDS, WEIGHTS, SCENES, STATES, OUTCOMES, index, nodeAssignment, nodeRound, combine, checkState, written, implemented: (view, graph) => implemented(record(view), indexOf(graph)),
+  const api = {STAGE_IDS, WEIGHTS, DISCOVER_STEPS, SCENES, STATES, OUTCOMES, index, nodeAssignment, nodeRound, combine, checkState, written, implemented: (view, graph) => implemented(record(view), indexOf(graph)),
     states, liveLook, scene, progress};
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   root.NanolizeRunProgress = api;
@@ -6967,21 +7033,58 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
   const LIGHT = {star: "230,236,255", dim: "206,214,232", green: "118,185,0", t5: "187,220,128", t7: "214,234,178",
     t9: "241,248,230", fail: "230,54,78", ring: "253,213,6"};
 
-  /* A state's look. spot: the sprite of its point; a: how bright; g: how wide its glow; line, la: the ink and
-     strength of its line to its parent; sat, sa: the sprite and strength of its small stars, one step dimmer than
-     the point; over, oa: a second, whiter ink laid on that line; halo: a soft band of light along it; name: the
-     ink of its name. "cloud" is every capability before Submit (no states at all); "picked"
+  /* A state's look. spot: the sprite of its point; a: how bright; g: how wide its glow; d: how much of its distance
+     from the eye shows in that brightness (see shine); line, la: the ink and strength of its line to its parent;
+     sat, sa: the sprite and strength of its small stars, well under the point's, so that a capability is the
+     brightest thing of its own tuft; over, oa: a second, whiter ink laid on that line; halo: a soft band of light
+     along it; name: the ink of its name. "cloud" is every capability before Submit (no states at all); "picked"
      and "unpicked" are the 2D tree's while a scope is chosen. */
   const LOOKS = {
-    cloud: {spot: "star", a: .95, g: 1, line: "dim", la: .3, sat: "star", sa: .6, name: "dim"},
-    dim: {spot: "dim", a: .55, g: .7, line: "dim", la: .19, sat: "dim", sa: .24, name: "dim"},
-    ready: {spot: "star", a: 1, g: 1.3, line: "star", la: .6, halo: .07, sat: "star", sa: .72, name: "star"},
-    wrote: {spot: "green", a: .78, g: .9, line: "green", la: .38, sat: "green", sa: .5, name: "t5"},
-    pass: {spot: "pass", a: 1, g: 1.4, line: "green", la: .66, over: "t5", oa: .3, halo: .13, sat: "pass", sa: .9, name: "t7"},
-    fail: {spot: "fail", a: 1, g: 1.1, line: "fail", la: .46, sat: "fail", sa: .5, name: "dim"},
-    picked: {spot: "star", a: 1, g: .9, line: "t5", la: .4, sat: "star", sa: .5, name: "star"},
-    unpicked: {spot: "dim", a: .36, g: .7, line: "dim", la: .11, sat: "dim", sa: .2, name: "dim"}
+    cloud: {spot: "star", a: .95, g: 1, d: 1, line: "dim", la: .3, sat: "star", sa: .46, name: "dim"},
+    dim: {spot: "dim", a: .5, g: .7, d: .3, line: "dim", la: .19, sat: "dim", sa: .2, name: "dim"},
+    ready: {spot: "star", a: 1, g: 1.3, d: .3, line: "star", la: .6, halo: .07, sat: "star", sa: .52, name: "star"},
+    wrote: {spot: "green", a: .64, g: .9, d: .3, line: "green", la: .38, sat: "green", sa: .3, name: "t5"},
+    pass: {spot: "pass", a: 1, g: 1.4, d: .3, line: "green", la: .66, over: "t5", oa: .3, halo: .13, sat: "pass", sa: .54, name: "t7"},
+    fail: {spot: "fail", a: 1, g: 1.1, d: .3, line: "fail", la: .46, sat: "fail", sa: .4, name: "dim"},
+    picked: {spot: "star", a: 1, g: .9, d: 0, line: "t5", la: .4, sat: "star", sa: .5, name: "star"},
+    unpicked: {spot: "dim", a: .36, g: .7, d: 0, line: "dim", la: .11, sat: "dim", sa: .2, name: "dim"}
   };
+  /* Brightness says one thing. By its distance alone a star would be drawn from half as bright (the farthest,
+     `near` 0) to a fifth brighter (the nearest, `near` 1): the white cloud, where there is no state to tell, shows
+     all of that. A state's look shows only a part of it (d) in its point, and half of the rest more in its line
+     and its small stars, so the nearest "selected" star is still clearly darker than the farthest "tests ready"
+     one and a few dim leaves are found among bright ones; depth is then told by size and by the lines.
+     shine(look, near) is how bright the point of that look is drawn at that distance, 1 at most; with `soft`,
+     the factor its line and its small stars are drawn by. */
+  const DEPTH = [.5, 1.2];
+  const depthOf = near => DEPTH[0] + (DEPTH[1] - DEPTH[0]) * near;
+  const shade = (look, b, soft) => 1 + (b - 1) * (soft ? (1 + look.d) / 2 : look.d);
+  function shine(name, near, soft) {
+    const look = LOOKS[name] || LOOKS.dim, b = depthOf(clamp(finite(near, 1), 0, 1));
+    return soft ? shade(look, b, true) : Math.min(1, look.a * shade(look, b, false));
+  }
+  /* What a group shows when the page gives no state of its own for it (the made-up root above several roots has
+     none): the least advanced state among its children. */
+  const ADVANCE = {dim: 0, ready: 1, wrote: 2, pass: 3};
+
+  /* A name in at most `limit` columns (a CJK character takes two): whole when it fits, else cut after a whole word
+     and ended with "…". The cut is at a space; a name with no space in its second half is cut at one of _ - / .
+     or beside a CJK character, and one long word where it must be. What the cut leaves dangling (a comma, an
+     opening bracket) goes too. */
+  const WIDE = /[\u2E80-\uA4CF\uAC00-\uD7AF\uF900-\uFAFF\uFE30-\uFE4F\uFF00-\uFF60\uFFE0-\uFFE6]/;
+  function brief(label, limit) {
+    const chars = Array.from(text(label)), most = Math.max(2, finite(limit, 30)), at = [0];
+    for (const ch of chars) at.push(at[at.length - 1] + (WIDE.test(ch) ? 2 : 1));     // at[i]: the columns of the first i characters
+    if (at[chars.length] <= most) return chars.join("");
+    let room = 0;
+    while (room < chars.length && at[room + 1] <= most - 1) room++;
+    const least = Math.max(1, Math.ceil(room / 2));
+    let cut = -1;
+    for (let i = room; i >= least && cut < 0; i--) if (/\s/.test(chars[i])) cut = i;
+    for (let i = room; i >= least && cut < 0; i--) if (/[_\-/.]/.test(chars[i - 1]) || /[_\-/.]/.test(chars[i]) || WIDE.test(chars[i - 1]) || WIDE.test(chars[i])) cut = i;
+    if (cut < 0) cut = room;
+    return (chars.slice(0, cut).join("").replace(/[\s,;:\u00B7\u3001\uFF0C\uFF1B\uFF1A(\[{\uFF08_\-/.]+$/, "") || chars.slice(0, room).join("")) + "…";
+  }
   /* The sprites: a bright point with a wide skirt in one color (rim), whiter at its heart where it has one (core);
      "bloom" is a bell with no point in it, the light that travels a line. A passing capability is green to its
      heart, so a leaf reads green and not grey-white; only the root's heart ("crown") and the wave are near white. */
@@ -7856,6 +7959,19 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
   const RADIUS = [2.5, 3.5, 6], DUSTS = 190;          // a leaf, a group, the root (px at the usual scale); background specks
   const GLOW = [36, 46, 56], TINY = 20, TINY_TILT = 16;   // the widest glow of each, px (a lone star is not a floodlight); up to where a tree is tiny, and how much higher the camera stands over a handful (degrees)
   const WIDTHS = [.55, .8, 1.25, 4.5, 1.9, 2.7];      // a hairline, a twig, a limb, a band of glow, a bough, the trunk (px)
+  const THICK = [.65, .75, .85, .94, 1.04, 1.14];     // a line of the tree is finer far from the eye and broader near it: six steps, too small to be seen as steps
+  const SIZE = 1.1;                                   // how much of the perspective a star's size shows: a near star is twice a far one, which tells depth now that brightness tells the state
+  /* The names in space. long, short, tight: the lengths a name is written in, columns (tight: a group's last
+     resort); most: how many at most; tuft: how far out a group's leaves may stand for its name to stand outside
+     them, px (farther out it would read as a leaf's name); gap, beside: the least room between two names' boxes, one above the other and side by side, px, for a name that
+     takes a place and for one that keeps its place (a name is 11 px tall in a box of 15: 7 px between boxes is a
+     line and a half); fade: how fast a name goes and comes, a second; ahead: the seconds on at which a place taken
+     in a turning sky must still be free; rest: the frames one without a place waits before it looks again. */
+  const NAMES = {long: 46, short: 30, tight: 20, most: 20, tuft: 84, gap: [7, 4], beside: [10, 6], fade: [12, 7], ahead: [.8, 1.6, 2.4], rest: 5};
+  const LOTS = [[0, 0], [1, 0], [0, 1], [0, 2], [1, 2], [2, 0]];     // the lots of seats: [where (0 beside the point, 1 outside its tuft, 2 along its limb), what the name may lie over (0 nothing, 1 its own lines, 2 any line)]
+  const TRIES = [[0, 0], [0, 1], [1, 0], [1, 1], [2, 0], [2, 1], [0, 2], [1, 2], [2, 2], [3, 1], [3, 2], [4, 1], [4, 2], [5, 1], [5, 2]];     // the order a name looks for a place in: [lot, form (0 long, 1 short, 2 tight)]
+  const SEATS = 10;                                   // the seats in a lot (the lots along a limb use six of them)
+  const HEART = [1.3, .5];                           // a leaf's firm heart: its size in the leaf's radii, and its strength against the leaf's glow
   const EMPTY = {root: null, nodes: [], byId: bare(), relations: []};
   const signed = typeof WeakMap === "function" ? new WeakMap() : null;
   function sign(tree) {
@@ -7917,14 +8033,18 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
       return kept;
     }
 
-    function sprite(name) {
-      if (name in sprites) return sprites[name];
+    /* A sprite of that name; `firm`: the same light as a disc with a short soft edge and no skirt, the heart that
+       tells a leaf from the small stars round it. */
+    function sprite(name, firm) {
+      const slot = firm ? name + "." : name;
+      if (slot in sprites) return sprites[slot];
       const spec = SPRITES[name], rim = spec.rim.split(","), core = (spec.core || spec.rim).split(",");
       let made = null;
       try {
         made = doc.createElement("canvas"); made.width = made.height = 64;
         const g = made.getContext("2d"), fill = g.createRadialGradient(32, 32, 0, 32, 32, 32);
-        const stops = spec.bell ? [0, 1, 2, 3, 4, 5, 6, 7, 8].map(o => [o / 8, .6 * (Math.exp(-4 * (o / 8) ** 2) - Math.exp(-4)) / (1 - Math.exp(-4))])
+        const stops = firm ? [[0, 1], [.42, 1], [.7, .45], [1, 0]]
+          : spec.bell ? [0, 1, 2, 3, 4, 5, 6, 7, 8].map(o => [o / 8, .6 * (Math.exp(-4 * (o / 8) ** 2) - Math.exp(-4)) / (1 - Math.exp(-4))])
           : [[0, 1], [.11, .74], [.26, .27], [.5, .07], [1, 0]];
         for (const [at, alpha] of stops) {
           const t = Math.min(1, at / .3);       // the heart's color gives way to the rim's three tenths of the way out
@@ -7932,24 +8052,25 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
         }
         g.fillStyle = fill; g.fillRect(0, 0, 64, 64);
       } catch (error) { made = null; }          // no second canvas to be had: stamp() draws plain discs instead
-      return sprites[name] = made;
+      return sprites[slot] = made;
     }
-    function stamp(name, x, y, half, alpha) {
+    function stamp(name, x, y, half, alpha, firm) {
       if (!(alpha >= .004) || !(half > .15)) return;
-      const img = sprite(name);
+      const img = sprite(name, firm);
       ctx.globalAlpha = Math.min(1, alpha);
       if (img) { ctx.drawImage(img, x - half, y - half, half * 2, half * 2); return; }
       ctx.fillStyle = "rgb(" + SPRITES[name].rim + ")"; ctx.beginPath(); ctx.arc(x, y, Math.max(.5, half * .2), 0, TAU); ctx.fill();
     }
     /* Lines are gathered by ink, strength and width and each lot is stroked once: 0 a straight line, 1 a curve, 2 an
        elbow, 3 a bowed line, 4 a ring, 5 a run of straight pieces. Six widths: a hairline, a twig (to a leaf), a limb
-       (to a group), a band of glow, a bough and the trunk (to a group that holds a good part, or most, of the tree). */
-    function pen(name, alpha, wide) {
+       (to a group), a band of glow, a bough and the trunk (to a group that holds a good part, or most, of the tree);
+       `thick` (a step of THICK) makes a line of the tree finer or broader by its distance from the eye. */
+    function pen(name, alpha, wide, thick) {
       const level = Math.round(clamp(alpha, 0, 1) * 40);
       if (level < 1) return null;
-      const key = INKS.indexOf(name) * 1000 + wide * 100 + level;
+      const step = thick === undefined ? -1 : thick, key = (INKS.indexOf(name) * 10 + step + 1) * 1000 + wide * 100 + level;
       let lot = pens.get(key);
-      if (!lot) pens.set(key, lot = {name, alpha: level / 40, wide, data: []});
+      if (!lot) pens.set(key, lot = {name, alpha: level / 40, wide, broad: step < 0 ? 1 : THICK[step], data: []});
       return lot.data;
     }
     function stroke() {
@@ -7958,7 +8079,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
       for (const lot of pens.values()) {
         const d = lot.data;
         if (!d.length) continue;
-        ctx.strokeStyle = "rgba(" + LIGHT[lot.name] + "," + lot.alpha + ")"; ctx.lineWidth = WIDTHS[lot.wide] * hair; ctx.beginPath();
+        ctx.strokeStyle = "rgba(" + LIGHT[lot.name] + "," + lot.alpha + ")"; ctx.lineWidth = WIDTHS[lot.wide] * lot.broad * hair; ctx.beginPath();
         for (let i = 0; i < d.length;) {
           const kind = d[i];
           if (kind === 0) { ctx.moveTo(d[i + 1], d[i + 2]); ctx.lineTo(d[i + 3], d[i + 4]); i += 5; }
@@ -8007,12 +8128,15 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
           wide = Math.max(wide, (Math.abs(xr) + halo) * k); up = Math.max(up, (yt + halo) * k); down = Math.max(down, (halo - yt) * k);
         }
       }
-      // The middle of the scene's height stands at the middle of the stage, however it is turned; the root is off it by `lift`.
-      // A tiny tree is a small figure in the middle of the stage, not three points at its edges: its scale is held
-      // back, less with every capability more, and not at all from `TINY` capabilities on.
+      /* What the scene reaches upward and downward over a whole turn is not alike: what is near the eye is drawn
+         larger and, seen from above, lower. The middle of that reach, not the middle of the layout's height,
+         stands at the middle of the stage, so a scene is not held small by its low side while sky is left over
+         above it. (`lift`, the layout's own middle, is the fallback for a reach that is no number.)
+         A tiny tree is a small figure in the middle of the stage, not three points at its edges: its scale is held
+         back, less with every capability more, and not at all from `TINY` capabilities on. */
       const many = Math.max(1, ids.length), side = Math.min(aw, ah);
       const most = many >= TINY ? Infinity : many === 1 ? .42 * side : Math.max(130, (.24 + .018 * many - .02 * Math.max(0, 4 - many) + .0016 * Math.max(0, many - 6) ** 2) * side);
-      const lift = (low + high) / 2 * ct, s = Math.min(aw / 2 / wide, ah / 2 / Math.max(.08, up - lift), ah / 2 / Math.max(.08, down + lift), side * .95, most);
+      const lift = finite((up - down) / 2, (low + high) / 2 * ct), s = Math.min(aw / 2 / wide, ah / 2 / Math.max(.08, up - lift), ah / 2 / Math.max(.08, down + lift), side * .95, most);
       // crowd: the stars of a big repository are drawn smaller, so that three hundred are still points, and those of a
       // small one larger, so that five are not lost.
       return {s, cx: pad.left + aw / 2, cy: pad.top + ah / 2 + lift * s, crowd: many < 48 ? Math.min(2.2, Math.pow(48 / many, .45)) : Math.max(.6, Math.pow(48 / many, .3))};
@@ -8083,7 +8207,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
         let rec = recOf[id];
         const fresh = !rec;
         if (fresh) rec = recOf[id] = {id, v0: new Float32Array(CHANNELS), v1: new Float32Array(CHANNELS), so0: new Float32Array(0), so1: new Float32Array(0), n0: 0, n1: 0,
-          lookA: "", lookB: "", lt: -1e9, ld: LOOK_DUR, gap0: 0, gap1: 0, live0: 0, live1: 0, beat: (seedOf(id) % 628) / 100, name: 0, tw: -1, gd: 0, x: 0, y: 0, r: 0, room: 0};
+          lookA: "", lookB: "", lt: -1e9, ld: LOOK_DUR, gap0: 0, gap1: 0, live0: 0, live1: 0, beat: (seedOf(id) % 628) / 100, name: 0, tw: -1, form: 0, rest: 0, old: null, hub: false, falls: false, heft: 1, vx: 0, vy: 0, gd: 0, x: 0, y: 0, r: 0, room: 0};
         rec.node = node; rec.kind = id === t.root ? 2 : node.leaf ? 0 : 1; rec.gone = false; rec.fresh = fresh;
         // Its line to its parent: bowed a little, always the same way; as broad as what hangs from it (a twig, a limb,
         // a bough, the trunk); and a twig among very many is fainter, so two hundred of them are not a fan of light.
@@ -8092,6 +8216,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
         rec.wide = node.leaf ? 1 : part > .5 ? 5 : part > .22 ? 4 : 2;
         rec.twig = node.leaf ? clamp(1.12 - siblings / 110, .5, 1) : 1;
         rec.lag = instant ? 0 : Math.min(.32, node.depth * .06);
+        rec.heft = kin.weight[id] || 1;                // the leaves it holds in what is drawn
         const v1 = rec.v1, p = three && (!keep || keep.has(id)) ? shape.lay.pos[id] : null;
         if (three) {
           if (p) { v1[WX] = p[0] / ext; v1[WY] = p[1] / ext; v1[WZ] = p[2] / ext; shell(rec, shape.lay, id, share[id] || 0); }
@@ -8143,14 +8268,30 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
       if (hovered !== null && (!recOf[hovered] || recOf[hovered].gone)) hover(null);
       return true;
     }
-    // Each record's look from the states: the white cloud with none, the two looks of a choice in the flat tree.
+    /* Each record's look from the states: the white cloud with none, the two looks of a choice in the flat tree.
+       A capability the states have no entry for shows what its children show: the least advanced of them (those
+       out of scope aside), and a failure whenever one of them failed, since a failure always shows. So the made-up
+       root above several roots, which the page knows nothing of, is green when the tree under it is. It gets no
+       ring: a group does not repeat its leaves'. An entry the page does give is never overruled. */
     function dress(instant) {
-      const s = scene.states, choosing = scene.mode === "2d" && !s && scene.keep, quick = instant || calm();
+      const s = scene.states, choosing = scene.mode === "2d" && !s && scene.keep, quick = instant || calm(), known = bare();
+      const shows = id => {
+        if (id in known) return known[id];
+        const entry = stateOf(id), state = entry && entry.state, node = scene.tree.byId[id];
+        if (entry) return known[id] = state === "out" || state === "fail" || typeof ADVANCE[state] === "number" ? state : "dim";
+        let least = null, failed = false;
+        known[id] = "dim";
+        for (const child of (node && node.children) || []) {
+          const one = shows(child);
+          if (one === "fail") failed = true;
+          else if (one !== "out" && (least === null || ADVANCE[one] < ADVANCE[least])) least = one;
+        }
+        return known[id] = failed ? "fail" : least || "dim";
+      };
       for (const rec of recs) {
         if (rec.gone) continue;
-        const entry = stateOf(rec.id), state = entry && entry.state;
-        const look = !s ? (choosing ? (scene.keep.has(rec.id) ? "picked" : "unpicked") : "cloud")
-          : state === "ready" || state === "wrote" || state === "pass" || state === "fail" ? state : "dim";
+        const entry = stateOf(rec.id), state = s ? shows(rec.id) : "";
+        const look = !s ? (choosing ? (scene.keep.has(rec.id) ? "picked" : "unpicked") : "cloud") : state === "out" ? "dim" : state;
         const gap = s && entry && entry.gap ? 1 : 0, live = s && entry && entry.live ? 1 : 0;
         if (look === rec.lookB && gap === rec.gap1 && live === rec.live1) { rec.fresh = false; continue; }
         const mix = mixOf(rec);
@@ -8196,7 +8337,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
       }
 
       // Every capability: where it is on the stage, how near, how much of it there is.
-      const wave = cel && !still ? (T - cel.t0) / CEL * 1.2 : -1;
+      const wave = cel && !still ? (T - cel.t0) / CEL * 1.2 : -1, drift = step > 0 ? spin * deep : 0;
       for (const rec of recs) {
         const e = progress(rec), v0 = rec.v0, v1 = rec.v1;
         const x = v0[WX] + (v1[WX] - v0[WX]) * e, y = v0[WY] + (v1[WY] - v0[WY]) * e, z = v0[WZ] + (v1[WZ] - v0[WZ]) * e;
@@ -8205,10 +8346,11 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
         const inn = v0[IN] + (v1[IN] - v0[IN]) * e, sh = v0[SH] + (v1[SH] - v0[SH]) * e, life = v0[LIFE] + (v1[LIFE] - v0[LIFE]) * e;
         rec.e = e; rec.cx = xr; rec.cy = yt; rec.cz = zt; rec.px = px; rec.py = py; rec.k = k; rec.inn = inn;
         rec.x = px + (ox + v0[FX] + (v1[FX] - v0[FX]) * e - px) * m; rec.y = py + (oy + v0[FY] + (v1[FY] - v0[FY]) * e - py) * m;
+        rec.vx = zr * S * k * drift; rec.vy = -xr * st * S * k * drift;      // how fast the turning carries it across the stage, px a second
         rec.vis = life * (1 - m * (1 - sh));
         rec.near = clamp(.5 + zt * .5, 0, 1);
-        rec.b = 1 + (.5 + .7 * rec.near - 1) * deep;                    // far: half as bright; near: a fifth brighter
-        rec.r = RADIUS[rec.kind] * unit * (1 + (k - 1) * .8) * (.38 + .62 * inn);
+        rec.b = 1 + (depthOf(rec.near) - 1) * deep;                     // by its distance alone (a look shows a part of it): far, half as bright; near, a fifth brighter
+        rec.r = RADIUS[rec.kind] * unit * (1 + (k - 1) * SIZE) * (.38 + .62 * inn);
         rec.shown = !rec.gone && v1[IN] > .5 && inn > .5 && rec.vis > .5;
         rec.mix = mixOf(rec);
         const s = wave - rec.gd;
@@ -8225,7 +8367,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
       }
 
       /* The tree's lines, each in its child's look. In space a line is a gentle curve, broad for the trunk and the
-         boughs and fine for a twig, and fainter the farther it is from the eye. In the flat tree the lines are the
+         boughs and fine for a twig, and finer and a little fainter the farther it is from the eye. In the flat tree the lines are the
          layout's hairlines (below); a layout that gives none gets a curve from each parent to each child. */
       const hairs = plan && Array.isArray(plan.lines) ? plan.lines : null;
       for (const rec of recs) {
@@ -8233,16 +8375,18 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
         if (!parent) continue;
         const sh = rec.v0[SH] + (rec.v1[SH] - rec.v0[SH]) * rec.e, base = Math.min(rec.inn, parent.inn) * rec.vis * parent.vis * (1 - m * (1 - sh));
         if (base < .01) continue;
-        const depth = (rec.b + parent.b) / 2 * thin * rec.twig, wide = rec.wide, dx = rec.x - parent.x, dy = rec.y - parent.y, lit = rec.flash * .6;
+        const far = (rec.b + parent.b) / 2, slight = thin * rec.twig, wide = rec.wide, dx = rec.x - parent.x, dy = rec.y - parent.y, lit = rec.flash * .6;
+        const thick = clamp(Math.round((far - DEPTH[0]) / (DEPTH[1] - DEPTH[0]) * (THICK.length - 1)), 0, THICK.length - 1);
         const bow = rec.bow * deep, qx = (parent.x + rec.x) / 2 - dy * bow, qy = (parent.y + rec.y) / 2 + dx * bow;
         for (let side = 0; side < 2; side++) {
           const weight = side ? rec.mix : 1 - rec.mix, look = LOOKS[side ? rec.lookB : rec.lookA];
           if (weight < .01 || !look) continue;
-          const a3 = pen(look.line, look.la * base * weight * depth * deep, wide), a2 = m > .01 && !hairs ? pen(look.line, look.la * base * weight * m, 0) : null;
+          const depth = shade(look, far, true) * slight;
+          const a3 = pen(look.line, look.la * base * weight * depth * deep, wide, thick), a2 = m > .01 && !hairs ? pen(look.line, look.la * base * weight * m, 0) : null;
           if (a3) a3.push(3, parent.x, parent.y, qx, qy, rec.x, rec.y);
           const band = look.halo ? pen(look.line, look.halo * base * weight * depth * deep, 3) : null;
           if (band) band.push(3, parent.x, parent.y, qx, qy, rec.x, rec.y);
-          const over = look.over ? pen(look.over, look.oa * base * weight * depth * deep, wide) : null;
+          const over = look.over ? pen(look.over, look.oa * base * weight * depth * deep, wide, thick) : null;
           if (over) over.push(3, parent.x, parent.y, qx, qy, rec.x, rec.y);
           if (!a2) continue;
           if (dx < 46) a2.push(2, parent.x, parent.y + parent.r + 3, parent.x, rec.y, rec.x - rec.r - 3, rec.y);
@@ -8276,15 +8420,15 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
           const xr = rec.cx + dx * cr + dz * sr, zr = -dx * sr + dz * cr, yt = rec.cy + dy * ct - zr * st, zt = rec.cz + dy * st + zr * ct;
           const k = 1 + (EYE / (EYE - Math.min(2.2, zt)) - 1) * deep, sx = rec.x + CX + xr * S * k - rec.px, sy = rec.y + CY - yt * S * k - rec.py;
           const twinkle = still ? 1 : 1 + .2 * Math.sin(T * (1.1 + (j % 7) * .17) + j * 2.4 + rec.beat);     // each small star flickers a little, at its own pace
-          const size = (j % 3 ? 4.6 : 6) * unit * k, strength = base * fade * rec.b * twinkle;
+          const size = (j % 3 ? 4.6 : 6) * unit * k, strength = base * fade * twinkle;
           for (let side = 0; side < 2; side++) {
             const weight = side ? rec.mix : 1 - rec.mix, look = LOOKS[side ? rec.lookB : rec.lookA];
             if (weight < .01 || !look) continue;
-            const d = pen(look.line, Math.min(.3, look.la) * .42 * strength * weight, 0);
+            const lit = strength * weight * shade(look, rec.b, true), d = pen(look.line, Math.min(.3, look.la) * .42 * lit, 0);
             if (d) d.push(0, rec.x, rec.y, sx, sy);
-            stamp(look.sat, sx, sy, size, look.sa * strength * weight * (1 + rec.flash));
+            stamp(look.sat, sx, sy, size, look.sa * lit * (1 + rec.flash));
           }
-          if (rec.flash > .05) stamp("hot", sx, sy, size * 1.3, rec.flash * strength * .7);
+          if (rec.flash > .05) stamp("hot", sx, sy, size * 1.3, rec.flash * strength * rec.b * .7);
         }
       }
 
@@ -8313,27 +8457,60 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
           const weight = side ? rec.mix : 1 - rec.mix, name = side ? rec.lookB : rec.lookA, look = LOOKS[name];
           if (weight < .01 || !look) continue;
           const spot = name === "pass" && rec.kind === 2 ? "crown" : look.spot;
-          const alpha = lerp(.24, look.a * rec.b, rec.inn) * rec.vis * weight * (1 + live * (.5 * beat - .2)), wide = half * lerp(.6, look.g, rec.inn) * (1 + live * .18 * beat);
+          const alpha = lerp(.24, look.a * shade(look, rec.b), rec.inn) * rec.vis * weight * (1 + live * (.5 * beat - .2)), wide = half * lerp(.6, look.g, rec.inn) * (1 + live * .18 * beat);
           stamp(spot, rec.x, rec.y, wide, alpha);
           if (rec.kind && rec.inn > .5) stamp(spot, rec.x, rec.y, wide * .5, alpha * .7);       // a group and the root have a fuller heart
+          else if (rec.inn > .5) stamp(spot, rec.x, rec.y, rec.r * HEART[0], alpha * HEART[1] * deep, true);     // and a leaf, in space, a firm one: the one point of its tuft that is no small star
           if (live > .02) stamp(spot, rec.x, rec.y, wide * (1.15 + .4 * beat), alpha * .3 * live * beat);
         }
         if (rec.flash > .02) stamp("hot", rec.x, rec.y, half * (1.3 + 1.2 * rec.flash), rec.flash * rec.vis);
         if (rec.id === hovered && rec.shown) stamp("star", rec.x, rec.y, half * 1.4, .22);
       }
 
-      /* The names: the root's always, then those of the groups nearest the eye (the first level before the deeper
-         ones, the heavy before the light; on a small tree the leaves' too), more of them on a big tree and a wide
-         stage. A name stands beside its point, or outside its tuft of leaves, on the first side where it lies over
-         no star, no line and no other name and is whole on the stage; one that finds no such place is not written.
-         A name that is being shown keeps its side while only a twig passes behind it, so names do not flicker as
-         the sky turns. */
+      /* The names: the root's always; then those of the groups that hang from the root, the heaviest first, so that
+         the hub of the largest cluster is never the one left without a name; then the deeper groups and, on a small
+         tree, the leaves: in a turning sky those that are shown before those that are not, and the nearest the eye first.
+         More of them on a big tree and a wide stage. A name is written whole or cut after a word at NAMES.long
+         columns where that fits, and at NAMES.short where it does not. It stands beside its point, or outside its
+         tuft of leaves, in the first seat where it lies over no star, no line and no other name, keeps a readable
+         gap to every other name and is whole on the stage (a group's, if it must be, over the lines to its own
+         children); one that finds no such place is not written.
+         A name that is shown keeps its side and its form while only a twig passes behind it. As the sky turns, a
+         name takes only a place that stays free for the next seconds; one that must move fades out where it stood
+         while it comes in at its new place; and no name comes in where another is still to be seen. So names
+         neither jump nor flicker between their two forms, and no faint name is ever squeezed between two others. */
       if (deep > .02 && opt.names !== false) {
-        const stars = recs.filter(rec => rec.shown), count = stars.length, total = Math.max(1, stars.reduce((sum, rec) => sum + (rec.kind === 0 ? 1 : 0), 0));
-        const most = count <= 7 ? count : W < 600 ? 5 : count <= 40 ? 14 : Math.round(clamp(8 + count / 25, 8, 20)), taken = [];
-        const named = stars.filter(rec => rec.node.label && (rec.kind > 0 || count <= 40));
-        for (const rec of named) { rec.rank = rec.kind === 2 ? 9 : rec.near + (rec.kind ? .6 : 0) + (rec.node.depth <= 1 ? .35 : 0) + .5 * Math.sqrt(rec.node.weight / total) + (rec.name > .5 ? .25 : 0); rec.tuft = 0; }
-        for (const rec of stars) { const parent = rec.kind === 0 && rec.up != null ? recOf[rec.up] : null; if (parent && parent.shown) parent.tuft = Math.max(parent.tuft || 0, Math.hypot(rec.x - parent.x, rec.y - parent.y)); }
+        const stars = recs.filter(rec => rec.shown), count = stars.length, leaves = Math.max(1, stars.reduce((sum, rec) => sum + (rec.kind === 0 ? 1 : 0), 0));
+        const narrow = W < 600, most = count <= 7 ? count : narrow ? 5 : Math.min(count <= 40 ? NAMES.most : Math.round(clamp(8 + count / 25, 8, NAMES.most)), Math.round(W / 72));
+        const named = stars.filter(rec => rec.node.label && (rec.kind > 0 || count <= 40)), taken = [], ghosts = [], live = step > 0, tall = fontSize / 2 + 2;
+        ctx.font = font; ctx.textBaseline = "middle"; ctx.textAlign = "left";
+        try { ctx.letterSpacing = ".03em"; } catch (error) { /* an older canvas has no letter spacing */ }
+        for (const rec of named) {
+          const up = rec.up != null ? recOf[rec.up] : null;
+          rec.seen = rec.name > .03 && rec.lx !== undefined;
+          rec.rank = rec.kind === 2 ? 9 : rec.kind && up && up.kind === 2 ? 6 + rec.heft / leaves
+            : rec.near + (live && rec.seen ? 1 : 0) + (rec.kind ? 3 + .5 * Math.sqrt(rec.heft / leaves) : .3 * Math.min(1, rec.node.sats / 60));
+          rec.tuft = 0;
+          rec.hub = rec.kind === 2 || !!(rec.kind && up && up.kind === 2);
+          if (rec.tw < 0 || rec.said !== rec.node.label) {
+            // Its forms (long, short, and for a group a last, tight one) and how wide each is written: measured
+            // again when the font or the name changes. A narrow stage has no room for the long one.
+            const short = brief(rec.node.label, NAMES.short);
+            rec.said = rec.node.label; rec.forms = [narrow ? short : brief(rec.node.label, NAMES.long), short, rec.kind ? brief(rec.node.label, NAMES.tight) : short];
+            rec.tws = rec.forms.map(form => finite(ctx.measureText(form).width, form.length * fontSize * .62));
+            rec.tw = rec.tws[0];
+          }
+          // What is still to be seen of the names of the frame before: each that stands, and each that fades where it stood.
+          if (live && rec.seen) ghosts.push([rec.lx - 2, rec.ly - tall, rec.lx + rec.lw + 2, rec.ly + tall, rec.vx, rec.vy]);
+          if (live && rec.old) ghosts.push([rec.old.x - 2, rec.old.y - tall, rec.old.x + rec.old.w + 2, rec.old.y + tall, NaN, NaN]);
+        }
+        for (const rec of stars) rec.brood = 0;
+        for (const rec of stars) {
+          const parent = rec.up != null ? recOf[rec.up] : null;
+          if (!parent || !parent.shown) continue;
+          parent.brood++;
+          if (rec.kind === 0) parent.tuft = Math.max(parent.tuft || 0, Math.hypot(rec.x - parent.x, rec.y - parent.y));
+        }
         named.sort((p, q) => q.rank - p.rank);
         // Whether the line a-b passes through the box.
         const cuts = (ax, ay, bx, by, x0, y0, x1, y1) => {
@@ -8344,51 +8521,130 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
           if (dy) { const a = (y0 - ay) / dy, b = (y1 - ay) / dy; t0 = Math.max(t0, Math.min(a, b)); t1 = Math.min(t1, Math.max(a, b)); }
           return t0 <= t1;
         };
-        const clear = (self, x0, y0, x1, y1, held, own) => {
+        /* Whether the name of `self` may stand in that box, now (`dt` 0) or `dt` seconds on, when everything has
+           moved on with the turning. `held`: it stands there already, so a twig may pass behind it, and beside
+           another name that stands it need keep only the smaller gap. `over` 1: it may lie over its own lines (to
+           its children and to its parent); 2: over any line. Never over a star or another name. */
+        const clear = (self, x0, y0, x1, y1, held, over, dt) => {
           if (x0 < 4 + inset.left || y0 < 4 + inset.top || x1 > W - 4 - inset.right || y1 > H - 4 - inset.bottom) return false;
-          for (const box of taken) if (x0 < box[2] + 7 && x1 > box[0] - 7 && y0 < box[3] + 3 && y1 > box[1] - 3) return false;
+          const mx = self.vx * dt, my = self.vy * dt;       // the others move against the box, which stays with its own point
+          for (const box of taken) {
+            const g = held && !box[4] ? 1 : 0, gx = NAMES.beside[g], gy = NAMES.gap[g], bx = box[5] * dt - mx, by = box[6] * dt - my;
+            if (x0 < box[2] + bx + gx && x1 > box[0] + bx - gx && y0 < box[3] + by + gy && y1 > box[1] + by - gy) return false;
+          }
           for (const rec of stars) {
-            const r = rec.r + (held ? 0 : 2);
-            if (rec.x > x0 - r && rec.x < x1 + r && rec.y > y0 - r && rec.y < y1 + r) return false;
-            const parent = rec.up != null ? recOf[rec.up] : null;
-            if (parent && parent.shown && !(rec.kind === 0 && (held || (own && parent === self))) && cuts(parent.x, parent.y, rec.x, rec.y, x0, y0, x1, y1)) return false;
+            const r = rec.r + (held ? 0 : 2), x = rec.x + rec.vx * dt - mx, y = rec.y + rec.vy * dt - my;
+            if (x > x0 - r && x < x1 + r && y > y0 - r && y < y1 + r) return false;
+            const parent = over < 2 && rec.up != null ? recOf[rec.up] : null;
+            if (parent && parent.shown && !(rec.kind === 0 && held) && !(over && (parent === self || rec === self)) && cuts(parent.x + parent.vx * dt - mx, parent.y + parent.vy * dt - my, x, y, x0, y0, x1, y1)) return false;
           }
           return true;
         };
-        ctx.font = font; ctx.textBaseline = "middle"; ctx.textAlign = "left";
-        try { ctx.letterSpacing = ".03em"; } catch (error) { /* an older canvas has no letter spacing */ }
+        // Whether a name that is still to be seen is within the gap of that box; `dt` seconds on, only those that stand.
+        const haunted = (self, x0, y0, x1, y1, dt) => {
+          const gx = NAMES.beside[0], gy = NAMES.gap[0], mx = self.vx * dt, my = self.vy * dt;
+          for (const box of ghosts) {
+            if (dt > 0 && !(box[4] === box[4])) continue;
+            const bx = dt > 0 ? box[4] * dt - mx : 0, by = dt > 0 ? box[5] * dt - my : 0;
+            if (x0 < box[2] + bx + gx && x1 > box[0] + bx - gx && y0 < box[3] + by + gy && y1 > box[1] + by - gy) return true;
+          }
+          return false;
+        };
+        // Whether a place found free now stays free while the sky turns on: nothing drifts into it in the next seconds.
+        const lasts = (self, x0, y0, x1, y1, over) => {
+          for (const dt of NAMES.ahead) if (!clear(self, x0, y0, x1, y1, false, over, dt) || haunted(self, x0, y0, x1, y1, dt)) return false;
+          return true;
+        };
+        /* Where a name of that width stands in a seat of its point (into seatX, seatY). Ten seats: right and left of
+           the point, a little above its middle (0, 1) and a little below (2, 3); above and below it, centred (4, 5),
+           starting at it (6, 8) and ending at it (7, 9). Six lots of them (LOTS): beside the point; outside its
+           tuft of leaves, when that is not far; beside the point again, over its own lines if it must be; and, for
+           the root's groups alone, whose hubs stand in the thick of their clusters: beside the point and outside
+           the tuft over any line, and last along the limb that leads to it from the root, in the open sky between
+           the two (six seats: three places on the limb, above it and below it, a corner of the name at the limb so
+           that the limb leads away from it; which corner turns over as the limb turns past the level, noted in
+           seatFalls, so a name that stands there does not leap across but gives the seat up). false: no such seat. */
+        let seatX = 0, seatY = 0, seatFalls = false;
+        const seat = (rec, at, wide) => {
+          const lot = (at / SEATS) | 0, pos = at % SEATS, far = LOTS[lot][0] === 1, out = far ? (rec.tuft || 0) + 9 : rec.r + 7;
+          seatFalls = false;
+          if (LOTS[lot][0] === 2) {
+            const parent = rec.up != null ? recOf[rec.up] : null;
+            if (!parent || !parent.shown || pos > 5) return false;
+            const t = .7 - .14 * (pos >> 1), g = 1 - t, dx = rec.x - parent.x, dy = rec.y - parent.y, bow = rec.bow * deep, falls = dx * dy >= 0, below = pos % 2 === 1;
+            const qx = (parent.x + rec.x) / 2 - dy * bow, qy = (parent.y + rec.y) / 2 + dx * bow;
+            seatFalls = falls;
+            seatX = g * g * parent.x + 2 * g * t * qx + t * t * rec.x + (falls === below ? -wide - 3 : 3);
+            seatY = g * g * parent.y + 2 * g * t * qy + t * t * rec.y + (below ? tall + 5 : -tall - 5);
+            return true;
+          }
+          if (far && (!(rec.tuft > 0 && rec.tuft <= NAMES.tuft) || pos === 2 || pos === 3)) return false;
+          seatX = pos < 4 ? (pos % 2 ? rec.x - out - wide : rec.x + out) : pos < 6 ? rec.x - wide / 2 : pos % 2 ? rec.x - wide + 6 : rec.x - 6;
+          seatY = pos < 2 ? rec.y - (far ? 0 : rec.r + 2) : pos < 4 ? rec.y + rec.r + 2 : pos === 4 || pos === 6 || pos === 7 ? rec.y - out - tall + 4 : rec.y + out + tall - 4;
+          return true;
+        };
         let written = 0;
         for (const rec of named) {
-          const label = rec.node.label.length > 30 ? rec.node.label.slice(0, 29) + "…" : rec.node.label, tall = fontSize / 2 + 2;
-          if (rec.tw < 0) rec.tw = finite(ctx.measureText(label).width, label.length * fontSize * .62);
-          // The sides to try: right, left, above, below, beside the point; then the same outside its tuft of leaves,
-          // when that is not far; then beside the point again, over its own twigs if it must be.
-          const held = rec.name > .5, first = held ? rec.side || 0 : 0;
-          let lx = 0, ly = 0, found = -1;
-          for (let n = 0; n < 12 && found < 0 && written < most; n++) {
-            const side = (first + n) % 12, far = side >= 4 && side < 8, out = far ? (rec.tuft || 0) + 9 : rec.r + 7;
-            if ((far && !(rec.tuft > 0 && rec.tuft <= 84)) || (side >= 8 && !(rec.tuft > 0))) continue;
-            const x = side % 4 === 0 ? rec.x + out : side % 4 === 1 ? rec.x - out - rec.tw : rec.x - rec.tw / 2;
-            const y = side % 4 === 2 ? rec.y - out - tall + 4 : side % 4 === 3 ? rec.y + out + tall - 4 : rec.y - (far ? 0 : rec.r + 2);
-            if (clear(rec, x - 2, y - tall, x + rec.tw + 2, y + tall, held && n === 0, side >= 8)) { found = side; lx = x; ly = y; }
+          const seen = rec.seen, root = rec.kind === 2;
+          let found = -1, form = 0, lx = 0, ly = 0, kept = false, quiet = false;
+          if (written < most || root) {
+            if (seen && seat(rec, rec.side, rec.tws[rec.form]) && seatFalls === rec.falls && clear(rec, seatX - 2, seatY - tall, seatX + rec.tws[rec.form] + 2, seatY + tall, true, LOTS[(rec.side / SEATS) | 0][1], 0)) {
+              found = rec.side; form = rec.form; lx = seatX; ly = seatY; kept = true;
+            }
+            // One without a place looks for one; in a turning sky one that found none looks again a few frames later, not in every frame.
+            if (found < 0 && !(live && !root && rec.rest > 0 && rec.rest--)) {
+              // In the order of TRIES: a leaf the first six (long and short, in the first three lots), a group the
+              // tight form too, a group of the root's the last three lots as well. A form that reads as one tried in that lot is not tried again.
+              let spare = -1, spareForm = 0, spareX = 0, spareY = 0, spareFalls = false;
+              const tries = rec.hub ? TRIES.length : rec.kind ? 9 : 6;
+              search: for (let n = 0; n < tries; n++) {
+                const lot = TRIES[n][0], f = TRIES[n][1], wide = rec.tws[f], over = LOTS[lot][1];
+                let tried = false;
+                for (let before = 0; before < n && !tried; before++) tried = TRIES[before][0] === lot && rec.forms[TRIES[before][1]] === rec.forms[f];
+                if (tried) continue;
+                for (let side = lot * SEATS; side < (lot + 1) * SEATS; side++) {
+                if (!seat(rec, side, wide)) continue;
+                const x0 = seatX - 2, y0 = seatY - tall, x1 = seatX + wide + 2, y1 = seatY + tall;
+                if (!clear(rec, x0, y0, x1, y1, false, over, 0)) continue;
+                if (live && (haunted(rec, x0, y0, x1, y1, 0) || !lasts(rec, x0, y0, x1, y1, over))) { if (spare < 0) { spare = side; spareForm = f; spareX = seatX; spareY = seatY; spareFalls = seatFalls; } continue; }
+                found = side; form = f; lx = seatX; ly = seatY; rec.falls = seatFalls;
+                break search;
+                }
+              }
+              /* No place that is free and stays free, but one that is free of every name before this one. One
+                 that is not seen takes it, and is written once the names that come after it have given way and
+                 nothing is seen there any more. One that is seen fades out first; the root's takes it at once. */
+              if (found < 0 && spare >= 0 && (!seen || root)) { found = spare; form = spareForm; lx = spareX; ly = spareY; rec.falls = spareFalls; quiet = haunted(rec, lx - 2, ly - tall, lx + rec.tws[form] + 2, ly + tall, 0); }
+              if (found < 0 && live) rec.rest = NAMES.rest + Math.round(rec.beat) % 3;
+            }
           }
-          if (found < 0 && rec.kind === 2) {      // the root is always named
-            found = 0; lx = clamp(rec.x + rec.r + 7, 4 + inset.left, Math.max(4 + inset.left, W - 4 - inset.right - rec.tw));
+          if (found < 0 && root) {      // the root is always named: where nothing is free, as near its point as the stage allows
+            found = 0; form = 1; kept = seen; rec.falls = false;
+            lx = clamp(rec.x + rec.r + 7, 4 + inset.left, Math.max(4 + inset.left, W - 4 - inset.right - rec.tws[form]));
             ly = clamp(rec.y - rec.r - 2, inset.top + tall + 4, Math.max(inset.top + tall + 4, H - inset.bottom - tall - 4));
           }
-          const want = found < 0 ? 0 : 1;
-          if (want) { taken.push([lx - 2, ly - tall, lx + rec.tw + 2, ly + tall]); written++; rec.side = found; rec.lx = lx; rec.ly = ly; }
-          rec.name = step > 0 ? rec.name + (want - rec.name) * Math.min(1, step * 7) : want;
+          const want = found >= 0 && !quiet ? 1 : 0;
+          if (found >= 0) {
+            // One that is seen and moves: what stood fades out where it stood, and the name comes in at its new place.
+            if (seen && !kept && live) { rec.old = {x: rec.lx, y: rec.ly, w: rec.lw, label: rec.forms[rec.form], a: rec.name}; rec.name = 0; }
+            rec.side = found; rec.form = form; rec.lx = lx; rec.ly = ly; rec.lw = rec.tws[form]; rec.rest = 0;
+            taken.push([lx - 2, ly - tall, lx + rec.lw + 2, ly + tall, !kept, rec.vx, rec.vy]); written++;
+          }
+          rec.name = live ? rec.name + (want - rec.name) * Math.min(1, step * NAMES.fade[want]) : want;
+          if (rec.old) { rec.old.a = live ? rec.old.a * (1 - Math.min(1, step * NAMES.fade[0])) : 0; if (rec.old.a < .03) rec.old = null; }
           rec.want = true;
-          if (rec.name < .03 || rec.lx === undefined) continue;
-          const ink = Math.min(1, rec.name * deep * rec.vis * (.72 + .28 * rec.near));
-          ctx.globalCompositeOperation = "destination-out"; ctx.globalAlpha = Math.min(1, ink * 1.1); ctx.lineWidth = 4; ctx.lineJoin = "round";
-          ctx.strokeText(label, rec.lx, rec.ly);                 // what lies behind a name is taken away: its dark edge
-          ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha = ink;
-          ctx.fillStyle = "rgb(" + LIGHT[(LOOKS[rec.lookB] || LOOKS.dim).name] + ")";
-          ctx.fillText(label, rec.lx, rec.ly);
+          const far = deep * rec.vis * (.72 + .28 * rec.near), paint = rec.lx !== undefined && rec.name >= .03;
+          for (let copy = rec.old ? 0 : 1; copy < 2; copy++) {
+            if (copy && !paint) continue;
+            const label = copy ? rec.forms[rec.form] : rec.old.label, ink = Math.min(1, (copy ? rec.name : rec.old.a) * far), x = copy ? rec.lx : rec.old.x, y = copy ? rec.ly : rec.old.y;
+            ctx.globalCompositeOperation = "destination-out"; ctx.globalAlpha = Math.min(1, ink * 1.1); ctx.lineWidth = 4; ctx.lineJoin = "round";
+            ctx.strokeText(label, x, y);                 // what lies behind a name is taken away: its dark edge
+            ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha = ink;
+            ctx.fillStyle = "rgb(" + LIGHT[(LOOKS[rec.lookB] || LOOKS.dim).name] + ")";
+            ctx.fillText(label, x, y);
+          }
         }
-        for (const rec of recs) { if (!rec.want) rec.name = 0; rec.want = false; }
+        for (const rec of recs) { if (!rec.want) { rec.name = 0; rec.old = null; } rec.want = false; }
       }
       ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
       if (cel && T - cel.t0 > CEL + 1.8) cel = null;
@@ -8542,13 +8798,13 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
       // The capability nearest (x, y), CSS px from the canvas's corner, within reach; never a small star, never dust.
       pick,
       /* Where each capability was drawn in the frame last drawn, CSS px from the canvas's corner: its middle, its
-         radius, whether it is part of the picture (shown), whether it is on the canvas (inside), and in the flat
-         tree how much room its name has to its right (w). */
+         radius, whether it is part of the picture (shown), whether it is on the canvas (inside), in the flat
+         tree how much room its name has to its right (w), and the look it is dressed in (a name of LOOKS). */
       places() {
         const out = bare();
         for (const rec of recs) {
           if (rec.gone) continue;
-          out[rec.id] = {x: rec.x, y: rec.y, r: rec.r, shown: !!rec.shown, inside: rec.x >= 0 && rec.x <= W && rec.y >= 0 && rec.y <= H, w: m1 ? rec.room : 0};
+          out[rec.id] = {x: rec.x, y: rec.y, r: rec.r, shown: !!rec.shown, inside: rec.x >= 0 && rec.x <= W && rec.y >= 0 && rec.y <= H, w: m1 ? rec.room : 0, look: rec.lookB};
         }
         return out;
       },
@@ -8604,7 +8860,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
     return view;
   }
 
-  const api = {LIGHT, LOOKS, tree, family, quota, layout3d, layout2d, folds, mount};
+  const api = {LIGHT, LOOKS, shine, brief, tree, family, quota, layout3d, layout2d, folds, mount};
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   root.NanolizeRunSky = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);
@@ -8692,10 +8948,13 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
     "Mapping the repository": "正在分析仓库", "Mapping the repository · step {n} of {of}: {step}": "正在分析仓库 · 第 {n} / {of} 步：{step}",
     "The run stopped before a job started. The detailed page says why.": "运行在作业开始前停下了。原因见详细页面。",
     "The host agent submits the scope: nobody is asked.": "范围由 host agent 提交，不需要任何人操作。",
-    "Selected {n}": "已选中 {n}", "{n} more below": "下面还有 {n} 个", "{name}, continued": "{name}（续）",
+    "Selected {n}": "已选中 {n}", "Selected {n} of {of}": "已选中 {n} / {of}", "{n} more below": "下面还有 {n} 个", "{name}, continued": "{name}（续）",
     "Delivered. Every kept capability passes its tests.": "已交付。保留的每个能力都通过了测试。", "Delivered.": "已交付。",
     "Delivered with gaps.": "已交付，但有缺口。",
     "{gap} of {leaves} capabilities cannot be fully verified.": "{leaves} 个能力中有 {gap} 个无法完整验证。",
+    " ({n} of {of} verified by nothing)": "（{of} 个里有 {n} 个没有被任何检查验证）",
+    "This run's function graph cannot be read right now, so there is nothing to draw. The detailed page shows the run step by step.":
+      "现在读不到这次运行的功能图，所以这里没有可画的内容。详细页按步骤显示这次运行。",
     "{fail} of {leaves} capabilities fail their tests.": "{leaves} 个能力中有 {fail} 个未通过测试。",
     "The detailed page says which.": "具体是哪些见详细页面。",
     "Delivered with failures: {fail} of {leaves} capabilities fail their tests.": "已交付，但有失败：{leaves} 个能力中 {fail} 个未通过测试。",
@@ -8901,15 +9160,16 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
   const starsOf = plan => list(record(plan).capabilities).reduce((sum, item) => sum + (whole(record(item).interface_total) || list(record(item).interface).length), 0);
 
   /* The bar's words: the stage, the percentage, and beside them the true counts of the kept leaves (how many
-     are selected, and of those how many have their tests ready, are written and pass), with how many fail and
+     are selected, of how many where some were left out, and of those how many have their tests ready, are written and pass), with how many fail and
      how many cannot be verified where there are any. Before a job there is nothing to count but the capabilities
      of the plan and the public classes and callables round them. `dots`: the look of each count's dot, which is
      the look of a capability in that state in the sky, so the counts are the sky's legend. */
   function barWords(progress, view, plan, given, catalog) {
     const m = modules(given), stage = record(progress.stage);
-    const c = Object.fromEntries(["leaves", "ready", "wrote", "pass", "fail", "gap"].map(key => [key, whole(record(progress.counts)[key])]));
+    const c = Object.fromEntries(["leaves", "all", "ready", "wrote", "pass", "fail", "gap"].map(key => [key, whole(record(progress.counts)[key])]));
     const known = record(plan).available === true, stars = starsOf(plan);
-    const counts = c.leaves ? [T("Selected {n}", {n: c.leaves}), T("Tests ready {n} / {of}", {n: c.ready, of: c.leaves}), T("Written {n} / {of}", {n: c.wrote, of: c.leaves}),
+    // (Of how many: the leaves of the whole graph, where the selection left some out.)
+    const counts = c.leaves ? [c.all > c.leaves ? T("Selected {n} of {of}", {n: c.leaves, of: c.all}) : T("Selected {n}", {n: c.leaves}), T("Tests ready {n} / {of}", {n: c.ready, of: c.leaves}), T("Written {n} / {of}", {n: c.wrote, of: c.leaves}),
       T("Passing {n} / {of}", {n: c.pass, of: c.leaves}), ...(c.fail ? [T("Failing {n}", {n: c.fail})] : []),
       ...(c.gap ? [T("Cannot be verified {n}", {n: c.gap})] : [])]
       : known ? [mapped(list(plan.capabilities).length), ...(stars ? [declared(stars)] : [])] : [];
@@ -8922,9 +9182,17 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
   /* What the run does now, in the run page's own sentence (run-flow.js `sentence`, which writes the head of its
      "now" bar), or "": this page words nothing of its own here, so the two pages never say two things of one moment. */
   function nowText(view, given, catalog) {
-    const m = modules(given), v = record(view);
+    const m = modules(given), v = record(view), flow = record(v.flow);
     if (!m.flow || typeof m.flow.sentence !== "function") return "";
-    return words(record(attempt(() => m.flow.sentence(v, record(v.flow), catalog, m.dashboard.pauseText, undefined, undefined, m.dashboard.endedText), null)).text);
+    /* A pair's main job that waits for its draft job: the step it is on is the import, which takes nothing
+       until the draft job is ready. What the run does then is what the draft job does, and the run page says
+       that in the line under its own (run-flow.js `draftSentence`): that line is the one said here. */
+    const step = record(list(flow.steps)[record(flow.focus).step]);
+    if (step.tool === "import_draft" && step.state === "active" && typeof m.flow.draftSentence === "function") {
+      const draft = record(attempt(() => m.flow.draftSentence(v, catalog), null));
+      if (draft.state === "active" && words(draft.text)) return words(draft.text);
+    }
+    return words(record(attempt(() => m.flow.sentence(v, flow, catalog, m.dashboard.pauseText, undefined, undefined, m.dashboard.endedText), null)).text);
   }
 
   /* The one line a scene says over the sky, or null: {text, tone, link: {href, text}}. */
@@ -8943,8 +9211,15 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
            check was not configured). A count of zero is never given as the reason; a delivery whose records
            name nothing this page can read sends its reader to the detailed page. */
         const note = attempt(() => m.dashboard.endNote(v), null);
+        /* The run page names the criteria that were not shown to hold. Of the one about the original tests a
+           conversion left out of acceptance, the delivery's record counts them (result.original_checks.summary):
+           the numbers are said beside its name, which by itself reads as if those tests had been verified. */
+        const left = record(record(record(record(v.job).result).original_checks).summary), label = attempt(() => m.dashboard.T("Left-out original tests verified"), "");
+        const said = note && words(note.text) ? note.text : "";
+        const counted = said && label && whole(left.unverified) > 0 && whole(left.tests) > 0 && said.includes(label)
+          ? said.replace(label, label + T(" ({n} of {of} verified by nothing)", {n: whole(left.unverified), of: whole(left.tests)})) : said;
         const parts = [c.gap ? T("{gap} of {leaves} capabilities cannot be fully verified.", c) : "",
-          c.fail ? T("{fail} of {leaves} capabilities fail their tests.", c) : "", note && words(note.text) ? note.text : ""].filter(Boolean);
+          c.fail ? T("{fail} of {leaves} capabilities fail their tests.", c) : "", counted].filter(Boolean);
         return {tone: "warn", link: report, text: [T("Delivered with gaps."), ...(parts.length ? parts : [T("The detailed page says which.")])].join(" ")};
       }
       if (status === "delivered_with_failures") return {tone: "bad", link: report,
@@ -8955,7 +9230,8 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
     if (scene.outcome === "failed") return {tone: "bad", link: null, text: T("The run stopped before a job started. The detailed page says why.")};
     if (scene.name === "mapping") {
       const known = list(m.dashboard.DISCOVER_STEPS), steps = list(record(record(v.stages).discover).steps).filter(step => step && typeof step === "object");
-      const active = steps.find(step => step.status === "active"), at = active ? known.findIndex(step => step.id === active.id) : -1;
+      // (Where two steps run, one of them again: the one furthest on is where the discovery is.)
+      const at = Math.max(-1, ...steps.filter(step => step.status === "active").map(step => known.findIndex(item => item.id === step.id)));
       // No step of the discovery runs (it is done and the review has not opened, or the host agent is away): the
       // run page's sentence says what the run waits for.
       return {tone: "", link: null, text: at < 0 ? (whole(stage.n) > 1 && nowText(view, given, catalog)) || T("Mapping the repository")
@@ -9553,6 +9829,17 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"run-1","title":"detectron2 \u00b7 20
       $("select").hidden = name !== "select";
       if (name === "select") syncRows();
       const tree = treeNow(), empty = name === "mapping";
+      /* A run past its discovery whose tree cannot be drawn: neither its plan nor its function graph can be read
+         (a service that answers /api/run alone, a record that is being written). The sky would be empty with
+         nothing to say why: the page says it, and names the page that needs neither. */
+      const blank = !empty && !tree.nodes.length, hollow = $("void");
+      hollow.hidden = !blank;
+      if (blank && hollow.dataset.lang !== locale) {
+        hollow.dataset.lang = locale;
+        const go = h("a", "ov-link", T("Open detailed progress"));
+        go.href = "/detail";
+        fillWith(hollow, h("span", "", T("This run's function graph cannot be read right now, so there is nothing to draw. The detailed page shows the run step by step.")), go);
+      }
       // The flat tree's folds: the layout's own (null) until the owner opened or shut a group, then the owner's.
       const shut = name === "select" && touched && folds ? new Set(folds) : null;
       const next = empty ? {tree: null, states: null, mode: "3d", keep: null, collapsed: null}
