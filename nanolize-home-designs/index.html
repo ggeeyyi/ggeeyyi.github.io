@@ -51,6 +51,7 @@
     <li><a href="9/"><span class="n">9</span><span class="b"><span class="t">虚线只在映射时出现、nano 代码也缓慢下滑</span><span class="d">在网页 8 的基础上：文件树静止时旁边不再有虚线；代码变星空时虚线从各行末尾长出来，一直伸到星上，连上后松开；结尾子图变成代码文件之后，绿色虚线依次收回各行、很快消失；nano 代码和开头的原始代码一样缓慢向下滚。一轮仍是 27.5 秒。</span></span><span class="s">打开</span></a></li>
     <li><a href="10/"><span class="n">10</span><span class="b"><span class="t">绿色的树停留更短</span><span class="d">在网页 9 的基础上只改了时间：绿色的 core 树长成、检查、亮过之后停留的时间从 7 秒缩到 4.5 秒，后面的结尾整段提前 2.5 秒，其余各段不变。一轮从 27.5 秒缩到 25 秒。</span></span><span class="s">打开</span></a></li>
     <li><a href="11/"><span class="n">11</span><span class="b"><span class="t">以 GitHub 仓库墙开场和收尾</span><span class="d">把 shaoteng 分支的改动合进网页 10：每一轮先是一面滚动的 GitHub 仓库墙，光标随机点中一个仓库，它飞到文件树上，接着进入这个仓库的动画；一轮结束又回到仓库墙。星空那一段按两倍速播放，跑马灯里的库名带 GitHub 标志并链接到各自的仓库。一轮连同仓库墙约 20 秒。?t=-1.1 是点击的那一刻。</span></span><span class="s">打开</span></a></li>
+    <li><a href="12/"><span class="n">12</span><span class="b"><span class="t">nano 仓库收拢回 GitHub 仓库墙</span><span class="d">在网页 11 的基础上：一轮结尾，绿色的文件树和代码不再直接淡出，而是被一圈细线框收拢到它自己的文件夹上，再沿开头的路线飞回仓库墙里它被点中的位置，变回这个仓库的条目；墙在它周围重新出现（还是同一面墙），接着滚动两格，光标点下一个仓库。?t=23.8 到 ?t=25 是收拢，?t=-3.1&amp;from=tqdm&amp;repo=click 起是回到墙之后。</span></span><span class="s">打开</span></a></li>
   </ul>
   <p class="lead" style="margin-top:28px"><a href="review-6/" style="color:var(--green-2)">版本 6 的设计评审报告</a>：八位评审提出的改进建议，分“更贴合主题”和“更简洁高级”两部分。</p>
   <footer>在任一版本的网址后面加 <code>?t=秒数</code> 可以把动画停在那一刻，例如 <code>?t=6</code> 是简化前的星空，<code>?t=18</code> 是简化后留下的子图。</footer>
