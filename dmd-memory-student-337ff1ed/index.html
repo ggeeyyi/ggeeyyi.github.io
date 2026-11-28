@@ -1,0 +1,479 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DMD 记忆学生结果</title>
+<style>
+:root {
+  color-scheme: light;
+  --bg: #ffffff; --panel: #f6f6f4; --line: #e4e4e0; --grid: #ececea;
+  --text: #191919; --text-2: #5f5f5f; --text-3: #8a8a8a;
+  --own: #257de0; --gt: #f47230; --ref: #6b6b6b;
+  --o750: #84b9f3; --o1500: #338ced; --o1750: #1b64be; --o2000: #0e3d7e;
+  --heat: 37,125,224; --accent: #257de0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #161616; --panel: #1f1f1f; --line: #333331; --grid: #2a2a29;
+    --text: #efefef; --text-2: #b0b0ab; --text-3: #85857f;
+    --own: #338ced; --gt: #e76624; --ref: #9c9c9c;
+    --o750: #1757ac; --o1500: #257de0; --o1750: #519ced; --o2000: #9dc8f7;
+    --heat: 51,140,237; --accent: #519ced;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #161616; --panel: #1f1f1f; --line: #333331; --grid: #2a2a29;
+  --text: #efefef; --text-2: #b0b0ab; --text-3: #85857f;
+  --own: #338ced; --gt: #e76624; --ref: #9c9c9c;
+  --o750: #1757ac; --o1500: #257de0; --o1750: #519ced; --o2000: #9dc8f7;
+  --heat: 51,140,237; --accent: #519ced;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font: 15px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+}
+main { max-width: 1180px; margin: 0 auto; padding: 40px 16px 80px; }
+h1 { font-size: 28px; line-height: 1.3; margin: 0 0 6px; letter-spacing: -0.01em; }
+h2 { font-size: 19px; margin: 52px 0 6px; }
+.sub { color: var(--text-2); margin: 0; }
+.note { color: var(--text-2); font-size: 13.5px; margin: 0 0 14px; }
+.num { font-variant-numeric: tabular-nums; }
+ul.key { margin: 18px 0 0; padding-left: 1.2em; }
+ul.key li { margin: 6px 0; }
+ul.key b { font-weight: 600; }
+dl.defs { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; margin: 18px 0 0; font-size: 13.5px; color: var(--text-2); }
+dl.defs dt { color: var(--text); font-weight: 600; }
+dl.defs dd { margin: 0; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; margin: 4px 0 12px; font-size: 13.5px; color: var(--text-2); }
+.legend button, .legend span.item { display: inline-flex; align-items: center; gap: 7px; font: inherit; color: var(--text); background: none; border: 0; padding: 2px 0; cursor: default; }
+.legend button { cursor: pointer; }
+.legend button[aria-pressed="false"] { color: var(--text-3); }
+.legend button[aria-pressed="false"] .key-line { opacity: .25; }
+.key-line { width: 18px; height: 0; border-top: 2px solid currentColor; display: inline-block; }
+.key-line.dash { border-top-style: dashed; }
+.grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+.grid.wide { grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); }
+.card { background: var(--panel); border-radius: 10px; padding: 12px 12px 6px; min-width: 0; }
+.card h3 { font-size: 13.5px; font-weight: 600; margin: 0 0 2px; }
+.card .unit { font-size: 12px; color: var(--text-3); margin: 0; }
+.chart { position: relative; }
+.chart svg { display: block; width: 100%; overflow: visible; }
+.chart text { fill: var(--text-3); font-size: 11px; font-family: inherit; }
+.chart text.lab { fill: var(--text-2); font-size: 11px; }
+.tip { position: absolute; pointer-events: none; background: var(--bg); border: 1px solid var(--line); border-radius: 6px;
+  padding: 6px 9px; font-size: 12px; line-height: 1.5; white-space: nowrap; box-shadow: 0 2px 10px rgba(0,0,0,.12); z-index: 3; display: none; }
+.tip .t { color: var(--text-3); margin-bottom: 2px; }
+.tip .r { display: flex; align-items: center; gap: 7px; }
+.tip .r b { font-weight: 600; min-width: 44px; font-variant-numeric: tabular-nums; }
+.tip .r span { color: var(--text-2); }
+.tablewrap { overflow-x: auto; }
+table { border-collapse: separate; border-spacing: 2px; font-size: 13px; font-variant-numeric: tabular-nums; }
+th { font-weight: 600; text-align: center; padding: 4px 8px; color: var(--text-2); white-space: nowrap; }
+th.row { text-align: left; color: var(--text); }
+td { text-align: center; padding: 5px 8px; border-radius: 4px; min-width: 56px; }
+td.best { font-weight: 700; outline: 1.5px solid var(--text); outline-offset: -1.5px; }
+details { margin-top: 12px; }
+summary { cursor: pointer; color: var(--text-2); font-size: 13.5px; }
+.plain td { background: none; padding: 3px 8px; }
+.plain th { padding: 3px 8px; }
+.picker { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 6px 0; }
+.picker .lbl { font-size: 13px; color: var(--text-3); width: 34px; }
+.picker button { font: inherit; font-size: 13px; padding: 4px 11px; border-radius: 999px; border: 1px solid var(--line); background: var(--bg); color: var(--text); cursor: pointer; }
+.picker button[aria-pressed="true"] { background: var(--text); color: var(--bg); border-color: var(--text); }
+.vwrap { position: relative; margin-top: 10px; background: #000; border-radius: 8px; overflow: hidden; }
+.vwrap video { display: block; width: 100%; height: auto; aspect-ratio: 1248 / 480; }
+.vlabels { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(2, 1fr); pointer-events: none; }
+.vlabels span { align-self: start; justify-self: start; margin: 6px; padding: 1px 7px; border-radius: 4px; font-size: 12px; font-weight: 600; color: #fff; background: rgba(0,0,0,.55); }
+.vbar { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin-top: 8px; font-size: 13px; color: var(--text-2); }
+.vbar button { font: inherit; font-size: 13px; padding: 3px 10px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--text); cursor: pointer; }
+.vbar button[aria-pressed="true"] { border-color: var(--text); font-weight: 600; }
+.vbar .time { font-variant-numeric: tabular-nums; margin-left: auto; }
+footer { margin-top: 60px; color: var(--text-3); font-size: 12.5px; }
+@media (max-width: 640px) { h1 { font-size: 23px; } dl.defs { grid-template-columns: 1fr; } dl.defs dd { margin-bottom: 6px; } .vlabels span { font-size: 10px; margin: 3px; padding: 0 4px; } }
+</style>
+</head>
+<body>
+<main>
+<h1>少步记忆学生：DMD 蒸馏结果</h1>
+<p class="sub">1.3B 因果记忆学生 M23 蒸馏为 4 步采样，教师为 14B 记忆模型。两组对照只差学生记忆的来源：<b>own</b> 取自身生成帧，<b>gt</b> 取真值帧。各训练 2000 步，每 250 步评测 EMA 权重。</p>
+
+<ul class="key">
+  <li><b>own 明显减缓长视频漂移，gt 全部崩坏。</b>3 分钟动作视频最后 30 秒背景 PSNR：M23 <span class="num">18.1</span> dB，own 1500 <span class="num">27.2</span> dB，gt 各步约 <span class="num">10</span> dB。</li>
+  <li><b>最佳步数随视频长度不同。</b>1 分钟各步接近，1750 的 LPIPS 最低；3 分钟 own 1500 的动作视频和相机回访均最高；legacy 动作视频在 1250、1750、2000 步崩坏；2000 步各项均下降。</li>
+  <li><b>每个 checkpoint 失败的场景不同</b>（见分场景表）。只有 6 个场景、1 个种子，750 / 1500 / 1750 之间的差距不可靠。</li>
+  <li><b>动作跟随没有提升。</b>caption effect：M23 <span class="num">0.097</span>，own 各步 <span class="num">0.034–0.080</span>，均不高于 M23。</li>
+</ul>
+
+<dl class="defs">
+  <dt>LPIPS</dt><dd>64 个验证片段，生成帧（latent 1–15）与真值之间，越低越好。</dd>
+  <dt>动作视频背景 PSNR</dt><dd>相机静止、人物执行动作；背景与首帧对齐后的 PSNR，衡量场景漂移，越高越好。</dd>
+  <dt>相机回访 PSNR</dt><dd>相机运动后回到初始位姿，回访帧与首帧的背景 PSNR，衡量记忆，越高越好。</dd>
+  <dt>caption effect</dt><dd>Qwen3.8-27B 判定的动作成功率：描述含该动作 − 去掉该动作，176 对，越高越好。</dd>
+  <dt>测试集</dt><dd>6 个场景与 1 组 legacy 序列，各有动作视频和相机视频，种子 0。M23 用 50 步 + CFG 3，学生用 4 步、无 CFG。</dd>
+</dl>
+
+<h2>随训练步数</h2>
+<div class="legend" id="lg-steps"></div>
+<div class="grid" id="steps"></div>
+<details>
+  <summary>数据表</summary>
+  <div class="tablewrap"><table class="plain" id="tbl-steps"></table></div>
+</details>
+
+<h2>3 分钟视频：随时间的变化</h2>
+<p class="note">每 10 秒一个点。点击图例可隐藏或显示模型。</p>
+<div class="legend" id="lg-time"></div>
+<div class="grid wide" id="time"></div>
+
+<h2>分场景：3 分钟动作视频最后 30 秒</h2>
+<p class="note">背景 PSNR（dB），粗框为每行最高。颜色越深数值越高。</p>
+<div class="tablewrap"><table id="tbl-scene"></table></div>
+
+<h2>视频对比（3 分钟）</h2>
+<p class="note">六个模型同步播放，从左到右、从上到下依次为：M23、own 750 / 1500 / 1750 / 2000、gt 2000。</p>
+<div class="picker" id="pk-action"><span class="lbl">动作</span></div>
+<div class="picker" id="pk-camera"><span class="lbl">相机</span></div>
+<div class="vwrap">
+  <video id="vid" controls muted playsinline preload="metadata"></video>
+  <div class="vlabels"><span>M23</span><span>own 750</span><span>own 1500</span><span>own 1750</span><span>own 2000</span><span>gt 2000</span></div>
+</div>
+<div class="vbar" id="vbar">
+  <span>速度</span>
+  <button data-rate="1">1×</button><button data-rate="2" aria-pressed="true">2×</button><button data-rate="4">4×</button>
+  <span>跳到</span>
+  <button data-t="0">0 s</button><button data-t="60">60 s</button><button data-t="120">120 s</button><button data-t="170">170 s</button>
+  <span class="time" id="vtime"></span>
+</div>
+
+<h2>训练曲线</h2>
+<p class="note">每 50 步滑动平均。own 第 1621 步的梯度范数记为 inf（之后恢复正常），曲线中剔除该点。</p>
+<div class="legend" id="lg-train"></div>
+<div class="grid wide" id="train"></div>
+
+<footer>更新于 2026-11-28。</footer>
+</main>
+
+<script id="data" type="application/json">{"steps1":[250,500,750,1000,1250,1500,1750,2000],"steps3":[500,750,1000,1250,1500,1750,2000],"scenes":["blue_room","brick_village","grassy_hill","industrial_yard","village_wall","window_room"],"lpips":{"own_ema":[0.4762,0.4619,0.4518,0.4623,0.4578,0.4579,0.4505,0.4547],"own_live":[0.5045,0.4567,0.4614,0.4695,0.4699,0.4539,0.4616,0.4686],"gt_ema":[0.4922,0.4658,0.4633,0.4619,0.4638,0.4569,0.4603,0.4546],"gt_live":[0.5122,0.4675,0.4674,0.4642,0.4535,0.4681,0.4702,0.4576]},"m1":{"action":{"own":[29.21,28.55,28.85,28.38,26.93,28.82,29.19,27.58],"gt":[17.94,13.29,11.74,12.78,12.9,12.95,13.12,13.55],"M23":24.1},"camera":{"own":[24.64,24.67,24.54,25.21,24.37,24.74,25.18,23.25],"gt":[23.09,21.07,20.42,21.3,21.56,22.13,22.03,22.28],"M23":23.55},"legacy":{"own":[29.85,29.58,30.31,30.66,27.15,30.09,29.93,24.31],"gt":[14.67,12.56,11.26,12.19,11.78,11.42,11.96,12.5],"M23":28.37}},"m3":{"action":{"own":[25.71,26.32,25.82,24.17,27.2,26.1,24.06],"gt":[10.38,9.89,10.59,10.63,9.79,10.56,10.62],"M23":18.06},"legacy":{"own":[29.69,29.79,27.57,21.29,29.59,18.14,21.73],"gt":[11.1,9.52,10.02,9.92,9.52,9.98,10.47],"M23":26.44},"camera3":{"own":[22.86,21.98,23.15,22.04,23.67,23.06,21.98],"gt":[18.38,17.81,18.79,19.56,19.87,19.76,19.5],"M23":21.6}},"curves3":{"t":[5,15,25,35,45,55,65,75,85,95,105,115,125,135,145,155,165,175],"series":[{"name":"M23","action":[29.7,28.3,27.03,26.12,24.99,24.09,23.07,22.29,21.69,21.14,20.48,20.17,19.32,18.68,18.39,18.22,18.04,17.94],"legacy":[31.04,29.14,28.95,28.41,28.09,28.37,28.2,28.89,28.28,27.73,27.49,27.4,27.18,26.9,27.24,26.83,26.4,26.09],"returns":[23.54,21.79,21.6]},{"name":"own 750","action":[33.06,32.07,31.4,30.49,29.65,29.02,28.23,27.57,27.94,27.14,26.25,26.07,26.54,26.5,25.96,25.88,26.21,26.85],"legacy":[31.68,30.48,30.36,30.52,30.89,30.67,30.49,30.64,30.27,30.0,29.86,29.48,29.23,29.43,28.91,28.75,30.41,30.19],"returns":[24.42,22.61,21.98]},{"name":"own 1500","action":[32.99,31.16,30.43,30.1,29.77,29.48,29.05,28.9,28.79,28.87,28.86,28.78,28.15,27.7,27.63,27.59,27.15,26.86],"legacy":[31.73,30.95,30.92,30.84,31.15,31.1,31.18,31.25,30.95,30.93,30.8,30.31,30.31,30.76,30.37,30.34,29.95,28.49],"returns":[24.87,24.06,23.67]},{"name":"own 1750","action":[32.45,31.29,30.0,28.86,28.2,28.43,28.38,27.86,27.61,27.83,27.59,27.69,27.57,26.52,26.19,25.81,26.14,26.33],"legacy":[31.76,29.45,27.03,25.02,23.81,21.86,20.76,19.47,18.83,19.18,19.33,19.39,19.26,19.04,18.54,18.39,18.46,17.56],"returns":[24.74,23.41,23.06]},{"name":"own 2000","action":[31.74,30.49,29.67,28.58,27.77,27.1,26.72,26.29,26.21,25.87,25.25,24.85,24.59,24.72,24.6,24.33,23.98,23.88],"legacy":[31.35,30.67,30.65,30.08,29.9,30.87,30.21,30.67,27.62,26.68,28.92,26.1,23.08,22.2,21.86,21.78,21.72,21.69],"returns":[23.59,22.45,21.98]},{"name":"gt 2000","action":[29.78,21.03,17.43,15.24,13.82,13.44,12.71,12.16,11.9,11.61,11.58,11.48,11.32,11.02,10.84,10.72,10.56,10.59],"legacy":[28.81,18.69,15.35,13.74,12.56,11.98,11.34,10.84,10.68,10.57,10.71,10.58,10.61,10.56,10.67,10.54,10.49,10.37],"returns":[21.87,20.18,19.5]}]},"scene_tail":{"cols":["M23","own 500","own 750","own 1000","own 1250","own 1500","own 1750","own 2000","gt 2000"],"rows":[{"scene":"blue_room","v":[15.0,18.0,21.4,18.6,22.4,26.9,20.1,18.7,11.6]},{"scene":"brick_village","v":[13.4,29.8,30.5,29.5,24.9,24.8,22.7,24.3,9.1]},{"scene":"grassy_hill","v":[21.4,30.1,31.2,30.8,30.4,30.9,30.8,30.5,11.0]},{"scene":"industrial_yard","v":[23.5,31.6,22.0,25.5,21.2,24.0,29.0,21.1,11.3]},{"scene":"village_wall","v":[16.8,25.8,28.4,28.1,21.3,25.3,24.6,24.2,10.6]},{"scene":"window_room","v":[18.2,18.9,24.4,22.4,24.9,31.3,29.3,25.5,10.1]}]},"asr":{"M23":{"effect":0.097,"se":0.026},"n":176,"own":[{"step":500,"effect":0.074,"se":0.024,"vs_m23":-0.023,"vs_m23_se":0.033},{"step":750,"effect":0.08,"se":0.026,"vs_m23":-0.017,"vs_m23_se":0.036},{"step":1000,"effect":0.062,"se":0.023,"vs_m23":-0.034,"vs_m23_se":0.034},{"step":1250,"effect":0.068,"se":0.027,"vs_m23":-0.028,"vs_m23_se":0.034},{"step":1500,"effect":0.034,"se":0.024,"vs_m23":-0.062,"vs_m23_se":0.033},{"step":1750,"effect":0.057,"se":0.019,"vs_m23":-0.04,"vs_m23_se":0.032},{"step":2000,"effect":0.045,"se":0.024,"vs_m23":-0.051,"vs_m23_se":0.035}],"gt":[{"step":500,"effect":0.057,"se":0.025,"vs_m23":-0.04,"vs_m23_se":0.035},{"step":750,"effect":0.062,"se":0.023,"vs_m23":-0.034,"vs_m23_se":0.033},{"step":1000,"effect":0.085,"se":0.024,"vs_m23":-0.011,"vs_m23_se":0.035},{"step":1250,"effect":0.08,"se":0.027,"vs_m23":-0.017,"vs_m23_se":0.036},{"step":1500,"effect":0.051,"se":0.02,"vs_m23":-0.045,"vs_m23_se":0.031},{"step":1750,"effect":0.034,"se":0.02,"vs_m23":-0.062,"vs_m23_se":0.029},{"step":2000,"effect":0.062,"se":0.026,"vs_m23":-0.034,"vs_m23_se":0.032}]},"train":{"own":{"critic_loss":[[10,0.06563],[20,0.06623],[30,0.06338],[40,0.06637],[50,0.06768],[60,0.06733],[70,0.06744],[80,0.06914],[90,0.0682],[100,0.06939],[110,0.07126],[120,0.07778],[130,0.08441],[140,0.09346],[150,0.09722],[160,0.1022],[170,0.10478],[180,0.1085],[190,0.1114],[200,0.11818],[210,0.12465],[220,0.12984],[230,0.1361],[240,0.13809],[250,0.14029],[260,0.14267],[270,0.13977],[280,0.13774],[290,0.13807],[300,0.13479],[310,0.13094],[320,0.13277],[330,0.12896],[340,0.12641],[350,0.1286],[360,0.13436],[370,0.13763],[380,0.14184],[390,0.14454],[400,0.14354],[410,0.14161],[420,0.14174],[430,0.14464],[440,0.14838],[450,0.14885],[460,0.15041],[470,0.14919],[480,0.15381],[490,0.15986],[500,0.16178],[510,0.15834],[520,0.15411],[530,0.14917],[540,0.13892],[550,0.13999],[560,0.14422],[570,0.15061],[580,0.1511],[590,0.15379],[600,0.15378],[610,0.15226],[620,0.15001],[630,0.14575],[640,0.14142],[650,0.13878],[660,0.13715],[670,0.14115],[680,0.14473],[690,0.1504],[700,0.15457],[710,0.15698],[720,0.15383],[730,0.15571],[740,0.15324],[750,0.15346],[760,0.1574],[770,0.1569],[780,0.15565],[790,0.15852],[800,0.15408],[810,0.14302],[820,0.14028],[830,0.13601],[840,0.13263],[850,0.13432],[860,0.14042],[870,0.15068],[880,0.15642],[890,0.16487],[900,0.16945],[910,0.1734],[920,0.16533],[930,0.16353],[940,0.15562],[950,0.15732],[960,0.15823],[970,0.16145],[980,0.1628],[990,0.16494],[1000,0.15991],[1010,0.15416],[1020,0.15085],[1030,0.14934],[1040,0.14603],[1050,0.14838],[1060,0.15206],[1070,0.15715],[1080,0.15495],[1090,0.15695],[1100,0.14951],[1110,0.14799],[1120,0.14108],[1130,0.14214],[1140,0.14195],[1150,0.14663],[1160,0.14844],[1170,0.1522],[1180,0.15516],[1190,0.1552],[1200,0.1536],[1210,0.15199],[1220,0.15476],[1230,0.14868],[1240,0.1527],[1250,0.15584],[1260,0.15406],[1270,0.15302],[1280,0.1567],[1290,0.15378],[1300,0.14974],[1310,0.15179],[1320,0.14988],[1330,0.14912],[1340,0.14674],[1350,0.15113],[1360,0.15089],[1370,0.14929],[1380,0.15311],[1390,0.15185],[1400,0.14698],[1410,0.14524],[1420,0.15109],[1430,0.14856],[1440,0.15556],[1450,0.15742],[1460,0.16007],[1470,0.16018],[1480,0.15898],[1490,0.15388],[1500,0.15391],[1510,0.15059],[1520,0.149],[1530,0.15173],[1540,0.14875],[1550,0.14501],[1560,0.14591],[1570,0.1426],[1580,0.13925],[1590,0.14476],[1600,0.14654],[1610,0.14828],[1620,0.14755],[1630,0.14643],[1640,0.14211],[1650,0.14329],[1660,0.14297],[1670,0.14544],[1680,0.14901],[1690,0.15197],[1700,0.15189],[1710,0.14863],[1720,0.14781],[1730,0.14781],[1740,0.14912],[1750,0.15191],[1760,0.15199],[1770,0.15236],[1780,0.14864],[1790,0.1459],[1800,0.14255],[1810,0.14643],[1820,0.14921],[1830,0.15029],[1840,0.14777],[1850,0.15205],[1860,0.15009],[1870,0.148],[1880,0.14896],[1890,0.15306],[1900,0.15285],[1910,0.15584],[1920,0.15287],[1930,0.15295],[1940,0.15104],[1950,0.15112],[1960,0.14976],[1970,0.15018],[1980,0.15019],[1990,0.15073],[2000,0.14683]],"generator_grad_norm":[[210,0.06429],[220,0.18339],[230,0.17383],[240,0.17367],[250,0.23348],[260,0.29738],[270,0.25332],[280,0.31966],[290,0.30445],[300,0.33706],[310,0.34066],[320,0.41299],[330,0.42317],[340,0.46613],[350,0.42249],[360,0.41391],[370,0.3878],[380,0.34875],[390,0.3319],[400,0.25809],[410,0.24825],[420,0.25212],[430,0.27377],[440,0.30863],[450,0.37513],[460,0.43695],[470,0.3808],[480,0.49304],[490,0.44787],[500,0.45498],[510,0.40831],[520,0.42822],[530,0.29157],[540,0.41213],[550,0.39176],[560,0.32217],[570,0.32169],[580,0.31241],[590,0.22251],[600,0.23881],[610,0.25195],[620,0.3379],[630,0.29465],[640,0.25023],[650,0.26536],[660,0.25365],[670,0.25138],[680,0.30714],[690,0.36199],[700,0.35554],[710,0.38387],[720,0.30389],[730,0.25067],[740,0.18477],[750,0.17303],[760,0.23932],[770,0.28761],[780,0.33045],[790,0.34407],[800,0.34882],[810,0.31881],[820,0.27512],[830,0.25028],[840,0.28765],[850,0.26331],[860,0.29256],[870,0.53672],[880,0.56799],[890,0.578],[900,0.63283],[910,0.61703],[920,0.35022],[930,0.31122],[940,0.26608],[950,0.22851],[960,0.19039],[970,0.25965],[980,0.34849],[990,0.3942],[1000,0.36039],[1010,0.32421],[1020,0.31215],[1030,0.36112],[1040,0.34805],[1050,0.41997],[1060,0.4323],[1070,0.44564],[1080,0.37307],[1090,0.39657],[1100,0.31854],[1110,0.36205],[1120,0.30317],[1130,0.27049],[1140,0.22666],[1150,0.24767],[1160,0.27631],[1170,0.29691],[1180,0.24964],[1190,0.27394],[1200,0.31309],[1210,0.2328],[1220,0.31895],[1230,0.3812],[1240,0.37931],[1250,0.3146],[1260,0.37682],[1270,0.2644],[1280,0.20214],[1290,0.33074],[1300,0.51098],[1310,0.45491],[1320,0.50617],[1330,0.53609],[1340,0.39169],[1350,0.27489],[1360,0.29446],[1370,0.34109],[1380,0.43896],[1390,0.54397],[1400,0.53785],[1410,0.55526],[1420,0.48515],[1430,0.39042],[1440,0.26594],[1450,0.26815],[1460,0.29643],[1470,0.35582],[1480,0.34526],[1490,0.33628],[1500,0.27169],[1510,0.27544],[1520,0.39222],[1530,0.58456],[1540,0.85452],[1550,0.85456],[1560,0.83877],[1570,0.72136],[1580,0.53054],[1590,0.40772],[1600,0.46429],[1610,0.57955],[1620,0.63517],[1630,0.70563],[1640,0.61193],[1650,0.57365],[1660,0.42033],[1670,0.40097],[1680,0.3658],[1690,0.43371],[1700,0.40951],[1710,0.39244],[1720,0.31007],[1730,0.47538],[1740,0.61268],[1750,0.62311],[1760,0.64767],[1770,0.65325],[1780,0.52209],[1790,0.25856],[1800,0.39686],[1810,0.34865],[1820,0.36043],[1830,0.40749],[1840,0.40771],[1850,0.36916],[1860,0.39486],[1870,0.33158],[1880,0.32106],[1890,0.43646],[1900,0.35499],[1910,0.41647],[1920,0.433],[1930,0.40183],[1940,0.36497],[1950,0.3943],[1960,0.36131],[1970,0.40677],[1980,0.43299],[1990,0.45912],[2000,0.68857]]},"gt":{"critic_loss":[[10,0.06104],[20,0.06537],[30,0.06454],[40,0.06825],[50,0.07002],[60,0.07077],[70,0.07082],[80,0.07268],[90,0.0733],[100,0.07582],[110,0.07811],[120,0.08442],[130,0.09039],[140,0.09736],[150,0.09769],[160,0.10226],[170,0.10259],[180,0.10322],[190,0.10458],[200,0.11115],[210,0.11565],[220,0.12144],[230,0.12877],[240,0.13006],[250,0.13484],[260,0.13712],[270,0.1376],[280,0.13712],[290,0.14029],[300,0.13919],[310,0.14021],[320,0.14307],[330,0.1441],[340,0.1435],[350,0.14351],[360,0.14831],[370,0.14974],[380,0.15221],[390,0.15379],[400,0.15374],[410,0.15014],[420,0.15196],[430,0.15122],[440,0.14972],[450,0.14832],[460,0.14865],[470,0.14355],[480,0.14229],[490,0.14224],[500,0.14311],[510,0.14286],[520,0.14133],[530,0.14067],[540,0.1395],[550,0.13973],[560,0.14051],[570,0.14273],[580,0.14306],[590,0.14439],[600,0.14721],[610,0.15033],[620,0.15139],[630,0.14968],[640,0.147],[650,0.14469],[660,0.14177],[670,0.14396],[680,0.14643],[690,0.15124],[700,0.15291],[710,0.15623],[720,0.15621],[730,0.15906],[740,0.15961],[750,0.16222],[760,0.16497],[770,0.16539],[780,0.16317],[790,0.16378],[800,0.16258],[810,0.15374],[820,0.15107],[830,0.14899],[840,0.14662],[850,0.14489],[860,0.14593],[870,0.14732],[880,0.14918],[890,0.15337],[900,0.14843],[910,0.14797],[920,0.14553],[930,0.14459],[940,0.13873],[950,0.14654],[960,0.15259],[970,0.15582],[980,0.15726],[990,0.15828],[1000,0.1537],[1010,0.14638],[1020,0.14221],[1030,0.14408],[1040,0.14306],[1050,0.14499],[1060,0.1497],[1070,0.15561],[1080,0.15006],[1090,0.1527],[1100,0.1513],[1110,0.15317],[1120,0.14978],[1130,0.15088],[1140,0.1498],[1150,0.15042],[1160,0.1508],[1170,0.15024],[1180,0.15445],[1190,0.15874],[1200,0.1598],[1210,0.15804],[1220,0.16099],[1230,0.15615],[1240,0.15248],[1250,0.14892],[1260,0.14616],[1270,0.14529],[1280,0.14723],[1290,0.14642],[1300,0.14879],[1310,0.15396],[1320,0.15073],[1330,0.14837],[1340,0.14755],[1350,0.14723],[1360,0.14059],[1370,0.13964],[1380,0.14202],[1390,0.14259],[1400,0.14159],[1410,0.14375],[1420,0.14796],[1430,0.14646],[1440,0.14787],[1450,0.1474],[1460,0.14778],[1470,0.1491],[1480,0.15109],[1490,0.15152],[1500,0.15567],[1510,0.15422],[1520,0.15352],[1530,0.15679],[1540,0.15182],[1550,0.14638],[1560,0.14638],[1570,0.14823],[1580,0.14648],[1590,0.15453],[1600,0.15504],[1610,0.15609],[1620,0.15145],[1630,0.14881],[1640,0.14383],[1650,0.14506],[1660,0.14568],[1670,0.14596],[1680,0.14699],[1690,0.14842],[1700,0.14893],[1710,0.14587],[1720,0.14838],[1730,0.14832],[1740,0.14945],[1750,0.14966],[1760,0.14879],[1770,0.14534],[1780,0.14304],[1790,0.13907],[1800,0.14152],[1810,0.14864],[1820,0.14895],[1830,0.14997],[1840,0.14947],[1850,0.1473],[1860,0.14352],[1870,0.14595],[1880,0.1464],[1890,0.14935],[1900,0.15116],[1910,0.14997],[1920,0.14633],[1930,0.14387],[1940,0.14255],[1950,0.144],[1960,0.14456],[1970,0.14616],[1980,0.15042],[1990,0.1502],[2000,0.14819]],"generator_grad_norm":[[210,0.05944],[220,0.16115],[230,0.19466],[240,0.18617],[250,0.23117],[260,0.27932],[270,0.24246],[280,0.31498],[290,0.30276],[300,0.30648],[310,0.31056],[320,0.38433],[330,0.32708],[340,0.36941],[350,0.3428],[360,0.39678],[370,0.35445],[380,0.33611],[390,0.34654],[400,0.2997],[410,0.29374],[420,0.34768],[430,0.42465],[440,0.6333],[450,0.68267],[460,0.72898],[470,0.63812],[480,0.60954],[490,0.3707],[500,0.50106],[510,0.4177],[520,0.42224],[530,0.42386],[540,0.54522],[550,0.40358],[560,0.33789],[570,0.35258],[580,0.32292],[590,0.24299],[600,0.4018],[610,0.40946],[620,0.50659],[630,0.44887],[640,0.3824],[650,0.21006],[660,0.20171],[670,0.15485],[680,0.19594],[690,0.25728],[700,0.25973],[710,0.27815],[720,0.24025],[730,0.20394],[740,0.13503],[750,0.18831],[760,0.27576],[770,0.27264],[780,0.34417],[790,0.35421],[800,0.33342],[810,0.28812],[820,0.28509],[830,0.23198],[840,0.26678],[850,0.23703],[860,0.24783],[870,0.33103],[880,0.37806],[890,0.40175],[900,0.43241],[910,0.63459],[920,0.53664],[930,0.51554],[940,0.47748],[950,0.52419],[960,0.32154],[970,0.50124],[980,0.51388],[990,0.52046],[1000,0.43648],[1010,0.37143],[1020,0.22968],[1030,0.22923],[1040,0.27423],[1050,0.29886],[1060,0.30493],[1070,0.35181],[1080,0.43389],[1090,0.42464],[1100,0.3967],[1110,0.4107],[1120,0.32372],[1130,0.22571],[1140,0.17403],[1150,0.19156],[1160,0.23858],[1170,0.25255],[1180,0.20896],[1190,0.24797],[1200,0.26844],[1210,0.20276],[1220,0.2386],[1230,0.27009],[1240,0.26828],[1250,0.24396],[1260,0.40531],[1270,0.36447],[1280,0.32789],[1290,0.42306],[1300,0.56835],[1310,0.41436],[1320,0.45913],[1330,0.48933],[1340,0.38273],[1350,0.2785],[1360,0.2871],[1370,0.35083],[1380,0.54045],[1390,0.68545],[1400,0.63363],[1410,0.69263],[1420,0.58059],[1430,0.375],[1440,0.24029],[1450,0.24315],[1460,0.19505],[1470,0.26646],[1480,0.28688],[1490,0.23634],[1500,0.22252],[1510,0.23479],[1520,0.38384],[1530,0.44421],[1540,0.53511],[1550,0.52805],[1560,0.59726],[1570,0.47753],[1580,0.44277],[1590,0.46376],[1600,0.55377],[1610,0.70339],[1620,0.78225],[1630,0.76831],[1640,0.69244],[1650,0.63689],[1660,0.40384],[1670,0.38539],[1680,0.44001],[1690,0.47821],[1700,0.44661],[1710,0.44403],[1720,0.31013],[1730,0.44225],[1740,0.59567],[1750,0.61005],[1760,0.69133],[1770,0.69364],[1780,0.55713],[1790,0.33385],[1800,0.51692],[1810,0.41203],[1820,0.49741],[1830,0.59676],[1840,0.60325],[1850,0.48824],[1860,0.49793],[1870,0.37793],[1880,0.24179],[1890,0.30608],[1900,0.2389],[1910,0.26719],[1920,0.2721],[1930,0.24037],[1940,0.22254],[1950,0.21452],[1960,0.20057],[1970,0.21426],[1980,0.32573],[1990,0.31548],[2000,0.31572]]}}}</script>
+<script>
+(function () {
+  "use strict";
+  var D = JSON.parse(document.getElementById("data").textContent);
+  var NS = "http://www.w3.org/2000/svg";
+
+  function el(tag, attrs, parent) {
+    var e = document.createElementNS(NS, tag);
+    for (var k in attrs) e.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+  function h(tag, cls, parent, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+  function niceTicks(lo, hi, n) {
+    var span = hi - lo, step = Math.pow(10, Math.floor(Math.log10(span / n))), err = span / n / step;
+    if (err >= 7.5) step *= 10; else if (err >= 3.5) step *= 5; else if (err >= 1.5) step *= 2;
+    var t = [], v = Math.ceil(lo / step) * step;
+    for (; v <= hi + 1e-9; v += step) t.push(+v.toFixed(10));
+    return t;
+  }
+
+  // Line chart with optional reference lines, error bars, direct end labels, crosshair tooltip.
+  // o: {x, xTicks, xFmt, tipX, series:[{name,color,values,se,dash,hidden}], refs:[{name,value}], fmt, endLabels, height}
+  function lineChart(host, o) {
+    host.textContent = "";
+    var W = Math.max(host.clientWidth, 220), H = o.height || 170;
+    var m = { l: 38, r: o.endLabels ? 44 : 12, t: 8, b: 22 };
+    var svg = el("svg", { viewBox: "0 0 " + W + " " + H, height: H, role: "img" }, host);
+    var vis = o.series.filter(function (s) { return !s.hidden; });
+    var ys = [];
+    vis.forEach(function (s) { s.values.forEach(function (v, i) { if (v != null) { ys.push(v); if (s.se) { ys.push(v + s.se[i]); ys.push(v - s.se[i]); } } }); });
+    (o.refs || []).forEach(function (r) { ys.push(r.value); });
+    if (!ys.length) ys = [0, 1];
+    var lo = Math.min.apply(null, ys), hi = Math.max.apply(null, ys), pad = (hi - lo || 1) * 0.08;
+    lo -= pad; hi += pad;
+    var ticks = niceTicks(lo, hi, 4);
+    var dec = ticks.length > 1 ? Math.max(0, -Math.floor(Math.log10(ticks[1] - ticks[0] + 1e-12))) : 1;
+    var x0 = o.xDomain ? o.xDomain[0] : o.x[0], x1 = o.xDomain ? o.xDomain[1] : o.x[o.x.length - 1];
+    var X = function (v) { return m.l + (v - x0) / (x1 - x0) * (W - m.l - m.r); };
+    var Y = function (v) { return m.t + (hi - v) / (hi - lo) * (H - m.t - m.b); };
+    var g = el("g", {}, svg);
+    ticks.forEach(function (t) {
+      el("line", { x1: m.l, x2: W - m.r, y1: Y(t), y2: Y(t), style: "stroke:var(--grid)", "stroke-width": 1 }, g);
+      el("text", { x: m.l - 6, y: Y(t) + 3.5, "text-anchor": "end" }, g).textContent = t.toFixed(dec);
+    });
+    (o.xTicks || o.x).forEach(function (t) {
+      el("text", { x: X(t), y: H - 6, "text-anchor": "middle" }, g).textContent = o.xFmt ? o.xFmt(t) : t;
+    });
+    (o.refs || []).forEach(function (r) {
+      el("line", { x1: m.l, x2: W - m.r, y1: Y(r.value), y2: Y(r.value), style: "stroke:var(--ref)", "stroke-width": 1.5, "stroke-dasharray": "5 4" }, g);
+    });
+    var ends = [];
+    vis.forEach(function (s, si) {
+      var off = vis.length > 1 && s.se ? (si - (vis.length - 1) / 2) * 4 : 0;
+      var d = "", pen = false;
+      s.values.forEach(function (v, i) {
+        if (v == null) { pen = false; return; }
+        d += (pen ? "L" : "M") + (X(o.x[i]) + off).toFixed(1) + "," + Y(v).toFixed(1);
+        pen = true;
+      });
+      if (s.se) s.values.forEach(function (v, i) {
+        if (v == null) return;
+        el("line", { x1: X(o.x[i]) + off, x2: X(o.x[i]) + off, y1: Y(v - s.se[i]), y2: Y(v + s.se[i]), style: "stroke:" + s.color, "stroke-width": 1.5, opacity: 0.45 }, g);
+      });
+      el("path", { d: d, fill: "none", style: "stroke:" + s.color, "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round", "stroke-dasharray": s.dash || "none" }, g);
+      s.values.forEach(function (v, i) {
+        if (v == null) return;
+        if (o.x.length <= 10) el("circle", { cx: X(o.x[i]) + off, cy: Y(v), r: 3, style: "fill:" + s.color + ";stroke:var(--panel)", "stroke-width": 1.5 }, g);
+      });
+      var li = s.values.length - 1; while (li >= 0 && s.values[li] == null) li--;
+      if (o.endLabels && li >= 0) ends.push({ y: Y(s.values[li]), name: s.name });
+    });
+    if (o.endLabels) {
+      (o.refs || []).forEach(function (r) { ends.push({ y: Y(r.value), name: r.name }); });
+      ends.sort(function (a, b) { return a.y - b.y; });
+      for (var i = 1; i < ends.length; i++) if (ends[i].y - ends[i - 1].y < 12) ends[i].y = ends[i - 1].y + 12;
+      ends.forEach(function (e) { if (e.name) { var t = el("text", { x: W - m.r + 6, y: e.y + 3.5, "class": "lab" }, g); t.textContent = e.name; } });
+    }
+    // hover layer
+    var cross = el("line", { y1: m.t, y2: H - m.b, style: "stroke:var(--text-3)", "stroke-width": 1, visibility: "hidden" }, svg);
+    var dots = vis.map(function (s) { return el("circle", { r: 4.5, style: "fill:" + s.color + ";stroke:var(--bg)", "stroke-width": 2, visibility: "hidden" }, svg); });
+    var tip = h("div", "tip", host);
+    var hit = el("rect", { x: m.l - 8, y: 0, width: W - m.l - m.r + 16, height: H, fill: "transparent", tabindex: 0 }, svg);
+    function show(i) {
+      var cx = X(o.x[i]);
+      cross.setAttribute("x1", cx); cross.setAttribute("x2", cx); cross.setAttribute("visibility", "visible");
+      tip.textContent = "";
+      h("div", "t", tip, o.tipX ? o.tipX(o.x[i]) : String(o.x[i]));
+      vis.forEach(function (s, k) {
+        var v = s.values[i];
+        if (v == null) { dots[k].setAttribute("visibility", "hidden"); return; }
+        dots[k].setAttribute("cx", cx); dots[k].setAttribute("cy", Y(v)); dots[k].setAttribute("visibility", "visible");
+        var r = h("div", "r", tip);
+        var key = h("i", "key-line" + (s.dash ? " dash" : ""), r); key.style.color = s.color;
+        h("b", null, r, (o.fmt ? o.fmt(v) : v) + (s.se ? " ± " + o.fmt(s.se[i]) : ""));
+        h("span", null, r, s.name);
+      });
+      (o.refs || []).forEach(function (rf) {
+        var r = h("div", "r", tip);
+        var key = h("i", "key-line dash", r); key.style.color = "var(--ref)";
+        h("b", null, r, o.fmt ? o.fmt(rf.value) : rf.value);
+        h("span", null, r, rf.name);
+      });
+      tip.style.display = "block";
+      var tw = tip.offsetWidth, left = cx + 12;
+      if (left + tw > W) left = cx - tw - 12;
+      tip.style.left = Math.max(0, left) + "px"; tip.style.top = "4px";
+    }
+    function hide() { cross.setAttribute("visibility", "hidden"); dots.forEach(function (d) { d.setAttribute("visibility", "hidden"); }); tip.style.display = "none"; }
+    function nearest(px) {
+      var best = 0, bd = 1e9;
+      o.x.forEach(function (v, i) { var d = Math.abs(X(v) - px); if (d < bd) { bd = d; best = i; } });
+      return best;
+    }
+    var cur = o.x.length - 1;
+    hit.addEventListener("pointermove", function (ev) {
+      var r = svg.getBoundingClientRect();
+      cur = nearest((ev.clientX - r.left) * W / r.width); show(cur);
+    });
+    hit.addEventListener("pointerleave", hide);
+    hit.addEventListener("focus", function () { show(cur); });
+    hit.addEventListener("blur", hide);
+    hit.addEventListener("keydown", function (ev) {
+      if (ev.key === "ArrowRight") cur = Math.min(o.x.length - 1, cur + 1);
+      else if (ev.key === "ArrowLeft") cur = Math.max(0, cur - 1);
+      else return;
+      ev.preventDefault(); show(cur);
+    });
+  }
+
+  function legend(host, items, toggle, onChange) {
+    host.textContent = "";
+    items.forEach(function (it) {
+      var b = h(toggle ? "button" : "span", toggle ? null : "item", host);
+      if (toggle) { b.type = "button"; b.setAttribute("aria-pressed", it.hidden ? "false" : "true"); }
+      var k = h("i", "key-line" + (it.dash ? " dash" : ""), b); k.style.color = it.color;
+      b.appendChild(document.createTextNode(it.name));
+      if (toggle) b.addEventListener("click", function () {
+        it.hidden = !it.hidden; b.setAttribute("aria-pressed", it.hidden ? "false" : "true"); onChange();
+      });
+    });
+  }
+
+  function card(host, title, unit) {
+    var c = h("div", "card", host);
+    h("h3", null, c, title);
+    if (unit) h("p", "unit", c, unit);
+    return h("div", "chart", c);
+  }
+
+  var renders = [];
+  function onResize(fn) { renders.push(fn); fn(); }
+  var rt;
+  window.addEventListener("resize", function () { clearTimeout(rt); rt = setTimeout(function () { renders.forEach(function (f) { f(); }); }, 120); });
+
+  // ---- 1. metrics vs training step
+  var S1 = D.steps1, S3 = D.steps3;
+  var f1 = function (v) { return v.toFixed(1); }, f2 = function (v) { return v.toFixed(2); };
+  var f3 = function (v) { return v.toFixed(3); };
+  var stepTicks = [250, 1000, 2000];
+  legend(document.getElementById("lg-steps"), [
+    { name: "own", color: "var(--own)" }, { name: "gt", color: "var(--gt)" }, { name: "M23（基线）", color: "var(--ref)", dash: true }
+  ], false);
+  function pad3(arr) { return S1.map(function (s) { var i = S3.indexOf(s); return i < 0 ? null : arr[i]; }); }
+  var stepCharts = [
+    { t: "64 片段 LPIPS", u: "越低越好", own: D.lpips.own_ema, gt: D.lpips.gt_ema, fmt: f3 },
+    { t: "1 分钟 · 动作视频 50–60 s", u: "背景 PSNR，dB", own: D.m1.action.own, gt: D.m1.action.gt, ref: D.m1.action.M23, fmt: f1 },
+    { t: "1 分钟 · 相机回访", u: "背景 PSNR，dB", own: D.m1.camera.own, gt: D.m1.camera.gt, ref: D.m1.camera.M23, fmt: f1 },
+    { t: "1 分钟 · legacy 动作 50–60 s", u: "背景 PSNR，dB", own: D.m1.legacy.own, gt: D.m1.legacy.gt, ref: D.m1.legacy.M23, fmt: f1 },
+    { t: "3 分钟 · 动作视频 150–180 s", u: "背景 PSNR，dB", own: pad3(D.m3.action.own), gt: pad3(D.m3.action.gt), ref: D.m3.action.M23, fmt: f1 },
+    { t: "3 分钟 · 相机回访（第 3 分钟）", u: "背景 PSNR，dB", own: pad3(D.m3.camera3.own), gt: pad3(D.m3.camera3.gt), ref: D.m3.camera3.M23, fmt: f1 },
+    { t: "3 分钟 · legacy 动作 150–180 s", u: "背景 PSNR，dB", own: pad3(D.m3.legacy.own), gt: pad3(D.m3.legacy.gt), ref: D.m3.legacy.M23, fmt: f1 },
+    { t: "动作跟随 caption effect", u: "越高越好，误差线为 ±1 SE",
+      own: pad3(D.asr.own.map(function (r) { return r.effect; })), gt: pad3(D.asr.gt.map(function (r) { return r.effect; })),
+      ownSe: pad3(D.asr.own.map(function (r) { return r.se; })), gtSe: pad3(D.asr.gt.map(function (r) { return r.se; })),
+      ref: D.asr.M23.effect, fmt: f3 }
+  ];
+  var stepsHost = document.getElementById("steps");
+  stepCharts.forEach(function (c) {
+    var host = card(stepsHost, c.t, c.u);
+    onResize(function () {
+      lineChart(host, {
+        x: S1, xTicks: stepTicks, tipX: function (s) { return "第 " + s + " 步"; }, fmt: c.fmt, endLabels: true,
+        series: [{ name: "own", color: "var(--own)", values: c.own, se: c.ownSe }, { name: "gt", color: "var(--gt)", values: c.gt, se: c.gtSe }],
+        refs: c.ref != null ? [{ name: "M23", value: c.ref }] : []
+      });
+    });
+  });
+  // data table
+  (function () {
+    var t = document.getElementById("tbl-steps");
+    var hr = h("tr", null, t); h("th", "row", hr, "指标");
+    S1.forEach(function (s) { h("th", null, hr, s); }); h("th", null, hr, "M23");
+    stepCharts.forEach(function (c) {
+      [["own", c.own, c.ownSe], ["gt", c.gt, c.gtSe]].forEach(function (a, k) {
+        var tr = h("tr", null, t);
+        h("th", "row", tr, c.t + " · " + a[0]);
+        a[1].forEach(function (v, i) { h("td", null, tr, v == null ? "–" : c.fmt(v) + (a[2] && a[2][i] != null ? " ± " + c.fmt(a[2][i]) : "")); });
+        h("td", null, tr, k === 0 && c.ref != null ? c.fmt(c.ref) : "");
+      });
+    });
+  })();
+
+  // ---- 2. 3-minute videos over time
+  var colors = { "M23": "var(--ref)", "own 750": "var(--o750)", "own 1500": "var(--o1500)", "own 1750": "var(--o1750)", "own 2000": "var(--o2000)", "gt 2000": "var(--gt)" };
+  var tSeries = D.curves3.series.map(function (s) { return { name: s.name, color: colors[s.name], dash: s.name === "M23" ? "5 4" : null, src: s }; });
+  var timeHost = document.getElementById("time");
+  var timeCharts = [
+    { t: "动作视频（6 个场景平均）", u: "背景 PSNR，dB", key: "action", x: D.curves3.t, xt: [0, 60, 120, 180], xf: function (v) { return v + " s"; }, tip: function (v) { return (v - 5) + "–" + (v + 5) + " s"; } },
+    { t: "legacy 动作视频", u: "背景 PSNR，dB", key: "legacy", x: D.curves3.t, xt: [0, 60, 120, 180], xf: function (v) { return v + " s"; }, tip: function (v) { return (v - 5) + "–" + (v + 5) + " s"; } },
+    { t: "相机回访（6 个场景平均）", u: "背景 PSNR，dB", key: "returns", x: [1, 2, 3], xt: [1, 2, 3], xf: function (v) { return "第 " + v + " 分钟"; }, tip: function (v) { return "第 " + v + " 分钟回访"; } }
+  ];
+  timeCharts.forEach(function (c) { c.host = card(timeHost, c.t, c.u); });
+  function drawTime() {
+    timeCharts.forEach(function (c) {
+      lineChart(c.host, {
+        x: c.x, xDomain: c.key === "returns" ? [0.8, 3.2] : [0, 180], xTicks: c.xt, xFmt: c.xf, tipX: c.tip, fmt: f1, height: 200,
+        series: tSeries.map(function (s) { return { name: s.name, color: s.color, dash: s.dash, hidden: s.hidden, values: s.src[c.key] }; })
+      });
+    });
+  }
+  legend(document.getElementById("lg-time"), tSeries, true, drawTime);
+  onResize(drawTime);
+
+  // ---- 3. per-scene heat table
+  (function () {
+    var t = document.getElementById("tbl-scene"), T = D.scene_tail;
+    var hr = h("tr", null, t); h("th", "row", hr, "场景");
+    T.cols.forEach(function (c) { h("th", null, hr, c); });
+    var all = []; T.rows.forEach(function (r) { all = all.concat(r.v); });
+    var lo = Math.min.apply(null, all), hi = Math.max.apply(null, all);
+    T.rows.forEach(function (r) {
+      var tr = h("tr", null, t);
+      h("th", "row", tr, r.scene.replace("_", " "));
+      var mx = Math.max.apply(null, r.v);
+      r.v.forEach(function (v) {
+        var td = h("td", v === mx ? "best" : null, tr, v.toFixed(1));
+        var a = 0.06 + 0.84 * (v - lo) / (hi - lo);
+        td.style.background = "rgba(" + getComputedStyle(document.documentElement).getPropertyValue("--heat").trim() + "," + a.toFixed(3) + ")";
+        if (a > 0.62) td.style.color = "#fff";
+      });
+    });
+    var avg = h("tr", null, t); h("th", "row", avg, "平均");
+    T.cols.forEach(function (_, j) {
+      var v = T.rows.reduce(function (s, r) { return s + r.v[j]; }, 0) / T.rows.length;
+      h("td", null, avg, v.toFixed(1)).style.fontWeight = "600";
+    });
+  })();
+
+  // ---- 4. videos
+  (function () {
+    var vid = document.getElementById("vid"), rate = 2, pressed = null;
+    var names = { blue_room: "blue room", brick_village: "brick village", grassy_hill: "grassy hill", industrial_yard: "industrial yard", village_wall: "village wall", window_room: "window room", legacy: "legacy" };
+    var order = ["blue_room", "brick_village", "grassy_hill", "industrial_yard", "village_wall", "window_room", "legacy"];
+    function pick(b, src) {
+      if (pressed) pressed.setAttribute("aria-pressed", "false");
+      b.setAttribute("aria-pressed", "true"); pressed = b;
+      var t = vid.currentTime || 0, playing = !vid.paused;
+      vid.src = "media/" + src + ".mp4";
+      vid.addEventListener("loadedmetadata", function once() {
+        vid.removeEventListener("loadedmetadata", once);
+        vid.playbackRate = rate; vid.currentTime = t ? Math.min(t, vid.duration - 0.1) : 0.05;
+        if (playing) vid.play();
+      });
+    }
+    ["action", "camera"].forEach(function (kind) {
+      var host = document.getElementById("pk-" + kind);
+      order.forEach(function (sc) {
+        var b = h("button", null, host, names[sc]); b.type = "button"; b.setAttribute("aria-pressed", "false");
+        b.addEventListener("click", function () { pick(b, kind + "_" + sc); });
+        if (kind === "action" && sc === "blue_room") pick(b, "action_blue_room");
+      });
+    });
+    var bar = document.getElementById("vbar");
+    Array.prototype.forEach.call(bar.querySelectorAll("button[data-rate]"), function (b) {
+      b.addEventListener("click", function () {
+        rate = +b.dataset.rate; vid.playbackRate = rate;
+        bar.querySelectorAll("button[data-rate]").forEach(function (x) { x.setAttribute("aria-pressed", x === b ? "true" : "false"); });
+      });
+    });
+    Array.prototype.forEach.call(bar.querySelectorAll("button[data-t]"), function (b) {
+      b.addEventListener("click", function () { vid.currentTime = +b.dataset.t; });
+    });
+    var tm = document.getElementById("vtime");
+    function upd() { tm.textContent = (vid.currentTime || 0).toFixed(1) + " / " + (vid.duration ? vid.duration.toFixed(0) : "–") + " s"; }
+    vid.addEventListener("timeupdate", upd); vid.addEventListener("loadedmetadata", upd);
+    vid.addEventListener("ratechange", function () { if (vid.playbackRate !== rate) rate = vid.playbackRate; });
+  })();
+
+  // ---- 5. training curves
+  (function () {
+    var host = document.getElementById("train");
+    legend(document.getElementById("lg-train"), [{ name: "own", color: "var(--own)" }, { name: "gt", color: "var(--gt)" }], false);
+    [["critic_loss", "critic loss", null], ["generator_grad_norm", "生成器梯度范数", "第 200 步起"]].forEach(function (k) {
+      var c = card(host, k[1], k[2]);
+      var o = D.train.own[k[0]], g = D.train.gt[k[0]];
+      var xs = o.map(function (p) { return p[0]; });
+      var gm = {}; g.forEach(function (p) { gm[p[0]] = p[1]; });
+      onResize(function () {
+        lineChart(c, {
+          x: xs, xTicks: [500, 1000, 1500, 2000].filter(function (v) { return v >= xs[0]; }), tipX: function (s) { return "第 " + s + " 步"; },
+          fmt: function (v) { return v.toFixed(3); }, endLabels: true, height: 180,
+          series: [{ name: "own", color: "var(--own)", values: o.map(function (p) { return p[1]; }) },
+                   { name: "gt", color: "var(--gt)", values: xs.map(function (s) { return gm[s] != null ? gm[s] : null; }) }]
+        });
+      });
+    });
+  })();
+})();
+</script>
+</body>
+</html>
