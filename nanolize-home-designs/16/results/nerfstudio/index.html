@@ -12,7 +12,7 @@
 <style>:root{padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}img{max-width:100%}[hidden]{display:none!important}</style>
 <style>
 /* A result page: one repository's verification in full. The frame is this file (top bar, foot, script); the page's
-   own content is src/results/<name>/body.html. dev/versions.py puts in, in this order: the homepage's whole
+   own content is src/results/<name>/body.html, and the links in the top bar are its sections (meta.json, "nav"). dev/versions.py puts in, in this order: the homepage's whole
    stylesheet (src/base.html, with the type design's tokens and font files), the first version's colours, then
    src/results/results.css. So a rule changed on the homepage changes here too. */
 /* Type: the tokens of the type design, put here from design/type.css when the page is built, and its three
@@ -402,6 +402,18 @@ button{font:inherit;color:inherit}
 .figs .btn{justify-self:start;gap:8px}
 .figs .btn svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;transition:transform .2s}
 .figs .btn:hover svg{transform:translateX(3px)}
+/* A repository whose standard is figures, not pictures (llm-awq): in the left half the two implementations' figures
+   side by side, the original's in grey and the nano's in green, then what was found identical between the two. */
+.board{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+.board th,.board td{padding:11px 0;border-bottom:1px solid var(--line-2);text-align:right;font-family:var(--mono);font-weight:var(--w-medium);font-size:var(--text-3);line-height:1.35;letter-spacing:var(--tracking-small);color:var(--ink-2);white-space:nowrap}
+.board thead th{padding:0 0 8px;font-size:var(--text-1);font-weight:var(--w-regular);letter-spacing:var(--tracking-wide);text-transform:uppercase;color:var(--ink-3)}
+.board tbody th{padding-right:16px;text-align:left;font-family:var(--sans);font-weight:var(--w-regular);font-size:var(--text-5);line-height:var(--leading-snug);letter-spacing:0;white-space:normal}
+.board td{width:5.8em}
+.same+.m{margin-top:4px}
+.board .n{color:var(--green)}
+.same li{display:flex;align-items:baseline;justify-content:space-between;gap:16px;padding:11px 0;border-bottom:1px solid var(--line-2);font-size:var(--text-5);line-height:var(--leading-snug);color:var(--ink-2)}
+.same li:last-child{border-bottom:0;padding-bottom:0}
+.same b{flex:none;font-family:var(--mono);font-weight:var(--w-medium);font-size:var(--text-3);letter-spacing:var(--tracking-small);color:var(--green);white-space:nowrap}
 @media (max-width:759px){
   .case{grid-template-columns:minmax(0,1fr)}
   .case>.rule{height:1px}
@@ -543,6 +555,41 @@ main code{font-family:var(--mono);font-size:.88em;letter-spacing:var(--tracking-
 }
 @media (max-width:399px){.caps td:nth-child(3) span::after{content:"groups"}}
 
+/* A plain table: a row for each thing, and in a cell the nano's figure over the original's (.v). On a phone a row is
+   a block and each cell a line of it: the column's name at the left (data-l), its figure at the right. .mt is a bar
+   of what is left, in a cell of its own (.mtc). */
+.rt{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+.rt th,.rt td{text-align:left;padding:14px 22px 14px 0;border-top:1px solid var(--line-2);vertical-align:middle}
+.rt th:last-child,.rt td:last-child{padding-right:0}
+.rt thead th{border-top:0;padding-bottom:8px;vertical-align:bottom;font-family:var(--mono);font-size:var(--text-2);font-weight:var(--w-regular);line-height:var(--leading-label);letter-spacing:var(--tracking-small);color:var(--ink-3)}
+.rt tbody th,.rt tfoot th{font-weight:var(--w-medium);line-height:var(--leading-snug)}
+.rt tbody th span{display:block;font-weight:var(--w-regular);font-size:var(--text-4);color:var(--ink-3)}
+.rt td{font-family:var(--mono);font-weight:var(--w-medium);font-size:var(--text-3);line-height:1.35;letter-spacing:var(--tracking-small);color:var(--ink)}
+.rt .v{display:grid;gap:3px;white-space:nowrap}
+.rt .v b{font-weight:inherit}
+.rt .v i{font-style:normal;color:var(--ink-3)}
+.rt .ok{color:var(--green)}
+.rt tfoot th,.rt tfoot td{border-top:1px solid rgba(var(--hi),.22)}
+.rt tfoot th{font-weight:var(--w-semibold)}
+.rt .mtc{width:28%}
+.mt{display:block;height:5px;border-radius:99px;background:rgba(var(--hi),.07)}
+.mt i{display:block;height:100%;width:var(--w);border-radius:99px;background:var(--green-f)}
+.sub-h+.scroll,.sub-h+.legend{margin-top:clamp(20px,2.6vw,30px)}
+@media (max-width:759px){
+  .rt,.rt tbody,.rt tfoot{display:block}
+  .rt thead{display:none}
+  .rt tr{display:block;padding:17px 0 15px;border-top:1px solid var(--line-2)}
+  .rt tbody tr:first-child{border-top:0}
+  .rt tfoot tr{border-top-color:rgba(var(--hi),.22)}
+  .rt th,.rt td{display:block;padding:0;border:0}
+  .rt td{display:flex;justify-content:space-between;align-items:baseline;gap:18px;margin-top:10px}
+  .rt td:empty{display:none}
+  .rt td::before{content:attr(data-l);flex:none;max-width:48%;font-weight:var(--w-regular);font-size:var(--text-2);color:var(--ink-3)}
+  .rt td .v{justify-items:end;white-space:normal;text-align:right}
+  .rt td.mtc{display:block;width:auto;margin-top:12px}
+  .rt td.mtc::before{content:none}
+}
+
 /* held-out views: for each method two views, each the ground truth, the original's render and the nano's */
 .views{display:grid;gap:clamp(24px,3vw,38px);max-width:1080px;margin:clamp(30px,4vw,52px) auto 0}
 .vset{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px clamp(18px,2.6vw,32px)}
@@ -587,7 +634,10 @@ figure{margin:0}
 .phases .bar i{flex:var(--min) 0 0;min-width:4px;border-radius:99px;background:var(--mute)}
 .phases .bar i.w{background:var(--green-f)}
 .phases .bar i.v{background:var(--green-2)}
+.phases .bar.draft{margin-top:4px}      /* a second job that ran beside the first: its bar under the main one, at its own minutes */
+.phases .bar b{flex:var(--min) 0 0}
 .phases ol{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));margin-top:6px}
+@media (min-width:900px){.phases ol.six{grid-template-columns:repeat(6,minmax(0,1fr))}}
 .phases li{padding:20px clamp(10px,1.6vw,20px) 0 0;color:var(--ink-2);font-size:var(--text-5)}
 .phases li+li{padding-left:clamp(10px,1.6vw,20px);border-left:1px solid var(--line)}
 .phases li b{display:flex;align-items:center;gap:8px;font-weight:var(--w-medium);font-size:var(--text-7);line-height:var(--leading-snug);letter-spacing:var(--tracking-tight);color:var(--ink)}

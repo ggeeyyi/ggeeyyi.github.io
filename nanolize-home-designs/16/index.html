@@ -398,6 +398,18 @@ button{font:inherit;color:inherit}
 .figs .btn{justify-self:start;gap:8px}
 .figs .btn svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;transition:transform .2s}
 .figs .btn:hover svg{transform:translateX(3px)}
+/* A repository whose standard is figures, not pictures (llm-awq): in the left half the two implementations' figures
+   side by side, the original's in grey and the nano's in green, then what was found identical between the two. */
+.board{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+.board th,.board td{padding:11px 0;border-bottom:1px solid var(--line-2);text-align:right;font-family:var(--mono);font-weight:var(--w-medium);font-size:var(--text-3);line-height:1.35;letter-spacing:var(--tracking-small);color:var(--ink-2);white-space:nowrap}
+.board thead th{padding:0 0 8px;font-size:var(--text-1);font-weight:var(--w-regular);letter-spacing:var(--tracking-wide);text-transform:uppercase;color:var(--ink-3)}
+.board tbody th{padding-right:16px;text-align:left;font-family:var(--sans);font-weight:var(--w-regular);font-size:var(--text-5);line-height:var(--leading-snug);letter-spacing:0;white-space:normal}
+.board td{width:5.8em}
+.same+.m{margin-top:4px}
+.board .n{color:var(--green)}
+.same li{display:flex;align-items:baseline;justify-content:space-between;gap:16px;padding:11px 0;border-bottom:1px solid var(--line-2);font-size:var(--text-5);line-height:var(--leading-snug);color:var(--ink-2)}
+.same li:last-child{border-bottom:0;padding-bottom:0}
+.same b{flex:none;font-family:var(--mono);font-weight:var(--w-medium);font-size:var(--text-3);letter-spacing:var(--tracking-small);color:var(--green);white-space:nowrap}
 @media (max-width:759px){
   .case{grid-template-columns:minmax(0,1fr)}
   .case>.rule{height:1px}
@@ -762,10 +774,10 @@ button{font:inherit;color:inherit}
       <div id="cases">
         <div class="tabs" role="tablist" aria-label="Repositories">
           <button type="button" role="tab" id="tab-nerfstudio" aria-controls="case-nerfstudio" aria-selected="true">nerfstudio</button>
+          <button type="button" role="tab" id="tab-llm-awq" aria-controls="case-llm-awq" aria-selected="false">llm-awq</button>
           <button type="button" role="tab" disabled>tqdm<small>soon</small></button>
           <button type="button" role="tab" disabled>detectron2<small>soon</small></button>
           <button type="button" role="tab" disabled>accelerate<small>soon</small></button>
-          <button type="button" role="tab" disabled>llm-awq<small>soon</small></button>
         </div>
         <article class="case" id="case-nerfstudio" role="tabpanel" aria-labelledby="tab-nerfstudio" data-reveal>
           <header>
@@ -802,6 +814,47 @@ button{font:inherit;color:inherit}
             <a class="btn gh sm" href="results/nerfstudio/">Full verification<svg viewBox="0 0 14 14" aria-hidden="true"><path d="M2 7h10M8 3l4 4-4 4"/></svg></a>
           </div>
         </article>
+        <!--case:llm-awq-->
+        <article class="case" id="case-llm-awq" role="tabpanel" aria-labelledby="tab-llm-awq" data-reveal hidden>
+          <header>
+            <div><h3>llm-awq</h3><span class="m">4-bit quantization for language models, with TinyChat</span></div>
+            <p class="std"><span class="m">accepted on</span>Runs real weights as fast, and quantizes to the same model</p>
+          </header>
+          <div class="shots">
+            <p class="m">DeepSeek-R1-Distill-Llama-8B: perplexity on WikiText-2, quantized by each</p>
+            <table class="board">
+              <thead><tr><th></th><th scope="col">original</th><th scope="col" class="n">nano</th></tr></thead>
+              <tbody>
+                <tr><th scope="row">16-bit, as released</th><td>13.1283</td><td class="n">13.1283</td></tr>
+                <tr><th scope="row">4-bit, rounded to nearest</th><td>14.4281</td><td class="n">14.4281</td></tr>
+                <tr><th scope="row">4-bit, AWQ</th><td>13.8372</td><td class="n">13.8372</td></tr>
+                <tr><th scope="row">4-bit AWQ, packed, on the CUDA kernels</th><td>13.8369</td><td class="n">13.8369</td></tr>
+              </tbody>
+            </table>
+            <ul class="same">
+              <li><span>AWQ search result, tensor by tensor</span><b>256 / 256 identical</b></li>
+              <li><span>4-bit checkpoint, 5.4 GiB, tensor by tensor</span><b>739 / 739 identical</b></li>
+              <li><span>The same on OPT-1.3B and Qwen2.5-1.5B</span><b>3 / 3 models</b></li>
+            </ul>
+            <p class="m">The original was run twice and agrees with itself to the last digit.</p>
+          </div>
+          <div class="rule"></div>
+          <div class="figs">
+            <p class="big"><b class="num">−48.8<small>%</small></b><span class="m">tokens of the code open to rewriting</span></p>
+            <div class="sz">
+              <div class="o"><span class="k">original</span><span class="track" style="--w:100%"><i></i></span><b>136,902 tokens</b></div>
+              <div class="nano"><span class="k">nano</span><span class="track" style="--w:51.15%"><i></i></span><b>70,032 tokens</b></div>
+            </div>
+            <ul class="gate">
+              <li><span>Capabilities kept, the CUDA extension as it is</span><b>9 / 9</b></li>
+              <li><span>Behavior check groups pass</span><b>30 / 30</b></li>
+              <li><span>Checks with real weights on a GPU, and installation steps</span><b>2 / 2, 3 / 3</b></li>
+              <li><span>Speed and memory criteria within 20% of the original, RTX 5090</span><b>12 / 12</b></li>
+            </ul>
+            <a class="btn gh sm" href="results/llm-awq/">Full verification<svg viewBox="0 0 14 14" aria-hidden="true"><path d="M2 7h10M8 3l4 4-4 4"/></svg></a>
+          </div>
+        </article>
+        <!--/case:llm-awq-->
       </div>
     </div>
   </section>
