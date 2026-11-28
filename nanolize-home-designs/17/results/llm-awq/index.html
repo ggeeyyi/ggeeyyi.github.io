@@ -373,18 +373,39 @@ button{font:inherit;color:inherit}
 .figs .btn{justify-self:start;gap:8px}
 .figs .btn svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;transition:transform .2s}
 .figs .btn:hover svg{transform:translateX(3px)}
-/* A repository whose standard is figures, not pictures (llm-awq): in the left half the two implementations' figures
-   side by side, the original's in grey and the nano's in green, then what was found identical between the two. */
-.board{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
-.board th,.board td{padding:11px 0;border-bottom:1px solid var(--line-2);text-align:right;font-family:var(--mono);font-weight:var(--w-medium);font-size:var(--text-3);line-height:1.35;letter-spacing:var(--tracking-small);color:var(--ink-2);white-space:nowrap}
-.board thead th{padding:0 0 8px;font-size:var(--text-1);font-weight:var(--w-regular);letter-spacing:var(--tracking-wide);text-transform:uppercase;color:var(--ink-3)}
-.board tbody th{padding-right:16px;text-align:left;font-family:var(--sans);font-weight:var(--w-regular);font-size:var(--text-5);line-height:var(--leading-snug);letter-spacing:0;white-space:normal}
-.board td{width:5.8em}
-.same+.m{margin-top:4px}
-.board .n{color:var(--green)}
-.same li{display:flex;align-items:baseline;justify-content:space-between;gap:16px;padding:11px 0;border-bottom:1px solid var(--line-2);font-size:var(--text-5);line-height:var(--leading-snug);color:var(--ink-2)}
-.same li:last-child{border-bottom:0;padding-bottom:0}
-.same b{flex:none;font-family:var(--mono);font-weight:var(--w-medium);font-size:var(--text-3);letter-spacing:var(--tracking-small);color:var(--green);white-space:nowrap}
+/* A repository whose standard is figures, not pictures (llm-awq): the left half draws them (design 17).
+   .ppx is an axis of perplexity: at each mark the original's ring and, inside it, the nano's dot, since the two figures
+   are the same. .dotm is a field of dots, one for every tensor that was compared, all green: its two blocks are the
+   full rows and the last, shorter one, and the dots are a pattern, not elements. .spd is pairs of bars, the nano's
+   over the original's. The key above says which is which. */
+.viz{gap:12px}
+.viz .key{display:flex;gap:18px}
+.viz .key span{display:inline-flex;align-items:center;gap:7px}
+.viz .ring,.viz .dot{width:10px;height:10px;border-radius:50%}
+.viz .ring{box-shadow:inset 0 0 0 1.5px var(--ink-3)}
+.viz .dot{background:var(--green-f)}
+.viz>.m+.ppx,.viz>.m+.dotm,.viz>.m+.spd{margin-top:2px}
+.viz>div+.m{margin-top:12px;padding-top:16px;border-top:1px solid var(--line-2)}
+.ppx{position:relative;height:74px;margin-inline:6px}
+.ppx::before{content:"";position:absolute;left:-6px;right:-6px;top:11px;height:1px;background:var(--line)}
+.pt{position:absolute;left:var(--x);top:0;transform:translateX(-50%);display:grid;justify-items:center;white-space:nowrap}
+.pt i{display:grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--bg);box-shadow:inset 0 0 0 1.5px var(--ink-3)}
+.pt i::after{content:"";width:10px;height:10px;border-radius:50%;background:var(--green-f);transition:transform .5s cubic-bezier(.3,1.5,.5,1) .3s}
+.js [data-reveal]:not(.in) .pt i::after{transform:scale(0)}
+.pt b{margin-top:8px;font-family:var(--mono);font-weight:var(--w-medium);font-size:var(--text-3);line-height:1.35;letter-spacing:var(--tracking-small);color:var(--ink);font-variant-numeric:tabular-nums}
+.pt span{font-family:var(--mono);font-size:var(--text-1);line-height:var(--leading-label);letter-spacing:var(--tracking-micro);color:var(--ink-3)}
+.dotm{--p:min(6px,100cqw/74);display:grid;width:calc(74*var(--p));transition:clip-path 1.5s cubic-bezier(.2,.7,.15,1) .2s;clip-path:inset(0)}
+.dotm i{display:block;background:radial-gradient(circle,var(--green-f) 0 calc(var(--p)*.27),transparent calc(var(--p)*.31)) 0 0/var(--p) var(--p)}
+.js [data-reveal]:not(.in) .dotm{clip-path:inset(0 100% 0 0)}
+.spd{display:grid;gap:9px}
+.spd div{display:grid;grid-template-columns:8.6em minmax(0,1fr) 5.2em;align-items:center;column-gap:12px;white-space:nowrap}
+.spd .k{font-size:var(--text-5);color:var(--ink-2)}
+.spd .bars{display:grid;gap:3px}
+.spd .bars i{display:block;height:4px;width:var(--w);border-radius:99px;background:var(--green-f)}
+.spd .bars i+i{background:var(--mute)}
+.spd b{font-family:var(--mono);font-weight:var(--w-medium);font-size:var(--text-3);letter-spacing:var(--tracking-small);text-align:right;color:var(--green);font-variant-numeric:tabular-nums}
+.spd em{font-style:normal;color:var(--ink-3);margin-left:.7em}
+@container (max-width:469px){.spd div{grid-template-columns:7.2em minmax(0,1fr) 4.9em;column-gap:10px}}
 @media (max-width:759px){
   .case{grid-template-columns:minmax(0,1fr)}
   .case>.rule{height:1px}
@@ -482,7 +503,7 @@ button{font:inherit;color:inherit}
   .ticker .run{flex-wrap:wrap;width:auto} .ticker .dup{display:none}
   .toolwall{-webkit-mask-image:none;mask-image:none;padding-inline:clamp(18px,2.6vw,30px)} .toolwall .tagc{padding-inline:0}
   .toolwall{grid-template-rows:none} .trow .run,.trow ul{flex-wrap:wrap;width:auto;gap:8px 0} .trow .dup,.trow li:nth-child(n+6){display:none}
-  .track i,.reel-in,.vt-cur,.trow li,.roles svg{transition:none}
+  .track i,.reel-in,.vt-cur,.trow li,.roles svg,.dotm,.pt i::after{transition:none}
 }
 /* ---------- display type: the claim, the section heads, the statement and the big figures are set in the serif,
    the way the type design sets display text: one optical size (24) at every size, and a little more weight (430) ---------- */

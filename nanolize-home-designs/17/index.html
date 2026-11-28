@@ -369,18 +369,39 @@ button{font:inherit;color:inherit}
 .figs .btn{justify-self:start;gap:8px}
 .figs .btn svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;transition:transform .2s}
 .figs .btn:hover svg{transform:translateX(3px)}
-/* A repository whose standard is figures, not pictures (llm-awq): in the left half the two implementations' figures
-   side by side, the original's in grey and the nano's in green, then what was found identical between the two. */
-.board{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
-.board th,.board td{padding:11px 0;border-bottom:1px solid var(--line-2);text-align:right;font-family:var(--mono);font-weight:var(--w-medium);font-size:var(--text-3);line-height:1.35;letter-spacing:var(--tracking-small);color:var(--ink-2);white-space:nowrap}
-.board thead th{padding:0 0 8px;font-size:var(--text-1);font-weight:var(--w-regular);letter-spacing:var(--tracking-wide);text-transform:uppercase;color:var(--ink-3)}
-.board tbody th{padding-right:16px;text-align:left;font-family:var(--sans);font-weight:var(--w-regular);font-size:var(--text-5);line-height:var(--leading-snug);letter-spacing:0;white-space:normal}
-.board td{width:5.8em}
-.same+.m{margin-top:4px}
-.board .n{color:var(--green)}
-.same li{display:flex;align-items:baseline;justify-content:space-between;gap:16px;padding:11px 0;border-bottom:1px solid var(--line-2);font-size:var(--text-5);line-height:var(--leading-snug);color:var(--ink-2)}
-.same li:last-child{border-bottom:0;padding-bottom:0}
-.same b{flex:none;font-family:var(--mono);font-weight:var(--w-medium);font-size:var(--text-3);letter-spacing:var(--tracking-small);color:var(--green);white-space:nowrap}
+/* A repository whose standard is figures, not pictures (llm-awq): the left half draws them (design 17).
+   .ppx is an axis of perplexity: at each mark the original's ring and, inside it, the nano's dot, since the two figures
+   are the same. .dotm is a field of dots, one for every tensor that was compared, all green: its two blocks are the
+   full rows and the last, shorter one, and the dots are a pattern, not elements. .spd is pairs of bars, the nano's
+   over the original's. The key above says which is which. */
+.viz{gap:12px}
+.viz .key{display:flex;gap:18px}
+.viz .key span{display:inline-flex;align-items:center;gap:7px}
+.viz .ring,.viz .dot{width:10px;height:10px;border-radius:50%}
+.viz .ring{box-shadow:inset 0 0 0 1.5px var(--ink-3)}
+.viz .dot{background:var(--green-f)}
+.viz>.m+.ppx,.viz>.m+.dotm,.viz>.m+.spd{margin-top:2px}
+.viz>div+.m{margin-top:12px;padding-top:16px;border-top:1px solid var(--line-2)}
+.ppx{position:relative;height:74px;margin-inline:6px}
+.ppx::before{content:"";position:absolute;left:-6px;right:-6px;top:11px;height:1px;background:var(--line)}
+.pt{position:absolute;left:var(--x);top:0;transform:translateX(-50%);display:grid;justify-items:center;white-space:nowrap}
+.pt i{display:grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--bg);box-shadow:inset 0 0 0 1.5px var(--ink-3)}
+.pt i::after{content:"";width:10px;height:10px;border-radius:50%;background:var(--green-f);transition:transform .5s cubic-bezier(.3,1.5,.5,1) .3s}
+.js [data-reveal]:not(.in) .pt i::after{transform:scale(0)}
+.pt b{margin-top:8px;font-family:var(--mono);font-weight:var(--w-medium);font-size:var(--text-3);line-height:1.35;letter-spacing:var(--tracking-small);color:var(--ink);font-variant-numeric:tabular-nums}
+.pt span{font-family:var(--mono);font-size:var(--text-1);line-height:var(--leading-label);letter-spacing:var(--tracking-micro);color:var(--ink-3)}
+.dotm{--p:min(6px,100cqw/74);display:grid;width:calc(74*var(--p));transition:clip-path 1.5s cubic-bezier(.2,.7,.15,1) .2s;clip-path:inset(0)}
+.dotm i{display:block;background:radial-gradient(circle,var(--green-f) 0 calc(var(--p)*.27),transparent calc(var(--p)*.31)) 0 0/var(--p) var(--p)}
+.js [data-reveal]:not(.in) .dotm{clip-path:inset(0 100% 0 0)}
+.spd{display:grid;gap:9px}
+.spd div{display:grid;grid-template-columns:8.6em minmax(0,1fr) 5.2em;align-items:center;column-gap:12px;white-space:nowrap}
+.spd .k{font-size:var(--text-5);color:var(--ink-2)}
+.spd .bars{display:grid;gap:3px}
+.spd .bars i{display:block;height:4px;width:var(--w);border-radius:99px;background:var(--green-f)}
+.spd .bars i+i{background:var(--mute)}
+.spd b{font-family:var(--mono);font-weight:var(--w-medium);font-size:var(--text-3);letter-spacing:var(--tracking-small);text-align:right;color:var(--green);font-variant-numeric:tabular-nums}
+.spd em{font-style:normal;color:var(--ink-3);margin-left:.7em}
+@container (max-width:469px){.spd div{grid-template-columns:7.2em minmax(0,1fr) 4.9em;column-gap:10px}}
 @media (max-width:759px){
   .case{grid-template-columns:minmax(0,1fr)}
   .case>.rule{height:1px}
@@ -478,7 +499,7 @@ button{font:inherit;color:inherit}
   .ticker .run{flex-wrap:wrap;width:auto} .ticker .dup{display:none}
   .toolwall{-webkit-mask-image:none;mask-image:none;padding-inline:clamp(18px,2.6vw,30px)} .toolwall .tagc{padding-inline:0}
   .toolwall{grid-template-rows:none} .trow .run,.trow ul{flex-wrap:wrap;width:auto;gap:8px 0} .trow .dup,.trow li:nth-child(n+6){display:none}
-  .track i,.reel-in,.vt-cur,.trow li,.roles svg{transition:none}
+  .track i,.reel-in,.vt-cur,.trow li,.roles svg,.dotm,.pt i::after{transition:none}
 }
 /* ---------- display type: the claim, the section heads, the statement and the big figures are set in the serif,
    the way the type design sets display text: one optical size (24) at every size, and a little more weight (430) ---------- */
@@ -777,23 +798,18 @@ button{font:inherit;color:inherit}
             <div><h3>llm-awq</h3><span class="m">4-bit quantization for language models, with TinyChat</span></div>
             <p class="std"><span class="m">accepted on</span>Runs real weights as fast, and quantizes to the same model</p>
           </header>
-          <div class="shots">
-            <p class="m">DeepSeek-R1-Distill-Llama-8B: perplexity on WikiText-2, quantized by each</p>
-            <table class="board">
-              <thead><tr><th></th><th scope="col">original</th><th scope="col" class="n">nano</th></tr></thead>
-              <tbody>
-                <tr><th scope="row">16-bit, as released</th><td>13.1283</td><td class="n">13.1283</td></tr>
-                <tr><th scope="row">4-bit, rounded to nearest</th><td>14.4281</td><td class="n">14.4281</td></tr>
-                <tr><th scope="row">4-bit, AWQ</th><td>13.8372</td><td class="n">13.8372</td></tr>
-                <tr><th scope="row">4-bit AWQ, packed, on the CUDA kernels</th><td>13.8369</td><td class="n">13.8369</td></tr>
-              </tbody>
-            </table>
-            <ul class="same">
-              <li><span>AWQ search result, tensor by tensor</span><b>256 / 256 identical</b></li>
-              <li><span>4-bit checkpoint, 5.4 GiB, tensor by tensor</span><b>739 / 739 identical</b></li>
-              <li><span>The same on OPT-1.3B and Qwen2.5-1.5B</span><b>3 / 3 models</b></li>
-            </ul>
-            <p class="m">The original was run twice and agrees with itself to the last digit.</p>
+          <div class="shots viz">
+            <p class="m key"><span><i class="ring"></i>original</span><span><i class="dot"></i>nano</span></p>
+            <p class="m">The same perplexity: an 8B model quantized by each, lower is better</p>
+            <div class="ppx" role="img" aria-label="Perplexity of DeepSeek-R1-Distill-Llama-8B on WikiText-2, quantized by the original code and by the nano code: 13.13 in 16 bits, 13.84 at 4 bits with AWQ, 14.43 at 4 bits rounded to nearest. The nano code's figure is the original's in each, to the last digit."><span class="pt" style="--x:14.6%"><i></i><b>13.13</b><span>16-bit</span></span><span class="pt" style="--x:52.0%"><i></i><b>13.84</b><span>4-bit AWQ</span></span><span class="pt" style="--x:83.1%"><i></i><b>14.43</b><span>4-bit rounded</span></span></div>
+            <p class="m">The same weights: 739 tensors of its 4-bit checkpoint, 2.9 billion values, 0 differ</p>
+            <div class="dotm" role="img" aria-label="739 dots, one for each tensor of the 4-bit checkpoint, all green: every tensor is identical between the original code and the nano code."><i style="height:calc(9*var(--p))"></i><i style="width:calc(73*var(--p));height:var(--p)"></i></div>
+            <p class="m">As fast: tokens decoded per second, RTX 5090</p>
+            <div class="spd" role="img" aria-label="Decoding speed in tokens per second, nano against original: Text 253 against 253; NVILA, an image 276 against 276; NVILA, a video 300 against 314.">
+              <div><span class="k">Text, 128 tokens</span><span class="bars"><i style="--w:77.4%"></i><i style="--w:77.4%"></i></span><b>253<em>253</em></b></div>
+              <div><span class="k">NVILA, image</span><span class="bars"><i style="--w:84.3%"></i><i style="--w:84.3%"></i></span><b>276<em>276</em></b></div>
+              <div><span class="k">NVILA, video</span><span class="bars"><i style="--w:91.9%"></i><i style="--w:96.2%"></i></span><b>300<em>314</em></b></div>
+            </div>
           </div>
           <div class="rule"></div>
           <div class="figs">
@@ -803,10 +819,10 @@ button{font:inherit;color:inherit}
               <div class="nano"><span class="k">nano</span><span class="track" style="--w:51.15%"><i></i></span><b>70,032 tokens</b></div>
             </div>
             <ul class="gate">
-              <li><span>Capabilities kept, the CUDA extension as it is</span><b>9 / 9</b></li>
+              <li><span>Models quantized to identical weights</span><b>3 / 3</b></li>
               <li><span>Behavior check groups pass</span><b>30 / 30</b></li>
-              <li><span>Checks with real weights on a GPU, and installation steps</span><b>2 / 2, 3 / 3</b></li>
-              <li><span>Speed and memory criteria within 20% of the original, RTX 5090</span><b>12 / 12</b></li>
+              <li><span>Speed and memory criteria within 20% of the original</span><b>12 / 12</b></li>
+              <li><span>Capabilities kept, the CUDA extension as it is</span><b>9 / 9</b></li>
             </ul>
             <a class="btn gh sm" href="results/llm-awq/">Full verification<svg viewBox="0 0 14 14" aria-hidden="true"><path d="M2 7h10M8 3l4 4-4 4"/></svg></a>
           </div>
