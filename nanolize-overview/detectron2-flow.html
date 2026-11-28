@@ -8118,6 +8118,15 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
      crowded sky, as the tree's own lines are). Both are well under what a "selected" capability shows, so the
      kept tree still reads as the tree. */
   const GHOST = {size: .85, least: 1.9, ring: .5, line: .12};
+  /* The rest: what a selection left out of a run's tree stands round the kept tree as specks of the original's
+     white, and goes out as the tree turns green (the homepage's design 14). A speck waits for the kept capability
+     nearest to it that has nothing kept under it (its tip): once that one is written (dark green, green or red),
+     the speck loses its light evenly and grows smaller, and is gone for as long as its tip stays so. a, size: a
+     speck's light and its radius in a kept capability's, before it goes; out: the seconds it takes to go out;
+     small: the share of its size it has left when it is out; wait: the specks of one tip go one after another,
+     the nearest first, the last one this many seconds after the first. */
+  const REST = {a: .4, size: .5, out: 2.6, small: .5, wait: 1.2};
+  const WRITTEN = {wrote: true, pass: true, fail: true};
   const FAINT = .16;      // how much is left of a capability the page does not point at, while it points at others
   const RADIUS = [2.5, 3.5, 6], DUSTS = 190;          // a leaf, a group, the root (px at the usual scale); background specks
   const GLOW = [36, 46, 56], TINY = 20, TINY_TILT = 16;   // the widest glow of each, px (a lone star is not a floodlight); up to where a tree is tiny, and how much higher the camera stands over a handful (degrees)
@@ -8325,6 +8334,8 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
     const progress = rec => geo.dur > 0 ? ease(clamp((T - geo.t0 - rec.lag) / geo.dur, 0, 1)) : 1;
     const whole = () => geo.dur > 0 ? ease(clamp((T - geo.t0) / geo.dur, 0, 1)) : 1;
     const mixOf = rec => ease(clamp((T - rec.lt) / rec.ld, 0, 1));
+    // How far a speck of the rest has gone out: 0 alight, 1 out; evenly from where it was (d0) since its turn came (dt).
+    const darkOf = rec => rec.dir ? clamp(rec.d0 + rec.dir * Math.max(0, T - rec.dt) / REST.out, 0, 1) : rec.d0;
 
     // Where a capability that is not kept stands as dust: out past where it stood in the whole cloud.
     function dustPlace(full, id, into) {
@@ -8332,6 +8343,27 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
       if (p) { const out = 1.25 + .5 * r(); into[WX] = p[0] / ext * out; into[WY] = p[1] / ext * out + (r() - .5) * .2; into[WZ] = p[2] / ext * out; return; }
       const a = r() * TAU, far = 1.2 + .6 * r();
       into[WX] = Math.cos(a) * far; into[WY] = (r() - .5) * .8; into[WZ] = Math.sin(a) * far;
+    }
+    /* What each speck of the rest waits for: id -> [its tip, its turn]. The tip is the kept capability with
+       nothing kept under it that stands nearest to where the speck stands as dust (the places the page shows, so
+       the white goes where the green comes); the turn is its rank among the specks of that tip by that
+       distance, from 0 (the nearest) up to 1. */
+    function tipsOf(t, full, lay, keep, kin) {
+      const ext = lay.extent > 0 ? lay.extent : 1, tips = [], lots = bare(), out = bare(), at = new Float32Array(CHANNELS);
+      for (const id of kin.ids) { const p = lay.pos[id]; if (p && !kin.kids[id].length) tips.push([id, p[0] / ext, p[1] / ext, p[2] / ext]); }
+      if (!tips.length) return out;
+      for (const node of t.nodes) {
+        if (keep.has(node.id)) continue;
+        dustPlace(full, node.id, at);
+        let best = null, least = Infinity;
+        for (const tip of tips) { const far = Math.hypot(at[WX] - tip[1], at[WY] - tip[2], at[WZ] - tip[3]); if (far < least) { least = far; best = tip[0]; } }
+        (lots[best] = lots[best] || []).push([node.id, least]);
+      }
+      for (const tip of tips) {
+        const lot = (lots[tip[0]] || []).sort((a, b) => a[1] - b[1]);
+        lot.forEach((one, i) => { out[one[0]] = [tip[0], lot.length > 1 ? i / (lot.length - 1) : 0]; });
+      }
+      return out;
     }
     // The small stars of one capability as the layout places them, relative to it, the first `count` of them.
     function shell(rec, lay, id, count) {
@@ -8494,13 +8526,15 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
       scrollMax = three ? scrollMax : Math.max(0, flatTall - Math.max(0, H - pad.top - pad.bottom));
       scroll = clamp(scroll, 0, scrollMax);
       const share = three ? quota(t, keep, opt.cap) : null, ext = shape.lay.extent > 0 ? shape.lay.extent : 1, next = [];
+      // In a run's tree in space, what each capability that was left out waits for before it goes out (see REST).
+      const waits = three && keep && scene.states ? cached("rest", treeKey + "\n" + keptKey, () => tipsOf(t, full, shape.lay, keep, kin)) : null;
       const leavesAll = t.root != null && t.byId[t.root] ? t.byId[t.root].weight : 1;
       for (const node of t.nodes) {
         const id = node.id;
         let rec = recOf[id];
         const fresh = !rec;
         if (fresh) rec = recOf[id] = {id, v0: new Float32Array(CHANNELS), v1: new Float32Array(CHANNELS), so0: new Float32Array(0), so1: new Float32Array(0), n0: 0, n1: 0,
-          lookA: "", lookB: "", lt: -1e9, ld: LOOK_DUR, gap0: 0, gap1: 0, live0: 0, live1: 0, beat: (seedOf(id) % 628) / 100, name: 0, tw: -1, form: 0, rest: 0, old: null, hub: false, falls: false, heft: 1, vx: 0, vy: 0, gd: 0, x: 0, y: 0, r: 0, room: 0, via: null, gh: 0, mark: 0};
+          lookA: "", lookB: "", lt: -1e9, ld: LOOK_DUR, gap0: 0, gap1: 0, live0: 0, live1: 0, beat: (seedOf(id) % 628) / 100, name: 0, tw: -1, form: 0, rest: 0, old: null, hub: false, falls: false, heft: 1, vx: 0, vy: 0, gd: 0, x: 0, y: 0, r: 0, room: 0, via: null, gh: 0, mark: 0, by: null, wait: 0, d0: 0, d1: 0, dir: 0, dt: -1e9, dark: 0};
         rec.node = node; rec.kind = id === t.root ? 2 : node.leaf ? 0 : 1; rec.gone = false; rec.fresh = fresh;
         // Its line to its parent: bowed a little, always the same way; as broad as what hangs from it (a twig, a limb,
         // a bough, the trunk); and a twig among very many is fainter, so two hundred of them are not a fan of light.
@@ -8523,6 +8557,8 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
           v1[IN] = p ? 1 : 0; v1[GH] = !p && q && qa ? 1 : 0;
           rec.up = kin.up[id] == null ? null : kin.up[id];
           rec.via = !p && node.parent != null && t.byId[node.parent] ? node.parent : null;      // where a ghost's hairline goes: its parent in the tree
+          const due = !p && waits ? waits[id] : null;
+          rec.by = due ? due[0] : null; rec.wait = due ? due[1] * REST.wait : 0;
         } else {
           if (fresh) { const q = shape.lay.pos[id]; if (q) { v1[WX] = q[0] / ext; v1[WY] = q[1] / ext; v1[WZ] = q[2] / ext; } else dustPlace(full, id, v1); }
           let at = flat.pos[id], seat = node;
@@ -8600,8 +8636,19 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
         }
         return known[id] = failed ? "fail" : least || "dim";
       };
+      const kept = s ? keptSet() : null;
       for (const rec of recs) {
         if (rec.gone) continue;
+        /* The rest: a capability the selection left out goes out once its tip is written, and is alight again
+           when that is taken back (a record read anew, a replay stepped back). It starts when its turn among
+           the specks of its tip comes; a scene shown at once shows it as it ends. */
+        const goal = kept && !kept.has(rec.id) && rec.by != null && WRITTEN[shows(rec.by)] === true ? 1 : 0;
+        if (goal !== rec.d1 || ((quick || rec.fresh) && rec.dir)) {
+          const now = darkOf(rec);
+          rec.d1 = goal;
+          if (quick || rec.fresh) { rec.d0 = goal; rec.dir = 0; }
+          else { rec.d0 = now; rec.dir = goal ? 1 : -1; rec.dt = T + (goal ? rec.wait : 0); }
+        }
         const entry = stateOf(rec.id), state = s ? shows(rec.id) : "";
         const look = !s ? (choosing ? (scene.keep.has(rec.id) ? "picked" : "unpicked") : "cloud") : state === "out" ? "dim" : state;
         const gap = s && entry && entry.gap ? 1 : 0, live = s && entry && entry.live ? 1 : 0;
@@ -8618,7 +8665,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
     }
     // Ends every move at once: what is shown is the scene last set.
     function settle() {
-      for (const rec of recs) { rec.v0.set(rec.v1); rec.so0.set(rec.so1.subarray(0, rec.so0.length)); rec.n0 = rec.n1; rec.lag = 0; rec.lt = -1e9; if (rec.gone) delete recOf[rec.id]; }
+      for (const rec of recs) { rec.v0.set(rec.v1); rec.so0.set(rec.so1.subarray(0, rec.so0.length)); rec.n0 = rec.n1; rec.lag = 0; rec.lt = -1e9; rec.d0 = rec.d1; rec.dir = 0; if (rec.gone) delete recOf[rec.id]; }
       recs = recs.filter(rec => !rec.gone); order = recs.slice();
       fit0 = fit1; m0 = m1; geo = {t0: T, dur: 0}; cam.dur = 0;
       refresh();
@@ -8680,6 +8727,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
         const inn = v0[IN] + (v1[IN] - v0[IN]) * e, sh = v0[SH] + (v1[SH] - v0[SH]) * e, life = v0[LIFE] + (v1[LIFE] - v0[LIFE]) * e;
         const gh = (v0[GH] + (v1[GH] - v0[GH]) * e) * (1 - inn) * deep;      // how much of a ghost it is: only what is not kept, only in space
         rec.e = e; rec.cx = xr; rec.cy = yt; rec.cz = zt; rec.px = px; rec.py = py; rec.k = k; rec.inn = inn; rec.gh = gh;
+        rec.dark = darkOf(rec) * (1 - inn);      // how far a speck of the rest has gone out (what is kept never does)
         rec.x = px + (ox + v0[FX] + (v1[FX] - v0[FX]) * e - px) * m; rec.y = py + (oy + v0[FY] + (v1[FY] - v0[FY]) * e - py) * m;
         rec.vx = zr * S * k * drift - driftX * glided; rec.vy = -xr * st * S * k * drift - driftY * glided;      // how fast the turning carries it across the stage, px a second
         /* Where the page points at some capabilities (emphasize: the ones a count under the bar counts), every other
@@ -8689,7 +8737,7 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
         rec.vis = life * (1 - m * (1 - sh)) * rec.em;
         rec.near = clamp(.5 + zt * .5, 0, 1);
         rec.b = 1 + (depthOf(rec.near) - 1) * deep;                     // by its distance alone (a look shows a part of it): far, half as bright; near, a fifth brighter
-        rec.r = Math.max(GHOST.least * gh, RADIUS[rec.kind] * unit * (1 + (k - 1) * SIZE) * lerp(.38 + .62 * inn, GHOST.size, gh));
+        rec.r = Math.max(GHOST.least * gh, RADIUS[rec.kind] * unit * (1 + (k - 1) * SIZE) * lerp(lerp(REST.size, 1, inn), GHOST.size, gh));
         rec.shown = !rec.gone && rec.vis > .5 && (v1[IN] > .5 ? inn > .5 : v1[GH] > .5 && gh > .5);      // part of the picture: kept, or a ghost
         rec.off = lensed && (rec.x < -24 || rec.x > W + 24 || rec.y < -24 || rec.y > H + 24);      // a magnified view leaves some of it off the canvas
         rec.mix = mixOf(rec);
@@ -8806,7 +8854,8 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
           const weight = side ? rec.mix : 1 - rec.mix, name = side ? rec.lookB : rec.lookA, look = LOOKS[name];
           if (weight < .01 || !look) continue;
           const spot = name === "pass" && rec.kind === 2 ? "crown" : look.spot;
-          const alpha = lerp(.24, look.a * shade(look, rec.b), rec.inn) * rec.vis * weight * (1 + live * (.5 * beat - .2)) * (1 - rec.gh), wide = half * lerp(.6, look.g, rec.inn) * (1 + live * .18 * beat);
+          // (a speck of the rest that goes out loses its light evenly and grows smaller, as a star that falls back from the eye)
+          const alpha = lerp(REST.a, look.a * shade(look, rec.b), rec.inn) * rec.vis * weight * (1 + live * (.5 * beat - .2)) * (1 - rec.gh) * (1 - rec.dark), wide = half * lerp(.6, look.g, rec.inn) * (1 + live * .18 * beat) * lerp(1, REST.small, rec.dark);
           stamp(spot, rec.x, rec.y, wide, alpha);
           if (rec.kind && rec.inn > .5) stamp(spot, rec.x, rec.y, wide * .5, alpha * .7);       // a group and the root have a fuller heart
           else if (rec.inn > .5) stamp(spot, rec.x, rec.y, rec.r * HEART[0], alpha * HEART[1] * deep, true);     // and a leaf, in space, a firm one: the one point of its tuft that is no small star
@@ -9198,12 +9247,14 @@ window.NANOLIZE_DEMO = {"scenarios":[{"id":"detectron2-flow","title":"detectron2
       /* Where each capability was drawn in the frame last drawn, CSS px from the canvas's corner: its middle, its
          radius, whether it is part of the picture (shown), whether it is on the canvas (inside), in the flat
          tree how much room its name has to its right (w), and the look it is dressed in (a name of LOOKS; "out"
-         for a ghost). In a magnified view the places are the magnified ones, and some lie off the canvas. */
+         for a ghost), and how much of its light it has (light: 1, but for a capability the selection left out
+         that goes out as the tree turns green: down to 0). In a magnified view the places are the magnified
+         ones, and some lie off the canvas. */
       places() {
         const out = bare();
         for (const rec of recs) {
           if (rec.gone) continue;
-          out[rec.id] = {x: rec.x, y: rec.y, r: rec.r, shown: !!rec.shown, inside: rec.x >= 0 && rec.x <= W && rec.y >= 0 && rec.y <= H, w: m1 ? rec.room : 0, look: rec.v1[GH] > .5 ? "out" : rec.lookB};
+          out[rec.id] = {x: rec.x, y: rec.y, r: rec.r, shown: !!rec.shown, inside: rec.x >= 0 && rec.x <= W && rec.y >= 0 && rec.y <= H, w: m1 ? rec.room : 0, look: rec.v1[GH] > .5 ? "out" : rec.lookB, light: 1 - rec.dark};
         }
         return out;
       },
