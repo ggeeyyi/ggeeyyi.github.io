@@ -94,6 +94,54 @@ summary { cursor: pointer; color: var(--text-2); font-size: 13.5px; }
 .vbar button[aria-pressed="true"] { border-color: var(--text); font-weight: 600; }
 .vbar .time { font-variant-numeric: tabular-nums; margin-left: auto; }
 footer { margin-top: 60px; color: var(--text-3); font-size: 12.5px; }
+:root { --d-gt: #d6d6d1; --d-genl: #cfe2fa; --d-gen: #6aabf1; --d-mem: #6a4ce2; --d-memf: #e7e1fc; --d-hatch: #9a9a95; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --d-gt: #4a4a47; --d-genl: #22344d; --d-gen: #2f6fb8; --d-mem: #9887ef; --d-memf: #352c5a; --d-hatch: #77776f; } }
+:root[data-theme="dark"] { --d-gt: #4a4a47; --d-genl: #22344d; --d-gen: #2f6fb8; --d-mem: #9887ef; --d-memf: #352c5a; --d-hatch: #77776f; }
+details.method { border-top: 1px solid var(--line); margin: 0; }
+details.method:last-of-type { border-bottom: 1px solid var(--line); }
+details.method > summary { list-style: none; cursor: pointer; padding: 14px 0; font-size: 16px; font-weight: 600; color: var(--text); display: flex; align-items: baseline; gap: 10px; }
+details.method > summary::-webkit-details-marker { display: none; }
+details.method > summary::before { content: "▸"; color: var(--text-3); width: 12px; transition: transform .15s; display: inline-block; }
+details.method[open] > summary::before { transform: rotate(90deg); }
+details.method > summary small { font-weight: 400; font-size: 13px; color: var(--text-3); }
+.mbody { padding: 0 0 22px 22px; }
+.mbody p { margin: 6px 0 10px; }
+.diagram { overflow-x: auto; margin: 8px 0 4px; }
+.diagram svg { display: block; width: 100%; min-width: 760px; height: auto; }
+.diagram text { fill: var(--text); font-size: 12px; font-family: inherit; }
+.diagram text.n { font-size: 11px; text-anchor: middle; }
+.diagram text.s { fill: var(--text-2); font-size: 11.5px; }
+.diagram text.b { font-weight: 600; }
+.diagram .gtc { fill: var(--d-gt); }
+.diagram .genl { fill: var(--d-genl); }
+.diagram .gen { fill: var(--d-gen); }
+.diagram .memf { fill: var(--d-memf); stroke: var(--d-mem); stroke-width: 1.5; }
+.diagram .noisy { stroke: var(--d-hatch); stroke-width: 1; }
+.diagram .box { fill: var(--panel); stroke: var(--line); stroke-width: 1.5; }
+.diagram .ring { fill: none; stroke: var(--d-mem); stroke-width: 2.5; }
+.diagram .br { fill: none; stroke: var(--text-3); stroke-width: 1.2; }
+.diagram .arrow { fill: none; stroke: var(--d-mem); stroke-width: 1.8; }
+.diagram .arc { fill: none; stroke: var(--d-mem); stroke-width: 1.3; stroke-dasharray: 4 3; }
+#dmd-fig[data-mode="own"] .m-gt, #dmd-fig[data-mode="gt"] .m-own { display: none; }
+.fig-cap { font-size: 13px; color: var(--text-2); margin: 2px 0 12px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; margin: 4px 0 6px; }
+.seg button { font: inherit; font-size: 13.5px; padding: 5px 14px; border: 0; background: var(--bg); color: var(--text-2); cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--text); color: var(--bg); font-weight: 600; }
+.mode-note { font-size: 14px; margin: 4px 0 14px; padding: 8px 12px; border-left: 3px solid var(--d-mem); background: var(--panel); border-radius: 0 6px 6px 0; }
+.flow { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 22px; margin: 10px 0 14px; }
+.flow > div { position: relative; background: var(--panel); border-radius: 10px; padding: 10px 12px; font-size: 13px; line-height: 1.6; }
+.flow > div + div::before { content: "→"; position: absolute; left: -18px; top: 50%; transform: translateY(-50%); color: var(--text-3); font-size: 15px; }
+.flow h4 { margin: 0 0 4px; font-size: 13.5px; }
+.flow .tag { display: block; color: var(--text-3); font-size: 12px; margin-bottom: 4px; }
+.flow ul { margin: 0; padding-left: 1.1em; color: var(--text-2); }
+table.set { border-collapse: collapse; border-spacing: 0; font-size: 13px; margin: 6px 0 8px; width: 100%; }
+table.set th, table.set td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--line); vertical-align: top; border-radius: 0; min-width: 0; }
+table.set th { color: var(--text-2); font-weight: 600; white-space: nowrap; }
+table.set td { color: var(--text); }
+table.set thead th { color: var(--text); }
+@media (max-width: 760px) { .flow { grid-template-columns: 1fr; gap: 20px; } .flow > div + div::before { content: "↓"; left: 50%; top: -18px; transform: translateX(-50%); } .mbody { padding-left: 0; } }
+
 @media (max-width: 640px) { h1 { font-size: 23px; } dl.defs { grid-template-columns: 1fr; } dl.defs dd { margin-bottom: 6px; } .vlabels span { font-size: 10px; margin: 3px; padding: 0 4px; } }
 </style>
 </head>
@@ -116,6 +164,86 @@ footer { margin-top: 60px; color: var(--text-3); font-size: 12.5px; }
   <dt>caption effect</dt><dd>Qwen3.8-27B 判定的动作成功率：描述含该动作 − 去掉该动作，176 对，越高越好。</dd>
   <dt>测试集</dt><dd>6 个场景与 1 组 legacy 序列，各有动作视频和相机视频，种子 0。M23 用 50 步 + CFG 3，学生用 4 步、无 CFG。</dd>
 </dl>
+
+
+<h2>训练方法</h2>
+
+<details class="method">
+<summary>学生模型 M23 的训练<small>1.3B，因果生成，3 个阶段</small></summary>
+<div class="mbody">
+<div class="flow">
+  <div><span class="tag">起点</span><h4>Wan2.1-T2V-1.3B</h4><ul><li>双向注意力的文本生成视频模型</li></ul></div>
+  <div><span class="tag">阶段 1 · 20000 步</span><h4>因果预训练</h4><ul>
+    <li>分块因果生成：每块 3 个 latent，首帧单独一块</li>
+    <li>加入 RayPE 相机控制与逐 latent 动作描述</li>
+    <li>teacher forcing；lr 1×10⁻⁵，批量 32</li></ul></div>
+  <div><span class="tag">阶段 2 · 8000 步</span><h4>记忆训练</h4><ul>
+    <li>冻结的 MemEncoder 由 6 个源 latent 渲染当前 3 个视角（memory3）</li>
+    <li>每个样本都带记忆：先以 resampling 生成 latent 1–15 作为上下文，记忆从中渲染，再在 13 槽窗口中训练 latent 16–18</li>
+    <li>30,294 个片段；64 卡，批量 64，lr 1×10⁻⁵</li></ul></div>
+  <div><span class="tag">阶段 3 · 2000 步</span><h4>M23：闭环 + 误差回收</h4><ul>
+    <li>闭环：从 latent 7 起各块都在记忆窗口中生成，记忆来自模型自己的输出</li>
+    <li>误差回收：以 0.5 概率把训练中存下的 x0 误差注入 latent 1–15</li>
+    <li>从阶段 2 EMA 8000 开始；16 卡</li></ul></div>
+</div>
+<p class="fig-cap">13 槽记忆窗口（推理时每块都用）：全局 sink（latent 0–3）｜memory3（MemEncoder 渲染的当前视角）｜最近 3 个 latent｜当前 3 个。推理时记忆源为 t−1 加 5 个与当前视角重叠最大的历史 latent，全部来自生成帧；M23 用 50 步 UniPC + CFG 3。</p>
+<p class="fig-cap">阶段 3 的作用：legacy 1 分钟动作视频 50–60 s 背景 PSNR 由 18.3 dB（阶段 2 EMA 8000）升至 28.6 dB（M23，3 个种子平均）。</p>
+</div>
+</details>
+
+<details class="method">
+<summary>教师模型的训练<small>14B，双向注意力，2 个阶段</small></summary>
+<div class="mbody">
+<div class="diagram"><svg viewBox="0 0 1000 236" role="img" aria-label="14B 教师的输入序列"><defs><pattern id="hatch-t" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" style="stroke:var(--d-hatch)" stroke-width="1.6"/></pattern><marker id="ar-t" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--d-mem)"/></marker></defs><text x="500" y="14" text-anchor="middle" class="s">记忆行使用目标槽位的 RoPE 时间位置、相机与动作描述</text><path class="arc" d="M866.0,68 Q546.0,-4 226.0,68"/><path class="arc" d="M904.0,68 Q660.0,12 416.0,68"/><path class="arc" d="M942.0,68 Q774.0,28 606.0,68"/><path class="arc" d="M980.0,68 Q888.0,44 796.0,68"/><rect x="96" y="70" width="32" height="32" rx="4" class="gtc"/><text class="n" x="112.0" y="90.0">0</text><rect x="134" y="70" width="32" height="32" rx="4" class="noisy" fill="url(#hatch-t)"/><text class="n" x="150.0" y="90.0">1</text><rect x="172" y="70" width="32" height="32" rx="4" class="noisy" fill="url(#hatch-t)"/><text class="n" x="188.0" y="90.0">2</text><rect x="210" y="70" width="32" height="32" rx="4" class="noisy" fill="url(#hatch-t)"/><text class="n" x="226.0" y="90.0">3</text><rect x="248" y="70" width="32" height="32" rx="4" class="noisy" fill="url(#hatch-t)"/><text class="n" x="264.0" y="90.0">4</text><rect x="286" y="70" width="32" height="32" rx="4" class="noisy" fill="url(#hatch-t)"/><text class="n" x="302.0" y="90.0">5</text><rect x="324" y="70" width="32" height="32" rx="4" class="noisy" fill="url(#hatch-t)"/><text class="n" x="340.0" y="90.0">6</text><rect x="362" y="70" width="32" height="32" rx="4" class="noisy" fill="url(#hatch-t)"/><text class="n" x="378.0" y="90.0">7</text><rect x="400" y="70" width="32" height="32" rx="4" class="noisy" fill="url(#hatch-t)"/><text class="n" x="416.0" y="90.0">8</text><rect x="438" y="70" width="32" height="32" rx="4" class="noisy" fill="url(#hatch-t)"/><text class="n" x="454.0" y="90.0">9</text><rect x="476" y="70" width="32" height="32" rx="4" class="noisy" fill="url(#hatch-t)"/><text class="n" x="492.0" y="90.0">10</text><rect x="514" y="70" width="32" height="32" rx="4" class="noisy" fill="url(#hatch-t)"/><text class="n" x="530.0" y="90.0">11</text><rect x="552" y="70" width="32" height="32" rx="4" class="noisy" fill="url(#hatch-t)"/><text class="n" x="568.0" y="90.0">12</text><rect x="590" y="70" width="32" height="32" rx="4" class="noisy" fill="url(#hatch-t)"/><text class="n" x="606.0" y="90.0">13</text><rect x="628" y="70" width="32" height="32" rx="4" class="noisy" fill="url(#hatch-t)"/><text class="n" x="644.0" y="90.0">14</text><rect x="666" y="70" width="32" height="32" rx="4" class="noisy" fill="url(#hatch-t)"/><text class="n" x="682.0" y="90.0">15</text><rect x="704" y="70" width="32" height="32" rx="4" class="noisy" fill="url(#hatch-t)"/><text class="n" x="720.0" y="90.0">16</text><rect x="742" y="70" width="32" height="32" rx="4" class="noisy" fill="url(#hatch-t)"/><text class="n" x="758.0" y="90.0">17</text><rect x="780" y="70" width="32" height="32" rx="4" class="noisy" fill="url(#hatch-t)"/><text class="n" x="796.0" y="90.0">18</text><rect x="850" y="70" width="32" height="32" rx="4" class="memf"/><text class="n" x="866.0" y="90.0">3</text><rect x="888" y="70" width="32" height="32" rx="4" class="memf"/><text class="n" x="904.0" y="90.0">8</text><rect x="926" y="70" width="32" height="32" rx="4" class="memf"/><text class="n" x="942.0" y="90.0">13</text><rect x="964" y="70" width="32" height="32" rx="4" class="memf"/><text class="n" x="980.0" y="90.0">18</text><path class="br" d="M96,110 V116 H128 V110"/><text class="s" x="112.0" y="132" text-anchor="middle">干净首帧</text><path class="br" d="M134,110 V116 H812 V110"/><text class="s" x="473.0" y="132" text-anchor="middle">latent 1–18：同一时间步 t 加噪，计 flow matching 损失</text><path class="br" d="M850,110 V116 H996 V110"/><text class="s" x="923.0" y="132" text-anchor="middle">记忆行</text><rect class="box" x="640" y="160" width="300" height="66" rx="8"/><text x="790" y="182" text-anchor="middle" class="b">教师 MemEncoder（冻结，仅第二阶段）</text><text x="790" y="200" text-anchor="middle" class="s">8 个源 latent → 4 个视角（槽 3、8、13、18）</text><text x="790" y="217" text-anchor="middle" class="s">源：从片段 21 个真值 latent 中有放回均匀抽取</text><path class="arrow" d="M940,193 H966 V140" marker-end="url(#ar-t)"/></svg></div>
+<p class="fig-cap">输入序列为 19 个 latent（73 帧，480×832）。第二阶段在序列末尾加 4 个记忆行，DiT 不增加参数。教师的 MemEncoder（8 → 4）与学生的（6 → 3）是两个不同的模型。</p>
+<div class="tablewrap"><table class="set">
+<thead><tr><th></th><th>第一阶段 · 10000 步</th><th>第二阶段 · 7000 步</th></tr></thead>
+<tr><th>初始化</th><td>Wan2.1-T2V-14B（基座冻结）</td><td>第一阶段 EMA 10000</td></tr>
+<tr><th>可训练模块</th><td>LoRA r384（q、k、v、o、ffn）、RayPE 相机编码、动作模块，共 26.3 亿参数</td><td>同第一阶段</td></tr>
+<tr><th>记忆</th><td>无</td><td>4 个记忆行（t=0，不计损失）</td></tr>
+<tr><th>条件</th><td colspan="2">场景描述、逐 latent 的相机轨迹与动作描述；不用 CFG，不丢弃条件</td></tr>
+<tr><th>优化器</th><td colspan="2">AdamW β=(0.9, 0.95)，权重衰减 0.01，梯度裁剪 1.0，EMA 0.999</td></tr>
+<tr><th>学习率</th><td>1×10⁻⁴，第 8000–10000 步余弦衰减至 1×10⁻⁵</td><td>5×10⁻⁵，第 5000–7000 步余弦衰减至 5×10⁻⁶</td></tr>
+<tr><th>批量与设备</th><td>64（64 张 H20）</td><td>64（32 张 H200）</td></tr>
+<tr><th>数据</th><td colspan="2">36,070 个训练片段</td></tr>
+</table></div>
+<p class="fig-cap">第二阶段 EMA 7000（DMD 所用）：验证损失有记忆 0.1735、无记忆 0.1802，记忆收益 +6.8×10⁻³。</p>
+</div>
+</details>
+
+<h3 style="font-size:16px;margin:26px 0 4px">两种 DMD 训练方法</h3>
+<p>学生从 M23 EMA 2000 初始化，学习 4 步生成：14B 教师给出目标分布，14B critic 拟合学生当前的分布，两者在学生样本上的预测之差就是学生的更新方向（DMD，Self-Forcing 形式）。两种方法只有学生 memory3 的来源不同。</p>
+<div class="seg" role="group" aria-label="DMD 方法">
+  <button type="button" data-mode="own" aria-pressed="true">own：记忆来自生成帧</button>
+  <button type="button" data-mode="gt" aria-pressed="false">gt：记忆来自真值帧</button>
+</div>
+<div id="dmd-fig" data-mode="own">
+<div class="diagram"><svg id="dmd-svg" viewBox="0 0 960 292" role="img" aria-label="DMD 训练中学生 rollout 与记忆窗口"><defs><pattern id="hatch-d" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" style="stroke:var(--d-hatch)" stroke-width="1.6"/></pattern><marker id="ar-d" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--d-mem)"/></marker></defs><text x="98" y="53" text-anchor="end" class="b">真值 latent</text><text x="98" y="115" text-anchor="end" class="b">学生 rollout</text><rect x="110" y="30" width="36" height="36" rx="4" class="gtc"/><text class="n" x="128.0" y="52.0">0</text><rect x="110" y="92" width="36" height="36" rx="4" class="gtc"/><text class="n" x="128.0" y="114.0">0</text><rect x="154" y="30" width="36" height="36" rx="4" class="gtc"/><text class="n" x="172.0" y="52.0">1</text><rect x="154" y="92" width="36" height="36" rx="4" class="genl"/><text class="n" x="172.0" y="114.0">1</text><rect x="198" y="30" width="36" height="36" rx="4" class="gtc"/><text class="n" x="216.0" y="52.0">2</text><rect x="198" y="92" width="36" height="36" rx="4" class="genl"/><text class="n" x="216.0" y="114.0">2</text><rect x="242" y="30" width="36" height="36" rx="4" class="gtc"/><text class="n" x="260.0" y="52.0">3</text><rect x="242" y="92" width="36" height="36" rx="4" class="genl"/><text class="n" x="260.0" y="114.0">3</text><rect x="286" y="30" width="36" height="36" rx="4" class="gtc"/><text class="n" x="304.0" y="52.0">4</text><rect x="286" y="92" width="36" height="36" rx="4" class="genl"/><text class="n" x="304.0" y="114.0">4</text><rect x="330" y="30" width="36" height="36" rx="4" class="gtc"/><text class="n" x="348.0" y="52.0">5</text><rect x="330" y="92" width="36" height="36" rx="4" class="genl"/><text class="n" x="348.0" y="114.0">5</text><rect x="374" y="30" width="36" height="36" rx="4" class="gtc"/><text class="n" x="392.0" y="52.0">6</text><rect x="374" y="92" width="36" height="36" rx="4" class="genl"/><text class="n" x="392.0" y="114.0">6</text><rect x="418" y="30" width="36" height="36" rx="4" class="gtc"/><text class="n" x="436.0" y="52.0">7</text><rect x="418" y="92" width="36" height="36" rx="4" class="genl"/><text class="n" x="436.0" y="114.0">7</text><rect x="462" y="30" width="36" height="36" rx="4" class="gtc"/><text class="n" x="480.0" y="52.0">8</text><rect x="462" y="92" width="36" height="36" rx="4" class="genl"/><text class="n" x="480.0" y="114.0">8</text><rect x="506" y="30" width="36" height="36" rx="4" class="gtc"/><text class="n" x="524.0" y="52.0">9</text><rect x="506" y="92" width="36" height="36" rx="4" class="genl"/><text class="n" x="524.0" y="114.0">9</text><rect x="550" y="30" width="36" height="36" rx="4" class="gtc"/><text class="n" x="568.0" y="52.0">10</text><rect x="550" y="92" width="36" height="36" rx="4" class="genl"/><text class="n" x="568.0" y="114.0">10</text><rect x="594" y="30" width="36" height="36" rx="4" class="gtc"/><text class="n" x="612.0" y="52.0">11</text><rect x="594" y="92" width="36" height="36" rx="4" class="genl"/><text class="n" x="612.0" y="114.0">11</text><rect x="638" y="30" width="36" height="36" rx="4" class="gtc"/><text class="n" x="656.0" y="52.0">12</text><rect x="638" y="92" width="36" height="36" rx="4" class="genl"/><text class="n" x="656.0" y="114.0">12</text><rect x="682" y="30" width="36" height="36" rx="4" class="gtc"/><text class="n" x="700.0" y="52.0">13</text><rect x="682" y="92" width="36" height="36" rx="4" class="genl"/><text class="n" x="700.0" y="114.0">13</text><rect x="726" y="30" width="36" height="36" rx="4" class="gtc"/><text class="n" x="744.0" y="52.0">14</text><rect x="726" y="92" width="36" height="36" rx="4" class="genl"/><text class="n" x="744.0" y="114.0">14</text><rect x="770" y="30" width="36" height="36" rx="4" class="gtc"/><text class="n" x="788.0" y="52.0">15</text><rect x="770" y="92" width="36" height="36" rx="4" class="genl"/><text class="n" x="788.0" y="114.0">15</text><rect x="814" y="30" width="36" height="36" rx="4" class="gtc"/><text class="n" x="832.0" y="52.0">16</text><rect x="814" y="92" width="36" height="36" rx="4" class="gen"/><text class="n" x="832.0" y="114.0">16</text><rect x="858" y="30" width="36" height="36" rx="4" class="gtc"/><text class="n" x="876.0" y="52.0">17</text><rect x="858" y="92" width="36" height="36" rx="4" class="gen"/><text class="n" x="876.0" y="114.0">17</text><rect x="902" y="30" width="36" height="36" rx="4" class="gtc"/><text class="n" x="920.0" y="52.0">18</text><rect x="902" y="92" width="36" height="36" rx="4" class="gen"/><text class="n" x="920.0" y="114.0">18</text><rect class="ring m-gt" x="151" y="27" width="42" height="42" rx="6"/><rect class="ring m-own" x="151" y="89" width="42" height="42" rx="6"/><rect class="ring m-gt" x="283" y="27" width="42" height="42" rx="6"/><rect class="ring m-own" x="283" y="89" width="42" height="42" rx="6"/><rect class="ring m-gt" x="371" y="27" width="42" height="42" rx="6"/><rect class="ring m-own" x="371" y="89" width="42" height="42" rx="6"/><rect class="ring m-gt" x="503" y="27" width="42" height="42" rx="6"/><rect class="ring m-own" x="503" y="89" width="42" height="42" rx="6"/><rect class="ring m-gt" x="635" y="27" width="42" height="42" rx="6"/><rect class="ring m-own" x="635" y="89" width="42" height="42" rx="6"/><rect class="ring m-gt" x="767" y="27" width="42" height="42" rx="6"/><rect class="ring m-own" x="767" y="89" width="42" height="42" rx="6"/><path class="br" d="M154,134 V140 H806 V134"/><path class="br" d="M282,136 V140"/><path class="br" d="M414,136 V140"/><path class="br" d="M546,136 V140"/><path class="br" d="M678,136 V140"/><text class="s" x="480.0" y="156" text-anchor="middle">1–15：KV cache 逐块生成（每块 3 个 latent）</text><path class="br" d="M814,134 V140 H938 V134"/><text class="s" x="876.0" y="156" text-anchor="middle">16–18：在记忆窗口中生成</text><text x="110" y="186" class="b">latent 16–18 的记忆窗口（13 个槽）</text><rect x="110" y="196" width="36" height="36" rx="4" class="gtc"/><text class="n" x="128.0" y="218.0">0</text><rect x="150" y="196" width="36" height="36" rx="4" class="genl"/><text class="n" x="168.0" y="218.0">1</text><rect x="190" y="196" width="36" height="36" rx="4" class="genl"/><text class="n" x="208.0" y="218.0">2</text><rect x="230" y="196" width="36" height="36" rx="4" class="genl"/><text class="n" x="248.0" y="218.0">3</text><text class="s" x="188.0" y="251" text-anchor="middle">全局 sink</text><rect x="280" y="196" width="36" height="36" rx="4" class="memf"/><text class="n" x="298.0" y="218.0">16</text><rect x="320" y="196" width="36" height="36" rx="4" class="memf"/><text class="n" x="338.0" y="218.0">17</text><rect x="360" y="196" width="36" height="36" rx="4" class="memf"/><text class="n" x="378.0" y="218.0">18</text><text class="s" x="338.0" y="251" text-anchor="middle">memory3</text><rect x="410" y="196" width="36" height="36" rx="4" class="genl"/><text class="n" x="428.0" y="218.0">13</text><rect x="450" y="196" width="36" height="36" rx="4" class="genl"/><text class="n" x="468.0" y="218.0">14</text><rect x="490" y="196" width="36" height="36" rx="4" class="genl"/><text class="n" x="508.0" y="218.0">15</text><text class="s" x="468.0" y="251" text-anchor="middle">最近 3 个</text><rect x="540" y="196" width="36" height="36" rx="4" class="noisy" fill="url(#hatch-d)"/><text class="n" x="558.0" y="218.0">16</text><rect x="580" y="196" width="36" height="36" rx="4" class="noisy" fill="url(#hatch-d)"/><text class="n" x="598.0" y="218.0">17</text><rect x="620" y="196" width="36" height="36" rx="4" class="noisy" fill="url(#hatch-d)"/><text class="n" x="638.0" y="218.0">18</text><text class="s" x="598.0" y="251" text-anchor="middle">当前 3 个（加噪）</text><rect class="box" x="700" y="184" width="240" height="66" rx="8"/><text x="820" y="206" text-anchor="middle" class="b">学生 MemEncoder（冻结）</text><text x="820" y="224" text-anchor="middle" class="s">6 个源 latent → 3 个视角</text><text x="820" y="241" text-anchor="middle" class="s m-own">源：学生生成的 latent</text><text x="820" y="241" text-anchor="middle" class="s m-gt">源：片段的真值 latent</text><path class="arrow" d="M700,238 H682 V272 H300 V236" marker-end="url(#ar-d)"/><text class="s" x="491" y="288" text-anchor="middle">渲染 latent 16–18 的视角，填入 memory3</text></svg></div>
+<p class="mode-note m-own"><b>own</b>：MemEncoder 的 6 个源取自学生 rollout 生成的 latent（不回传梯度）。推理时记忆也来自生成帧，训练与推理一致。</p>
+<p class="mode-note m-gt"><b>gt</b>：MemEncoder 的 6 个源取自片段的真值 latent。推理时没有真值，记忆只能来自生成帧，训练与推理不一致。</p>
+</div>
+<p class="fig-cap">紫框为 MemEncoder 的 6 个源（latent 15 与 5 个更早的 latent，按片段预先选定；图中位置为示意）。每块用 4 步采样（t = 1000 → 937.5 → 833.3 → 625），每次训练随机选一步保留梯度，块与块之间不回传梯度。</p>
+<div class="flow">
+  <div><span class="tag">1 · 学生生成</span><h4>4 步 rollout</h4><ul><li>得到 latent 1–18（上图）</li></ul></div>
+  <div><span class="tag">2 · 加噪</span><h4>随机时间步 t</h4><ul><li>对 latent 1–18 加噪</li></ul></div>
+  <div><span class="tag">3 · 评分</span><h4>教师与 critic（14B）</h4><ul>
+    <li>教师：第二阶段 EMA 7000，冻结</li>
+    <li>critic：教师的副本，训练 LoRA、RayPE、动作模块</li>
+    <li>两者都带 4 个记忆行，由教师 MemEncoder 从 8 个真值 latent 渲染</li></ul></div>
+  <div><span class="tag">4 · 更新</span><h4>学生与 critic</h4><ul>
+    <li>学生：DMD 梯度 ∝ x0(critic) − x0(教师)，按样本归一化，作用于 latent 1–18</li>
+    <li>critic：在学生样本上做 flow matching</li>
+    <li>critic 每步更新，学生每 5 步更新一次</li></ul></div>
+</div>
+<div class="tablewrap"><table class="set">
+<thead><tr><th></th><th>own</th><th>gt</th></tr></thead>
+<tr><th>学生 memory3 的源</th><td>学生生成的 latent</td><td>片段的真值 latent</td></tr>
+<tr><th>初始化</th><td colspan="2">学生 M23 EMA 2000；教师与 critic 为 14B 第二阶段 EMA 7000</td></tr>
+<tr><th>采样</th><td colspan="2">4 步，无 CFG</td></tr>
+<tr><th>优化器</th><td colspan="2">学生 lr 5×10⁻⁶，critic 1×10⁻⁶；AdamW β=(0, 0.999)，权重衰减 0.01，梯度裁剪 10</td></tr>
+<tr><th>步数</th><td colspan="2">2000 步（学生更新 400 次）；EMA 0.99，第 200 步起</td></tr>
+<tr><th>批量与设备</th><td colspan="2">32（32 张 H20，每卡 1 个片段），两组随机种子相同；每步约 88 s，共约 49 h</td></tr>
+</table></div>
 
 <h2>随训练步数</h2>
 <div class="legend" id="lg-steps"></div>
@@ -319,6 +447,18 @@ footer { margin-top: 60px; color: var(--text-3); font-size: 12.5px; }
   function onResize(fn) { renders.push(fn); fn(); }
   var rt;
   window.addEventListener("resize", function () { clearTimeout(rt); rt = setTimeout(function () { renders.forEach(function (f) { f(); }); }, 120); });
+
+  // ---- 0. DMD method toggle
+  (function () {
+    var fig = document.getElementById("dmd-fig");
+    var bs = document.querySelectorAll(".seg button[data-mode]");
+    Array.prototype.forEach.call(bs, function (b) {
+      b.addEventListener("click", function () {
+        fig.setAttribute("data-mode", b.dataset.mode);
+        Array.prototype.forEach.call(bs, function (x) { x.setAttribute("aria-pressed", x === b ? "true" : "false"); });
+      });
+    });
+  })();
 
   // ---- 1. metrics vs training step
   var S1 = D.steps1, S3 = D.steps3;
